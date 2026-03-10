@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.env
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# ML artifacts (large binaries - optional: remove next 2 lines if you want to include them)
+credit_backend/models_artifacts/*.pkl
+
+# Node
+credit_frontend/node_modules/
+credit_frontend/dist/
+credit_frontend/.vite/
+
+# OS
+.DS_Store
+Thumbs.db
