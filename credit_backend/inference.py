@@ -28,10 +28,23 @@ class CreditRiskInferenceService:
         self._load_artifacts()
 
     def _load_artifacts(self):
-        self.model = joblib.load(os.path.join(MODEL_DIR, 'risk_model.pkl'))
-        self.scaler = joblib.load(os.path.join(MODEL_DIR, 'scaler.pkl'))
-        with open(os.path.join(MODEL_DIR, 'model_metadata.json')) as f:
-            self.metadata = json.load(f)
+        model_path = os.path.join(MODEL_DIR, 'risk_model.pkl')
+        scaler_path = os.path.join(MODEL_DIR, 'scaler.pkl')
+        metadata_path = os.path.join(MODEL_DIR, 'model_metadata.json')
+
+        try:
+            self.model = joblib.load(model_path)
+            self.scaler = joblib.load(scaler_path)
+            with open(metadata_path) as f:
+                self.metadata = json.load(f)
+        except Exception as exc:
+            raise RuntimeError(
+                "Failed to load model artifacts. This usually means your local "
+                "numpy/scikit-learn versions do not match the versions used to "
+                "train/pickle the model. Reinstall dependencies from requirements.txt "
+                "and retrain artifacts with `python train_model.py` if needed. "
+                f"Original error: {exc}"
+            ) from exc
 
         self.features = self.metadata['features']
         self.num_features = self.metadata['num_features']

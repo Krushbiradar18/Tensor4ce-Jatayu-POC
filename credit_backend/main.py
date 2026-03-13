@@ -99,6 +99,7 @@ async def assess_credit_risk(application: LoanApplicationRequest):
     Fetches user profile by PAN, runs ML model, generates SHAP explanation,
     and provides LLM-powered narrative analysis.
     """
+    _t0 = time.perf_counter()
     state = credit_risk_graph.invoke({
         "pan_number": application.pan_number,
         "loan_amount": application.loan_amount,
@@ -118,6 +119,7 @@ async def assess_credit_risk(application: LoanApplicationRequest):
             "errors": result["validation_errors"]
         })
 
+    result["processing_time_ms"] = round((time.perf_counter() - _t0) * 1000, 2)
     return JSONResponse(content=result)
 
 
@@ -152,6 +154,7 @@ async def assess_with_documents(
                 "status": "received"
             })
 
+    _t0 = time.perf_counter()
     state = credit_risk_graph.invoke({
         "pan_number": pan_number,
         "loan_amount": loan_amount,
@@ -171,6 +174,7 @@ async def assess_with_documents(
             "errors": result["validation_errors"]
         })
 
+    result["processing_time_ms"] = round((time.perf_counter() - _t0) * 1000, 2)
     result["uploaded_documents"] = uploaded_docs
     return JSONResponse(content=result)
 

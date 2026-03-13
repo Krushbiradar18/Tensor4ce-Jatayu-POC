@@ -1,34 +1,34 @@
 """
 LangGraph Credit Risk Agent
 ============================
-State machine that orchestrates the credit risk assessment pipeline:
+State machine that orchestrates the credit risk assessment pipeline using
+the real LangGraph StateGraph with conditional edges:
 
   [START]
     │
     ▼
   fetch_user_profile    ← Fetch user data from DB by PAN
-    │
+    │ (error? → compile_result)
     ▼
-  validate_inputs       ← Validate all required fields are present
-    │
+  validate_inputs       ← Validate all required fields + DTI check
+    │ (errors? → compile_result)
     ▼
   run_ml_scoring        ← Run ML model + SHAP approximation
+    │ (error? → compile_result)
+    ▼
+  generate_explanation  ← Call Gemini LLM for human-readable explanation
     │
     ▼
-  generate_explanation  ← Call LLM for human-readable explanation
-    │
-    ▼
-  compile_result        ← Assemble final response
+  compile_result        ← Assemble final JSON response
     │
     ▼
   [END]
-
-Integrates with CrewAI as a tool/sub-agent.
 """
 
 from typing import TypedDict, Optional, Dict, Any, List
-import time
 import math
+
+from langgraph.graph import StateGraph, END
 
 from mock_db import get_user_by_pan
 from inference import inference_service
@@ -39,57 +39,58 @@ from llm_service import (
 )
 
 
-# ─── Agent State ────────────────────────────────────────────────────────────
+# ─── Agent State ─────────────────────────────────────────────────────────────
+# LangGraph uses this TypedDict as its state schema.  Each node receives the
+# full state and returns a *partial* dict containing only the keys it updates;
+# LangGraph merges those updates back into the shared state automatically.
 
 class AgentState(TypedDict):
-    # Inputs
+    # ── Inputs ────────────────────────────────────────────────────────────────
     pan_number: str
     loan_amount: float
     loan_type: str
     loan_tenure_months: int
     declared_monthly_income: Optional[float]
 
-    # Intermediate
+    # ── Intermediate ──────────────────────────────────────────────────────────
     user_profile: Optional[Dict[str, Any]]
     merged_data: Optional[Dict[str, Any]]
     validation_errors: List[str]
 
-    # ML outputs
+    # ── ML outputs ────────────────────────────────────────────────────────────
     ml_result: Optional[Dict[str, Any]]
     risk_factors: Optional[List[Dict]]
     positive_factors: Optional[List[Dict]]
 
-    # LLM outputs
+    # ── LLM outputs ───────────────────────────────────────────────────────────
     llm_explanation: str
     recommendation: str
 
-    # Final result
+    # ── Final ─────────────────────────────────────────────────────────────────
     final_result: Optional[Dict[str, Any]]
     error: Optional[str]
     processing_time_ms: float
 
 
 # ─── Node Functions ──────────────────────────────────────────────────────────
+# Each node receives the full AgentState and returns ONLY the keys it changes.
+# LangGraph merges those updates into the shared state via LastValue channels.
 
-def fetch_user_profile(state: AgentState) -> AgentState:
-    """Node 1: Fetch user financial profile from database."""
+def fetch_user_profile(state: AgentState) -> dict:
+    """Node 1: Fetch user financial profile from database by PAN."""
     pan = state["pan_number"].strip().upper()
     profile = get_user_by_pan(pan)
 
     if not profile:
-        state["error"] = f"User with PAN '{pan}' not found in database."
-        state["user_profile"] = None
-    else:
-        state["user_profile"] = profile
+        return {
+            "error": f"User with PAN '{pan}' not found in database.",
+            "user_profile": None,
+        }
+    return {"user_profile": profile}
 
-    return state
 
-
-def validate_inputs(state: AgentState) -> AgentState:
-    """Node 2: Validate all required fields are present and within range."""
-    if state.get("error"):
-        return state
-
+def validate_inputs(state: AgentState) -> dict:
+    """Node 2: Validate required fields, DTI feasibility, merge income override."""
     errors = []
     profile = state["user_profile"]
 
@@ -109,50 +110,40 @@ def validate_inputs(state: AgentState) -> AgentState:
     if income <= 0:
         errors.append("Monthly income must be positive.")
 
-    # Check DTI ratio feasibility
     tenure = state.get("loan_tenure_months", 12)
     if income > 0 and tenure > 0:
         estimated_emi = loan_amount / tenure
         dti = (estimated_emi / income) * 100
         if dti > 70:
-            errors.append(f"Debt-to-income ratio too high ({dti:.1f}%). Max recommended: 70%.")
+            errors.append(
+                f"Debt-to-income ratio too high ({dti:.1f}%). Max recommended: 70%."
+            )
 
-    state["validation_errors"] = errors
-
-    # Merge declared income override
     merged = dict(profile)
     if state.get("declared_monthly_income"):
         merged["NETMONTHLYINCOME"] = state["declared_monthly_income"]
-    state["merged_data"] = merged
 
-    return state
-
-
-def run_ml_scoring(state: AgentState) -> AgentState:
-    """Node 3: Run ML model and compute SHAP-style feature contributions."""
-    if state.get("error") or state.get("validation_errors"):
-        return state
-
-    data = state["merged_data"]
-    ml_result = inference_service.predict(data)
-    risk_factors, positive_factors = inference_service.get_top_factors(
-        ml_result["feature_contributions"], n=6
-    )
-
-    state["ml_result"] = ml_result
-    state["risk_factors"] = risk_factors
-    state["positive_factors"] = positive_factors
-
-    return state
+    return {"validation_errors": errors, "merged_data": merged}
 
 
-def generate_explanation(state: AgentState) -> AgentState:
-    """Node 4: Generate LLM explanation for the risk score."""
-    if state.get("error") or state.get("validation_errors"):
-        state["llm_explanation"] = ""
-        state["recommendation"] = ""
-        return state
+def run_ml_scoring(state: AgentState) -> dict:
+    """Node 3: Run RandomForest ML model + SHAP-approximated feature contributions."""
+    try:
+        ml_result = inference_service.predict(state["merged_data"])
+        risk_factors, positive_factors = inference_service.get_top_factors(
+            ml_result["feature_contributions"], n=6
+        )
+        return {
+            "ml_result": ml_result,
+            "risk_factors": risk_factors,
+            "positive_factors": positive_factors,
+        }
+    except Exception as exc:
+        return {"error": f"ML scoring failed: {exc}"}
 
+
+def generate_explanation(state: AgentState) -> dict:
+    """Node 4: Call Gemini LLM to produce a narrative credit risk explanation."""
     ml = state["ml_result"]
     profile = state["merged_data"]
 
@@ -173,28 +164,23 @@ def generate_explanation(state: AgentState) -> AgentState:
     llm_text = get_llm_explanation(prompt)
     recommendation = generate_recommendation(ml["risk_category"], ml["risk_score"])
 
-    state["llm_explanation"] = llm_text
-    state["recommendation"] = recommendation
-
-    return state
+    return {"llm_explanation": llm_text, "recommendation": recommendation}
 
 
-def compile_result(state: AgentState) -> AgentState:
-    """Node 5: Assemble the final structured response."""
+def compile_result(state: AgentState) -> dict:
+    """Node 5: Assemble the final structured JSON response."""
     if state.get("error"):
-        state["final_result"] = {"error": state["error"]}
-        return state
+        return {"final_result": {"error": state["error"]}}
 
     if state.get("validation_errors"):
-        state["final_result"] = {"validation_errors": state["validation_errors"]}
-        return state
+        return {"final_result": {"validation_errors": state["validation_errors"]}}
 
     ml = state["ml_result"]
     profile = state["merged_data"]
     loan_amount = state["loan_amount"]
     tenure = state["loan_tenure_months"]
 
-    # EMI estimate (simple flat-rate, ~10% annual)
+    # EMI at 10% annual compound interest
     monthly_rate = 0.10 / 12
     emi = (loan_amount * monthly_rate * (1 + monthly_rate) ** tenure) / \
           ((1 + monthly_rate) ** tenure - 1)
@@ -202,104 +188,124 @@ def compile_result(state: AgentState) -> AgentState:
     income = profile.get("NETMONTHLYINCOME", 1)
     dti = round((emi / income) * 100, 2) if income > 0 else 0.0
 
-    # Attach value to each factor
-    for factor in state["risk_factors"]:
+    # Attach actual profile value to each SHAP factor
+    risk_factors = state["risk_factors"]
+    positive_factors = state["positive_factors"]
+    for factor in risk_factors:
+        raw_feat = factor["feature"].lower().replace(" ", "_")
+        factor["value"] = profile.get(raw_feat, profile.get(raw_feat + "_enc", "N/A"))
+    for factor in positive_factors:
         raw_feat = factor["feature"].lower().replace(" ", "_")
         factor["value"] = profile.get(raw_feat, profile.get(raw_feat + "_enc", "N/A"))
 
-    for factor in state["positive_factors"]:
-        raw_feat = factor["feature"].lower().replace(" ", "_")
-        factor["value"] = profile.get(raw_feat, profile.get(raw_feat + "_enc", "N/A"))
+    return {
+        "final_result": {
+            # Core risk assessment
+            "risk_score": ml["risk_score"],
+            "risk_category": ml["risk_category"],
+            "approved_flag": ml["approved_flag"],
+            "confidence": ml["confidence"],
+            "class_probabilities": ml["class_probabilities"],
 
-    state["final_result"] = {
-        # Core
-        "risk_score": ml["risk_score"],
-        "risk_category": ml["risk_category"],
-        "approved_flag": ml["approved_flag"],
-        "confidence": ml["confidence"],
-        "class_probabilities": ml["class_probabilities"],
+            # Applicant identity
+            "applicant_name": profile.get("name", "N/A"),
+            "pan_number": state["pan_number"].upper(),
 
-        # Applicant
-        "applicant_name": profile.get("name", "N/A"),
-        "pan_number": state["pan_number"].upper(),
+            # Loan details
+            "loan_amount": loan_amount,
+            "loan_type": state["loan_type"],
+            "loan_tenure_months": tenure,
+            "emi_estimate": round(emi, 2),
 
-        # Loan
-        "loan_amount": loan_amount,
-        "loan_type": state["loan_type"],
-        "loan_tenure_months": tenure,
-        "emi_estimate": round(emi, 2),
+            # Explainability
+            "top_risk_factors": risk_factors,
+            "top_positive_factors": positive_factors,
+            "llm_explanation": state.get("llm_explanation", ""),
+            "recommendation": state.get("recommendation", ""),
 
-        # Explanation
-        "top_risk_factors": state["risk_factors"],
-        "top_positive_factors": state["positive_factors"],
-        "llm_explanation": state["llm_explanation"],
-        "recommendation": state["recommendation"],
-
-        # Metrics
-        "credit_score": profile.get("Credit_Score", 0),
-        "debt_to_income_ratio": dti,
-        "utilization_summary": {
-            "CC_utilization": profile.get("CC_utilization", 0),
-            "PL_utilization": profile.get("PL_utilization", 0),
-            "max_unsec_exposure_inPct": profile.get("max_unsec_exposure_inPct", 0),
-        },
-        "processing_time_ms": state.get("processing_time_ms", 0),
-    }
-
-    return state
-
-
-# ─── Graph Execution (LangGraph-style without the lib dependency) ─────────────
-
-class CreditRiskGraph:
-    """
-    Minimal LangGraph-compatible state machine.
-    Replace with actual langgraph.graph.StateGraph when langgraph is installed.
-    """
-
-    NODES = [
-        ("fetch_user_profile", fetch_user_profile),
-        ("validate_inputs", validate_inputs),
-        ("run_ml_scoring", run_ml_scoring),
-        ("generate_explanation", generate_explanation),
-        ("compile_result", compile_result),
-    ]
-
-    def invoke(self, initial_state: Dict[str, Any]) -> AgentState:
-        start = time.perf_counter()
-        state: AgentState = {
-            "pan_number": initial_state.get("pan_number", ""),
-            "loan_amount": initial_state.get("loan_amount", 0),
-            "loan_type": initial_state.get("loan_type", ""),
-            "loan_tenure_months": initial_state.get("loan_tenure_months", 12),
-            "declared_monthly_income": initial_state.get("declared_monthly_income"),
-            "user_profile": None,
-            "merged_data": None,
-            "validation_errors": [],
-            "ml_result": None,
-            "risk_factors": None,
-            "positive_factors": None,
-            "llm_explanation": "",
-            "recommendation": "",
-            "final_result": None,
-            "error": None,
+            # Financial metrics
+            "credit_score": profile.get("Credit_Score", 0),
+            "debt_to_income_ratio": dti,
+            "utilization_summary": {
+                "CC_utilization": profile.get("CC_utilization", 0),
+                "PL_utilization": profile.get("PL_utilization", 0),
+                "max_unsec_exposure_inPct": profile.get("max_unsec_exposure_inPct", 0),
+            },
+            # Populated by main.py after invoke() returns
             "processing_time_ms": 0,
         }
-
-        for node_name, node_fn in self.NODES:
-            try:
-                state = node_fn(state)
-            except Exception as e:
-                state["error"] = f"Agent error in node '{node_name}': {str(e)}"
-                state = compile_result(state)
-                break
-
-        state["processing_time_ms"] = round((time.perf_counter() - start) * 1000, 2)
-        if state.get("final_result"):
-            state["final_result"]["processing_time_ms"] = state["processing_time_ms"]
-
-        return state
+    }
 
 
-# Singleton graph instance
-credit_risk_graph = CreditRiskGraph()
+# ─── Routing / Conditional Edge Functions ────────────────────────────────────
+
+def _route_after_fetch(state: AgentState) -> str:
+    """If PAN lookup failed route directly to compile_result, else validate."""
+    return "compile_result" if state.get("error") else "validate_inputs"
+
+
+def _route_after_validate(state: AgentState) -> str:
+    """If validation produced errors route to compile_result, else run ML."""
+    return "compile_result" if state.get("validation_errors") else "run_ml_scoring"
+
+
+def _route_after_ml(state: AgentState) -> str:
+    """If ML scoring raised an exception route to compile_result, else explain."""
+    return "compile_result" if state.get("error") else "generate_explanation"
+
+
+# ─── Build & Compile LangGraph StateGraph ────────────────────────────────────
+
+def _build_graph():
+    """Construct the LangGraph StateGraph and return its compiled form."""
+    workflow = StateGraph(AgentState)
+
+    # Register nodes
+    workflow.add_node("fetch_user_profile", fetch_user_profile)
+    workflow.add_node("validate_inputs", validate_inputs)
+    workflow.add_node("run_ml_scoring", run_ml_scoring)
+    workflow.add_node("generate_explanation", generate_explanation)
+    workflow.add_node("compile_result", compile_result)
+
+    # Entry point
+    workflow.set_entry_point("fetch_user_profile")
+
+    # Conditional: PAN found?
+    workflow.add_conditional_edges(
+        "fetch_user_profile",
+        _route_after_fetch,
+        {
+            "validate_inputs": "validate_inputs",
+            "compile_result": "compile_result",
+        },
+    )
+
+    # Conditional: all fields valid + DTI OK?
+    workflow.add_conditional_edges(
+        "validate_inputs",
+        _route_after_validate,
+        {
+            "run_ml_scoring": "run_ml_scoring",
+            "compile_result": "compile_result",
+        },
+    )
+
+    # Conditional: ML succeeded?
+    workflow.add_conditional_edges(
+        "run_ml_scoring",
+        _route_after_ml,
+        {
+            "generate_explanation": "generate_explanation",
+            "compile_result": "compile_result",
+        },
+    )
+
+    # Linear tail: explanation → compile → END
+    workflow.add_edge("generate_explanation", "compile_result")
+    workflow.add_edge("compile_result", END)
+
+    return workflow.compile()
+
+
+# Singleton compiled graph — imported by main.py
+credit_risk_graph = _build_graph()

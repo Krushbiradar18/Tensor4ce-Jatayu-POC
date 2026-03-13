@@ -74,18 +74,18 @@ credit_risk_backend/
 
 ### 1. Install dependencies
 ```bash
-pip install -r requirements.txt
+conda run -n jatayu_vnev pip install -r requirements.txt
 ```
 
 ### 2. Set API key (optional, for LLM explanations)
 ```bash
-export ANTHROPIC_API_KEY=your_key_here
+set GEMINI_API_KEY=your_key_here
 ```
 
 ### 3. Run the server
 ```bash
-cd credit_risk_backend
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+cd credit_backend
+conda run -n jatayu_vnev uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ### 4. Test the API
