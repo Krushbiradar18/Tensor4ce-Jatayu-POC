@@ -252,22 +252,6 @@ On success, these endpoints both:
   "declared_monthly_income": null
 }
 ```
-
-## Notes for Developers
-
-- The backend no longer uses `mock_db.py`.
-- The canonical data path is now `db_repository.py`.
-- The frontend applications page reads users from `GET /db/users` and processed results from `GET /db/processed`.
-- After a submit action, the frontend now fetches only `GET /db/processed/{pan}` for the updated row.
-
-## Known Runtime Warnings
-
-You may still see scikit-learn pickle version warnings if the saved model artifacts were created with a slightly different sklearn version than the current environment.
-
-The safest options are:
-- align sklearn to the artifact version, or
-- retrain/regenerate model artifacts in the current environment
-
 ## Swagger Docs
 
 Open:
