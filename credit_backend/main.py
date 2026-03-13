@@ -31,6 +31,7 @@ from db_repository import (
     get_all_pans,
     list_all_users,
     create_user_profile,
+    get_processed_result_by_pan,
     upsert_processed_result,
     list_processed_results,
 )
@@ -109,6 +110,15 @@ async def get_all_processed_risk_results():
         "count": len(records),
         "processed": records,
     }
+
+
+@app.get("/db/processed/{pan}", tags=["Database"])
+async def get_processed_risk_result_by_pan(pan: str):
+    """Return persisted processed risk-assessment output for one PAN."""
+    record = get_processed_result_by_pan(pan)
+    if not record:
+        raise HTTPException(status_code=404, detail=f"No processed result found for PAN: {pan.upper()}")
+    return record
 
 
 @app.get("/user/{pan}", response_model=UserProfileResponse, tags=["User"])

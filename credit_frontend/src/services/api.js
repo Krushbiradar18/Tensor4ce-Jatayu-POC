@@ -80,6 +80,12 @@ export const apiService = {
     return response.data;
   },
 
+  // Get one processed risk result by PAN  →  GET /db/processed/{pan}
+  getProcessedResultByPan: async (pan) => {
+    const response = await api.get(`/db/processed/${pan.toUpperCase()}`);
+    return response.data;
+  },
+
   // Model info  →  GET /model/info
   getModelInfo: async () => {
     const response = await api.get('/model/info');

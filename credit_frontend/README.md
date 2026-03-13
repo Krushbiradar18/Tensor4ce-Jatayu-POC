@@ -1,244 +1,176 @@
-# Loan Credit Risk Assessment Dashboard
+# Jatayu Credit Risk Frontend
 
-A modern, clean admin dashboard UI for a Loan Credit Risk Assessment System built with React, Vite, TailwindCSS, and Axios. This fintech internal tool allows bankers to upload loan application PDFs, track processing status, and view credit risk assessments.
+## Overview
 
-## 🚀 Features
+This is the Vite + React frontend for the Jatayu credit risk assessment system.
 
-### ✨ Dashboard
-- **Drag-and-drop PDF upload** with file validation
-- **Real-time processing status** tracking with three stages:
-  - Document Parsing
-  - Credit Risk Analysis  
-  - Fraud Check
-- **Credit Score Card** display with:
-  - Credit score (0-850 scale)
-  - Risk category (Low/Medium/High)
-  - Recommendation (Approve/Reject/Conditional)
-  - Detailed analysis breakdown
+The application currently:
+- shows applicant rows from PostgreSQL-backed backend APIs
+- lets users submit credit risk assessments
+- displays persisted processed results from the backend database
+- renders detailed result panels and full report views
 
-### 📊 Application History
-- **Searchable table** of all previous applications
-- **Status filtering** (Completed/Processing/Failed)
-- **Export functionality** for individual or bulk reports
-- **Pagination** for large datasets
+The frontend no longer depends on mock frontend-only history data.
 
-### 🎨 Design
-- **Clean, minimal UI** designed for fintech professionals
-- **Responsive layout** that works on desktop and tablets
-- **Professional color scheme** with consistent branding
-- **Intuitive navigation** with sidebar layout
+## Stack
 
-## 🛠️ Technology Stack
+- React 18
+- Vite
+- React Router
+- Axios
+- TailwindCSS
+- Lucide React
 
-- **React 18** - Frontend framework
-- **Vite** - Build tool and development server
-- **TailwindCSS** - Utility-first CSS framework
-- **Axios** - HTTP client for API calls
-- **React Router** - Client-side routing
-- **React Dropzone** - File upload functionality
-- **Lucide React** - Modern icon library
+## Project Structure
 
-## 📁 Project Structure
-
-```
-src/
-├── components/          # Reusable UI components
-│   ├── Sidebar.jsx     # Navigation sidebar
-│   ├── FileUpload.jsx  # PDF upload component
-│   ├── ProcessingStatus.jsx  # Status tracking component
-│   └── CreditScoreCard.jsx   # Results display component
-├── pages/              # Page components
-│   ├── Dashboard.jsx   # Main dashboard page
-│   └── ApplicationHistory.jsx  # History table page
-├── services/           # API and external services
-│   └── api.js          # Axios configuration and API methods
-├── App.jsx             # Main app component with routing
-├── main.jsx            # Application entry point
-├── index.css           # Global styles with Tailwind imports
-├── README.md           # Project documentation
-└── BACKEND_INTEGRATION.md  # Complete backend API guide
+```text
+credit_frontend/
+├── index.html
+├── package.json
+├── vite.config.js
+├── tailwind.config.js
+├── postcss.config.js
+└── src/
+    ├── App.jsx
+    ├── main.jsx
+    ├── index.css
+    ├── components/
+    ├── pages/
+    │   ├── ApplicationHistory.jsx
+    │   ├── Dashboard.jsx
+    │   └── ReportPage.jsx
+    └── services/
+        └── api.js
 ```
 
-## 🔌 API Integration
+## Prerequisites
 
-The frontend is designed to be API-ready with the following endpoints:
+- Node.js 18+ recommended
+- npm
+- Backend running on FastAPI
 
-> **📋 For Backend Developers**: See [BACKEND_INTEGRATION.md](BACKEND_INTEGRATION.md) for complete API implementation guide
+## Install
 
-### POST `/api/applications/upload`
-Upload a PDF loan application
-```json
-// Request: multipart/form-data with 'file' field
-// Response:
-{
-  "application_id": "uuid",
-  "status": "processing"
-}
+From the workspace root:
+
+```powershell
+cd credit_frontend
+npm install
 ```
 
-### GET `/api/applications/{id}/status`
-Check processing status
-```json
-// Response:
-{
-  "document_parsing": "completed",
-  "credit_analysis": "running", 
-  "fraud_check": "waiting",
-  "overall_status": "processing"
-}
-```
+## Environment Variables
 
-### GET `/api/applications/{id}/result`
-Fetch analysis results
-```json
-// Response:
-{
-  "credit_score": 720,
-  "risk_category": "low",
-  "recommendation": "approve",
-  "analysis_details": {
-    "key_factors": ["Stable income", "Low debt ratio"],
-    "risk_indicators": [],
-    "positive_factors": ["Good payment history"],
-    "notes": "Strong application with minimal risk factors"
-  }
-}
-```
+Create a `.env` file inside `credit_frontend` if you want to override the API URL.
 
-### GET `/api/applications/history`
-Fetch application history
-```json
-// Response:
-{
-  "applications": [
-    {
-      "id": "uuid",
-      "filename": "loan_app_john_doe.pdf",
-      "submitted_at": "2024-03-08T14:30:00Z",
-      "status": "completed",
-      "credit_score": 720,
-      "risk_category": "low",
-      "recommendation": "approve"
-    }
-  ],
-  "total_pages": 5,
-  "current_page": 1
-}
-```
-
-## 🚀 Getting Started
-
-### Prerequisites
-- Node.js 16+ and npm/yarn
-- Modern web browser
-
-### Installation
-
-1. **Clone and install dependencies:**
-   ```bash
-   cd loan-risk-dashboard
-   npm install
-   ```
-
-2. **Set up environment variables:**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your API base URL
-   ```
-
-3. **Start development server:**
-   ```bash
-   npm run dev
-   ```
-
-4. **Open your browser:**
-   ```
-   http://localhost:3000
-   ```
-
-### Backend Integration
-
-- **For Backend Developers**: Complete API implementation guide in [BACKEND_INTEGRATION.md](BACKEND_INTEGRATION.md)
-- **Frontend Developers**: The UI works standalone with mock data until backend is connected
-
-### Build for Production
-
-```bash
-npm run build
-npm run preview  # Preview production build locally
-```
-
-## 🔧 Configuration
-
-### Environment Variables
-
-Create a `.env` file in the root directory:
+Example:
 
 ```env
-VITE_API_BASE_URL=http://localhost:8000/api
-VITE_APP_NAME=LoanRisk Dashboard
-VITE_APP_VERSION=1.0.0
+VITE_API_BASE_URL=http://localhost:8000
 ```
 
-### API Configuration
+If not set, the frontend defaults to:
 
-The API service ([src/services/api.js](src/services/api.js)) includes:
-- Request/response interceptors
-- Error handling
-- Authentication token support  
-- Configurable base URL and timeout
+```text
+http://localhost:8000
+```
 
-## 🎯 Usage
+## Run the Frontend
 
-### Uploading Applications
+```powershell
+cd credit_frontend
+npm run dev
+```
 
-1. Navigate to the Dashboard
-2. Drag and drop a PDF file or click to select
-3. Click "Analyze Application" 
-4. Monitor real-time processing status
-5. View results when analysis completes
+Vite will print the local dev URL, typically:
 
-### Viewing History
+```text
+http://localhost:5173
+```
 
-1. Click "Application History" in the sidebar
-2. Search by filename or filter by status
-3. Click actions to view details or export reports
-4. Use pagination to navigate through results
+## Backend Requirements
 
-## 🤝 Backend Integration
+The frontend expects the backend to be running and serving these endpoints:
 
-The frontend is designed to work seamlessly with any backend that implements the API contract. Mock data is shown when the API is unavailable, making it easy to develop and test the UI independently.
+- `GET /health`
+- `GET /db/users`
+- `POST /db/users`
+- `GET /db/processed`
+- `GET /db/processed/{pan}`
+- `GET /user/{pan}`
+- `POST /assess-risk`
+- `GET /model/info`
 
-### Key Integration Points:
+## Current Frontend Behavior
 
-- **File Upload**: Handles multipart form data with progress tracking
-- **Status Polling**: Automatically polls for status updates every 2 seconds
-- **Error Handling**: Graceful fallback to mock data when API is unavailable
-- **Authentication**: Ready for JWT token integration
+### Application History
 
-## 📱 Browser Support
+The application history page now loads data from the backend database:
+- applicant rows come from `GET /db/users`
+- processed results come from `GET /db/processed`
+- after a successful submit, only the updated row is rehydrated via `GET /db/processed/{pan}`
 
-- Chrome 90+
-- Firefox 88+
-- Safari 14+
-- Edge 90+
+### Risk Assessment Submission
 
-## 🎨 Customization
+When a user clicks Submit:
+1. frontend sends `POST /assess-risk`
+2. backend computes the result and persists it to `risk_processed`
+3. frontend fetches `GET /db/processed/{pan}`
+4. UI updates the single row with the canonical DB-saved result
 
-### Colors and Branding
-- Edit [tailwind.config.js](tailwind.config.js) to customize the color palette
-- Update logo and branding in [src/components/Sidebar.jsx](src/components/Sidebar.jsx)
+## Useful Commands
 
-### Adding New Features
-- Create new components in `src/components/`
-- Add new pages in `src/pages/`
-- Update routing in [src/App.jsx](src/App.jsx)
-- Add new API endpoints in [src/services/api.js](src/services/api.js)
+### Development server
 
-## 📄 License
+```powershell
+npm run dev
+```
 
-This project is licensed under the MIT License.
+### Production build
 
----
+```powershell
+npm run build
+```
 
-Built with ❤️ for modern fintech applications
+### Preview production build
+
+```powershell
+npm run preview
+```
+
+## Main Files
+
+- `src/pages/ApplicationHistory.jsx`
+  - DB-backed applications table and expanded result panel
+- `src/pages/ReportPage.jsx`
+  - detailed full report view
+- `src/services/api.js`
+  - all backend API methods
+
+## Troubleshooting
+
+### `vite is not recognized`
+
+Install dependencies first:
+
+```powershell
+npm install
+```
+
+### Frontend loads but no rows appear
+
+Check:
+- backend is running
+- `VITE_API_BASE_URL` points to the correct backend
+- `GET /db/users` returns data
+
+### Processed row does not update after submit
+
+Check:
+- `POST /assess-risk` returns 200
+- backend writes to `risk_processed`
+- `GET /db/processed/{pan}` returns the stored result
+
+## Integration Notes
+
+This frontend is now coupled to the real backend API shape currently implemented in `credit_backend`.
+It is no longer documented as a mock-only UI.

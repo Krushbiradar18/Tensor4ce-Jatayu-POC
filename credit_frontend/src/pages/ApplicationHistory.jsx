@@ -135,13 +135,16 @@ const ApplicationHistory = () => {
     setLoadingSubmit((prev) => ({ ...prev, [app.id]: true }));
     setErrors((prev) => ({ ...prev, [app.id]: null }));
     try {
-      const result = await apiService.assessRisk({
+      await apiService.assessRisk({
         pan_number: app.pan,
         loan_amount: app.loanAmount,
         loan_type: app.loanType,
         loan_tenure_months: app.loanTenureMonths,
         declared_monthly_income: null,
       });
+
+      const processedRecord = await apiService.getProcessedResultByPan(app.pan);
+      const result = processedRecord?.result || null;
 
       // Build the complete updated app (profile may already be loaded from a prior View click)
       const updatedApp = { ...app, status: 'completed', result };

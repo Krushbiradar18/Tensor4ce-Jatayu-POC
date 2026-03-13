@@ -167,3 +167,14 @@ def list_processed_results() -> List[Dict[str, Any]]:
             select(RiskProcessed).order_by(RiskProcessed.processed_at.desc())
         ).scalars().all()
     return [row.to_dict() for row in rows]
+
+
+def get_processed_result_by_pan(pan: str) -> Optional[Dict[str, Any]]:
+    """Return one processed risk record for a PAN if it exists."""
+    _ensure_db_ready()
+    pan_upper = pan.strip().upper()
+    with SessionLocal() as session:
+        row = session.execute(
+            select(RiskProcessed).where(RiskProcessed.pan == pan_upper)
+        ).scalar_one_or_none()
+    return row.to_dict() if row else None
