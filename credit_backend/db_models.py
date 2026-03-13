@@ -1,8 +1,8 @@
 """
-SQLAlchemy models for credit risk user profiles.
+SQLAlchemy models for credit risk user profiles and processed results.
 """
 
-from sqlalchemy import Column, Float, Integer, String
+from sqlalchemy import Column, DateTime, Float, Integer, JSON, String, func
 
 from db import Base
 
@@ -77,4 +77,21 @@ class UserProfile(Base):
             "max_unsec_exposure_inPct": self.max_unsec_exposure_in_pct,
             "pct_of_active_TLs_ever": self.pct_of_active_tls_ever,
             "pct_currentBal_all_TL": self.pct_current_bal_all_tl,
+        }
+
+
+class RiskProcessed(Base):
+    __tablename__ = "risk_processed"
+
+    pan = Column(String(10), primary_key=True, index=True)
+    status = Column(String(20), nullable=False, default="completed")
+    result = Column(JSON, nullable=False)
+    processed_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    def to_dict(self) -> dict:
+        return {
+            "pan": self.pan,
+            "status": self.status,
+            "result": self.result,
+            "processed_at": self.processed_at.isoformat() if self.processed_at else None,
         }

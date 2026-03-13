@@ -10,10 +10,32 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import select
 
 from db import Base, SessionLocal, engine
-from db_models import UserProfile
+from db_models import RiskProcessed, UserProfile
 
 
 _db_initialized = False
+
+REQUIRED_PROCESSED_RESULT_KEYS = {
+    "risk_score",
+    "risk_category",
+    "approved_flag",
+    "confidence",
+    "class_probabilities",
+    "applicant_name",
+    "pan_number",
+    "loan_amount",
+    "loan_type",
+    "loan_tenure_months",
+    "emi_estimate",
+    "top_risk_factors",
+    "top_positive_factors",
+    "llm_explanation",
+    "recommendation",
+    "credit_score",
+    "debt_to_income_ratio",
+    "utilization_summary",
+    "processing_time_ms",
+}
 
 
 def _ensure_db_ready() -> None:
@@ -102,3 +124,46 @@ def create_user_profile(payload: Dict[str, Any]) -> Dict[str, Any]:
         session.refresh(row)
 
     return row.to_feature_dict()
+
+
+def upsert_processed_result(pan: str, result: Dict[str, Any]) -> Dict[str, Any]:
+    """Store completed risk assessment result for a PAN (insert or update)."""
+    _ensure_db_ready()
+    pan_upper = pan.strip().upper()
+    missing_keys = sorted(REQUIRED_PROCESSED_RESULT_KEYS.difference(result.keys()))
+    if missing_keys:
+        raise ValueError(
+            "Processed result payload is incomplete and cannot be stored. "
+            f"Missing keys: {', '.join(missing_keys)}"
+        )
+
+    with SessionLocal() as session:
+        row = session.execute(
+            select(RiskProcessed).where(RiskProcessed.pan == pan_upper)
+        ).scalar_one_or_none()
+
+        if row is None:
+            row = RiskProcessed(
+                pan=pan_upper,
+                status="completed",
+                result=result,
+            )
+            session.add(row)
+        else:
+            row.status = "completed"
+            row.result = result
+
+        session.commit()
+        session.refresh(row)
+
+    return row.to_dict()
+
+
+def list_processed_results() -> List[Dict[str, Any]]:
+    """Return all processed risk records ordered by most recent update."""
+    _ensure_db_ready()
+    with SessionLocal() as session:
+        rows = session.execute(
+            select(RiskProcessed).order_by(RiskProcessed.processed_at.desc())
+        ).scalars().all()
+    return [row.to_dict() for row in rows]

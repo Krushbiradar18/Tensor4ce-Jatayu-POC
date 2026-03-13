@@ -26,7 +26,14 @@ from schemas import (
     HealthResponse,
     RiskCategory,
 )
-from db_repository import get_user_by_pan, get_all_pans, list_all_users, create_user_profile
+from db_repository import (
+    get_user_by_pan,
+    get_all_pans,
+    list_all_users,
+    create_user_profile,
+    upsert_processed_result,
+    list_processed_results,
+)
 from credit_risk_agent import credit_risk_graph
 from inference import inference_service
 
@@ -94,6 +101,16 @@ async def add_db_user(user: UserProfileCreateRequest):
         raise HTTPException(status_code=409, detail=str(exc))
 
 
+@app.get("/db/processed", tags=["Database"])
+async def get_all_processed_risk_results():
+    """Return all persisted processed risk-assessment outputs from PostgreSQL."""
+    records = list_processed_results()
+    return {
+        "count": len(records),
+        "processed": records,
+    }
+
+
 @app.get("/user/{pan}", response_model=UserProfileResponse, tags=["User"])
 async def get_user_profile(pan: str):
     """Fetch user profile from database by PAN number."""
@@ -144,6 +161,7 @@ async def assess_credit_risk(application: LoanApplicationRequest):
         })
 
     result["processing_time_ms"] = round((time.perf_counter() - _t0) * 1000, 2)
+    upsert_processed_result(application.pan_number, result)
     return JSONResponse(content=result)
 
 
@@ -199,6 +217,7 @@ async def assess_with_documents(
         })
 
     result["processing_time_ms"] = round((time.perf_counter() - _t0) * 1000, 2)
+    upsert_processed_result(pan_number, result)
     result["uploaded_documents"] = uploaded_docs
     return JSONResponse(content=result)
 

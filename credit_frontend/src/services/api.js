@@ -74,6 +74,12 @@ export const apiService = {
     return response.data;
   },
 
+  // List all processed risk results  →  GET /db/processed
+  getProcessedResults: async () => {
+    const response = await api.get('/db/processed');
+    return response.data;
+  },
+
   // Model info  →  GET /model/info
   getModelInfo: async () => {
     const response = await api.get('/model/info');

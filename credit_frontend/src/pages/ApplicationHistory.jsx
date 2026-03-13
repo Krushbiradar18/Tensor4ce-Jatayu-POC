@@ -3,29 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Eye, Send, CheckCircle, ChevronDown, ChevronUp, AlertCircle, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 import { apiService } from '../services/api';
 
-// ── Session-scoped persistence (clears on page refresh / tab close) ──────────
-const SESSION_KEY = 'loanrisk_session';
-
-const loadSessionMap = () => {
-  try {
-    const saved = sessionStorage.getItem(SESSION_KEY);
-    if (!saved) return {};
-    const parsed = JSON.parse(saved);
-    return Object.fromEntries(parsed.map((x) => [x.pan, x]));
-  } catch {
-    return {};
-  }
-};
-
-const saveSession = (apps) => {
-  try {
-    sessionStorage.setItem(
-      SESSION_KEY,
-      JSON.stringify(apps.map(({ pan, status, result, profile }) => ({ pan, status, result, profile })))
-    );
-  } catch {}
-};
-
 const toAppId = (pan, idx) => {
   const seed = [...(pan || '')].reduce((acc, ch) => acc + ch.charCodeAt(0), 0) + idx * 97;
   return String(10000000 + (seed % 89999999));
@@ -97,13 +74,20 @@ const ApplicationHistory = () => {
       setLoadingApps(true);
       setListError(null);
       try {
-        const resp = await apiService.getDbUsers();
-        const users = Array.isArray(resp?.users) ? resp.users : [];
+        const [usersResp, processedResp] = await Promise.all([
+          apiService.getDbUsers(),
+          apiService.getProcessedResults(),
+        ]);
+        const users = Array.isArray(usersResp?.users) ? usersResp.users : [];
+        const processed = Array.isArray(processedResp?.processed) ? processedResp.processed : [];
+        const processedMap = Object.fromEntries(processed.map((r) => [String(r.pan).toUpperCase(), r]));
+
         const baseApps = users.map(toApplication);
-        const sessionMap = loadSessionMap();
         const merged = baseApps.map((app) => {
-          const saved = sessionMap[app.pan];
-          return saved ? { ...app, status: saved.status, result: saved.result, profile: saved.profile || app.profile } : app;
+          const saved = processedMap[app.pan];
+          return saved
+            ? { ...app, status: saved.status || 'completed', result: saved.result || null }
+            : app;
         });
         setApplications(merged);
       } catch (err) {
@@ -116,8 +100,6 @@ const ApplicationHistory = () => {
     fetchApplications();
   }, []);
 
-  // Keep sessionStorage in sync (survives same-tab navigation, clears on refresh)
-  useEffect(() => { saveSession(applications); }, [applications]);
   const [expandedId, setExpandedId]   = useState(null);
   const [loadingProfile, setLoadingProfile] = useState({});
   const [loadingSubmit, setLoadingSubmit] = useState({});
@@ -166,9 +148,6 @@ const ApplicationHistory = () => {
 
       // Compute the full updated list
       const updatedApps = applications.map((a) => (a.id === app.id ? updatedApp : a));
-
-      // Persist synchronously before navigating so it's available on back-navigation
-      saveSession(updatedApps);
       setApplications(updatedApps);
       setExpandedId(app.id);
 
