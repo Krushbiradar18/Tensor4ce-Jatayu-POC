@@ -38,8 +38,8 @@ const Sidebar = () => {
       {/* Footer */}
       <div className="p-6 border-t border-gray-200">
         <div className="text-xs text-gray-500">
-          <p>Version 1.0.0</p>
-          <p>© 2024 LoanRisk Systems</p>
+          <p></p>
+          <p></p>
         </div>
       </div>
     </div>

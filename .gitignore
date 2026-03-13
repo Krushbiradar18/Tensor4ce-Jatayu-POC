@@ -12,7 +12,7 @@ venv/
 env/
 
 # ML artifacts (large binaries - optional: remove next 2 lines if you want to include them)
-credit_backend/models_artifacts/*.pkl
+#credit_backend/models_artifacts/*.pkl
 
 # Node
 credit_frontend/node_modules/
