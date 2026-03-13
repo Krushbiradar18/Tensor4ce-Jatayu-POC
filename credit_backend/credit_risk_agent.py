@@ -30,7 +30,7 @@ import math
 
 from langgraph.graph import StateGraph, END
 
-from mock_db import get_user_by_pan
+from db_repository import get_user_by_pan
 from inference import inference_service
 from llm_service import (
     build_explanation_prompt,

@@ -22,10 +22,11 @@ from schemas import (
     LoanApplicationRequest,
     RiskScoreResponse,
     UserProfileResponse,
+    UserProfileCreateRequest,
     HealthResponse,
     RiskCategory,
 )
-from mock_db import get_user_by_pan, get_all_pans
+from db_repository import get_user_by_pan, get_all_pans, list_all_users, create_user_profile
 from credit_risk_agent import credit_risk_graph
 from inference import inference_service
 
@@ -68,6 +69,29 @@ async def get_sample_pans():
         "sample_pans": get_all_pans(),
         "note": "Use any of these PANs to test the /assess-risk endpoint.",
     }
+
+
+@app.get("/db/users", tags=["Database"])
+async def get_all_db_users():
+    """Return all user profile rows from PostgreSQL."""
+    users = list_all_users()
+    return {
+        "count": len(users),
+        "users": users,
+    }
+
+
+@app.post("/db/users", tags=["Database"])
+async def add_db_user(user: UserProfileCreateRequest):
+    """Insert a new user profile row into PostgreSQL."""
+    try:
+        created = create_user_profile(user.model_dump())
+        return {
+            "message": "User profile created successfully.",
+            "user": created,
+        }
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
 
 
 @app.get("/user/{pan}", response_model=UserProfileResponse, tags=["User"])

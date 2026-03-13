@@ -83,6 +83,41 @@ class UserProfileResponse(BaseModel):
     message: str
 
 
+class UserProfileCreateRequest(BaseModel):
+    pan: str = Field(..., min_length=10, max_length=10)
+    name: str
+    aadhaar_last4: Optional[str] = Field(None, min_length=4, max_length=4)
+    phone: Optional[str] = None
+    email: Optional[str] = None
+
+    AGE: int
+    GENDER: str
+    MARITALSTATUS: str
+    EDUCATION: str
+    NETMONTHLYINCOME: float
+    Time_With_Curr_Empr: int
+    Credit_Score: int
+    num_times_delinquent: int
+    recent_level_of_deliq: int
+    num_deliq_6mts: int
+    num_deliq_12mts: int
+    num_times_30p_dpd: int
+    num_times_60p_dpd: int
+    num_std: int
+    num_sub: int
+    num_dbt: int
+    num_lss: int
+    tot_enq: int
+    enq_L12m: int
+    enq_L6m: int
+    time_since_recent_enq: int
+    CC_utilization: float
+    PL_utilization: float
+    max_unsec_exposure_inPct: float
+    pct_of_active_TLs_ever: float
+    pct_currentBal_all_TL: float
+
+
 class HealthResponse(BaseModel):
     status: str
     model_loaded: bool

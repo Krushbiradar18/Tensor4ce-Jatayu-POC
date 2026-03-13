@@ -62,6 +62,18 @@ export const apiService = {
     return response.data;
   },
 
+  // List all DB users  →  GET /db/users
+  getDbUsers: async () => {
+    const response = await api.get('/db/users');
+    return response.data;
+  },
+
+  // Create DB user  →  POST /db/users
+  createDbUser: async (payload) => {
+    const response = await api.post('/db/users', payload);
+    return response.data;
+  },
+
   // Model info  →  GET /model/info
   getModelInfo: async () => {
     const response = await api.get('/model/info');

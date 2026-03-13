@@ -6,86 +6,59 @@ import { apiService } from '../services/api';
 // ── Session-scoped persistence (clears on page refresh / tab close) ──────────
 const SESSION_KEY = 'loanrisk_session';
 
-const loadSession = (initial) => {
+const loadSessionMap = () => {
   try {
     const saved = sessionStorage.getItem(SESSION_KEY);
-    if (!saved) return initial;
+    if (!saved) return {};
     const parsed = JSON.parse(saved);
-    return initial.map((app) => {
-      const s = parsed.find((x) => x.id === app.id);
-      return s ? { ...app, status: s.status, result: s.result, profile: s.profile } : app;
-    });
-  } catch { return initial; }
+    return Object.fromEntries(parsed.map((x) => [x.pan, x]));
+  } catch {
+    return {};
+  }
 };
 
 const saveSession = (apps) => {
   try {
     sessionStorage.setItem(
       SESSION_KEY,
-      JSON.stringify(apps.map(({ id, status, result, profile }) => ({ id, status, result, profile })))
+      JSON.stringify(apps.map(({ pan, status, result, profile }) => ({ pan, status, result, profile })))
     );
   } catch {}
 };
 
-// ── Static application data (4 users from mock DB) ──────────────────────────
-const INITIAL_APPLICATIONS = [
-  {
-    id: 1,
-    appId: '48239174',
-    applicantName: 'Rahul Sharma',
-    filename: 'loan_app_rahul_sharma.pdf',
-    pan: 'ABCDE1234F',
-    date: '2026-03-08',
-    loanAmount: 500000,
+const toAppId = (pan, idx) => {
+  const seed = [...(pan || '')].reduce((acc, ch) => acc + ch.charCodeAt(0), 0) + idx * 97;
+  return String(10000000 + (seed % 89999999));
+};
+
+const toApplication = (user, idx) => {
+  const pan = (user.pan || '').toUpperCase();
+  const name = user.name || `Applicant ${idx + 1}`;
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+  const monthlyIncome = Number(user.NETMONTHLYINCOME ?? user.income ?? 0);
+  const suggestedLoan = Math.max(100000, Math.round((monthlyIncome * 8) / 1000) * 1000 || 500000);
+
+  return {
+    id: pan,
+    appId: toAppId(pan, idx),
+    applicantName: name,
+    filename: `loan_app_${slug || `user_${idx + 1}`}.pdf`,
+    pan,
+    date: new Date().toISOString().slice(0, 10),
+    loanAmount: suggestedLoan,
     loanType: 'Personal Loan',
     loanTenureMonths: 36,
     status: 'pending',
     result: null,
-    profile: null,
-  },
-  {
-    id: 2,
-    appId: '73829451',
-    applicantName: 'Priya Mehta',
-    filename: 'loan_app_priya_mehta.pdf',
-    pan: 'PQRST5678G',
-    date: '2026-03-07',
-    loanAmount: 2000000,
-    loanType: 'Home Loan',
-    loanTenureMonths: 240,
-    status: 'pending',
-    result: null,
-    profile: null,
-  },
-  {
-    id: 3,
-    appId: '926371048',
-    applicantName: 'Vijay Kumar',
-    filename: 'loan_app_vijay_kumar.pdf',
-    pan: 'XYZAB9012H',
-    date: '2026-03-06',
-    loanAmount: 300000,
-    loanType: 'Personal Loan',
-    loanTenureMonths: 24,
-    status: 'pending',
-    result: null,
-    profile: null,
-  },
-  {
-    id: 4,
-    appId: '58174923',
-    applicantName: 'Anita Singh',
-    filename: 'loan_app_anita_singh.pdf',
-    pan: 'LMNOP3456I',
-    date: '2026-03-05',
-    loanAmount: 800000,
-    loanType: 'Auto Loan',
-    loanTenureMonths: 60,
-    status: 'pending',
-    result: null,
-    profile: null,
-  },
-];
+    profile: {
+      pan,
+      name,
+      age: user.AGE ?? user.age,
+      income: user.NETMONTHLYINCOME ?? user.income,
+      credit_score: user.Credit_Score ?? user.credit_score,
+    },
+  };
+};
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const formatDate = (dateStr) =>
@@ -115,7 +88,33 @@ const getFlagColor = (flag) => {
 
 const ApplicationHistory = () => {
   const navigate = useNavigate();
-  const [applications, setApplications] = useState(() => loadSession(INITIAL_APPLICATIONS));
+  const [applications, setApplications] = useState([]);
+  const [loadingApps, setLoadingApps] = useState(true);
+  const [listError, setListError] = useState(null);
+
+  useEffect(() => {
+    const fetchApplications = async () => {
+      setLoadingApps(true);
+      setListError(null);
+      try {
+        const resp = await apiService.getDbUsers();
+        const users = Array.isArray(resp?.users) ? resp.users : [];
+        const baseApps = users.map(toApplication);
+        const sessionMap = loadSessionMap();
+        const merged = baseApps.map((app) => {
+          const saved = sessionMap[app.pan];
+          return saved ? { ...app, status: saved.status, result: saved.result, profile: saved.profile || app.profile } : app;
+        });
+        setApplications(merged);
+      } catch (err) {
+        setListError('Failed to load applications from database.');
+      } finally {
+        setLoadingApps(false);
+      }
+    };
+
+    fetchApplications();
+  }, []);
 
   // Keep sessionStorage in sync (survives same-tab navigation, clears on refresh)
   useEffect(() => { saveSession(applications); }, [applications]);
@@ -324,6 +323,12 @@ const ApplicationHistory = () => {
 
       {/* Table */}
       <div className="p-6">
+        {listError && (
+          <div className="mb-4 flex items-center gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
+            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            {listError}
+          </div>
+        )}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200">
           <div className="overflow-x-auto">
             <table className="min-w-full">
@@ -340,6 +345,15 @@ const ApplicationHistory = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
+                {loadingApps && (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-500">
+                      <span className="inline-flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" /> Loading applications from database...
+                      </span>
+                    </td>
+                  </tr>
+                )}
                 {applications.map((app) => {
                   const isExpanded = expandedId === app.id;
                   const isLoadingS = loadingSubmit[app.id];

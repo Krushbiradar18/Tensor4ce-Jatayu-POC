@@ -62,8 +62,7 @@ credit_risk_backend/
     ├── services/
     │   ├── inference.py             # ML inference + SHAP approximation
     │   └── llm_service.py           # Claude LLM explanation
-    ├── db/
-    │   └── mock_db.py               # Mock user database
+    ├── db_repository.py             # PostgreSQL repository layer
     └── models/
         └── schemas.py               # Pydantic request/response models
 ```
