@@ -18,6 +18,7 @@ env/
 credit_frontend/node_modules/
 credit_frontend/dist/
 credit_frontend/.vite/
+Tensor4ce_PoC_Data/
 
 # OS
 .DS_Store
