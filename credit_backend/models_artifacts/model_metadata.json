@@ -1,4 +1,8 @@
 {
+  "model_type": "XGBoostClassifier",
+  "training_data": "External_Cibil_Dataset.xlsx",
+  "n_samples_train": 41068,
+  "n_samples_test": 10268,
   "features": [
     "Credit_Score",
     "num_times_delinquent",
@@ -59,22 +63,21 @@
   ],
   "label_encoders": {
     "MARITALSTATUS": {
-      "Single": 0,
-      "Married": 1,
-      "Divorced": 2,
-      "Widowed": 3
+      "Married": 0,
+      "Single": 1
     },
     "EDUCATION": {
-      "10TH": 0,
-      "12TH": 1,
-      "GRADUATE": 2,
+      "12TH": 0,
+      "GRADUATE": 1,
+      "OTHERS": 2,
       "POST-GRADUATE": 3,
-      "PROFESSIONAL": 4
+      "PROFESSIONAL": 4,
+      "SSC": 5,
+      "UNDER GRADUATE": 6
     },
     "GENDER": {
-      "M": 0,
-      "F": 1,
-      "OTHER": 2
+      "F": 0,
+      "M": 1
     }
   },
   "risk_map": {
@@ -89,33 +92,47 @@
     "P3": "Medium-High Risk",
     "P4": "High Risk"
   },
+  "accuracy": 0.9127386053759252,
+  "f1_macro": 0.890095145570998,
   "feature_importance": {
-    "Credit_Score": 0.382176,
-    "num_times_delinquent": 0.068369,
-    "recent_level_of_deliq": 0.006136,
-    "num_deliq_6mts": 0.00459,
-    "num_deliq_12mts": 0.049982,
-    "num_times_30p_dpd": 0.055074,
-    "num_times_60p_dpd": 0.031452,
-    "num_std": 0.048411,
-    "num_sub": 0.052136,
-    "num_dbt": 0.0158,
-    "num_lss": 0.003512,
-    "tot_enq": 0.022236,
-    "enq_L12m": 0.008446,
-    "enq_L6m": 0.007186,
-    "time_since_recent_enq": 0.014427,
-    "CC_utilization": 0.024834,
-    "PL_utilization": 0.022526,
-    "max_unsec_exposure_inPct": 0.023741,
-    "pct_of_active_TLs_ever": 0.027956,
-    "pct_currentBal_all_TL": 0.023098,
-    "AGE": 0.017143,
-    "NETMONTHLYINCOME": 0.050569,
-    "Time_With_Curr_Empr": 0.01939,
-    "MARITALSTATUS_enc": 0.008501,
-    "EDUCATION_enc": 0.008948,
-    "GENDER_enc": 0.003359
+    "Credit_Score": 0.807094,
+    "num_times_delinquent": 0.019708,
+    "recent_level_of_deliq": 0.006675,
+    "num_deliq_6mts": 0.006888,
+    "num_deliq_12mts": 0.007761,
+    "num_times_30p_dpd": 0.00451,
+    "num_times_60p_dpd": 0.004296,
+    "num_std": 0.014298,
+    "num_sub": 0.004521,
+    "num_dbt": 0.003227,
+    "num_lss": 0.003648,
+    "tot_enq": 0.005019,
+    "enq_L12m": 0.015153,
+    "enq_L6m": 0.036761,
+    "time_since_recent_enq": 0.008419,
+    "CC_utilization": 0.004716,
+    "PL_utilization": 0.004427,
+    "max_unsec_exposure_inPct": 0.005036,
+    "pct_of_active_TLs_ever": 0.005856,
+    "pct_currentBal_all_TL": 0.004949,
+    "AGE": 0.004833,
+    "NETMONTHLYINCOME": 0.004468,
+    "Time_With_Curr_Empr": 0.004557,
+    "MARITALSTATUS_enc": 0.004335,
+    "EDUCATION_enc": 0.004232,
+    "GENDER_enc": 0.00461
   },
-  "accuracy": 0.80625
+  "credit_score_bin_edges": [
+    469.0,
+    657.0,
+    665.0,
+    671.0,
+    675.0,
+    680.0,
+    684.0,
+    688.0,
+    694.0,
+    704.0,
+    811.0
+  ]
 }

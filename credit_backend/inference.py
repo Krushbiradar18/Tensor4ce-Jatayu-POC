@@ -54,6 +54,8 @@ class CreditRiskInferenceService:
         self.label_map = self.metadata['label_map']        # "P1" -> "High Risk"
         self.feature_importance = self.metadata['feature_importance']
         self.accuracy = self.metadata['accuracy']
+        # Credit_Score bin edges saved at training time (may be absent in older artifacts)
+        self.cs_bin_edges = np.array(self.metadata.get('credit_score_bin_edges', []))
 
     @property
     def model_accuracy(self) -> float:
@@ -64,7 +66,14 @@ class CreditRiskInferenceService:
         import pandas as pd
         row = {}
         for feat in self.num_features:
-            row[feat] = float(user_data.get(feat, 0) or 0)
+            val = float(user_data.get(feat, 0) or 0)
+            # Credit_Score: convert raw CIBIL value (300-900) to the same
+            # quantile band (0-9) used during training.
+            if feat == 'Credit_Score' and len(self.cs_bin_edges) > 0:
+                val = float(int(np.clip(
+                    np.digitize(val, self.cs_bin_edges) - 1, 0, len(self.cs_bin_edges) - 2
+                )))
+            row[feat] = val
         for cat in self.cat_features:
             val = str(user_data.get(cat, ''))
             enc_map = self.le_dict.get(cat, {})
