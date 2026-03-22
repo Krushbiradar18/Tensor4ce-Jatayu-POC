@@ -6,10 +6,11 @@ from __future__ import annotations
 import os, json, asyncio, logging
 from contextlib import asynccontextmanager
 from pathlib import Path
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from typing import Optional
 
 from schemas import SubmitRequest, OfficerAction
 
@@ -253,6 +254,95 @@ async def officer_action(app_id: str, action: OfficerAction):
     db.log_event(app_id, "officer", "OFFICER_ACTION",
                  {"decision": action.decision, "officer": action.officer_id})
     return {"success": True, "application_id": app_id, "decision": action.decision}
+
+
+
+# ── Document Upload & OCR ────────────────────────────────────────────────────
+ALLOWED_DOC_TYPES = {"aadhaar", "pan", "bank_statement", "salary_slip", "form16"}
+ALLOWED_MIMES     = {
+    "application/pdf", "image/jpeg", "image/jpg", "image/png",
+    "image/tiff", "image/webp",
+}
+
+@app.post("/api/upload/{app_id}")
+async def upload_document(
+    app_id: str,
+    doc_type: str = Form(...),
+    file: UploadFile = File(...),
+):
+    """
+    Stage 1 + 2: Accept a document upload, run OCR/extraction pipeline.
+    Returns extracted structured fields for the document.
+    - doc_type: one of aadhaar | pan | bank_statement | salary_slip | form16
+    """
+    # Validate doc_type
+    if doc_type.lower() not in ALLOWED_DOC_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid doc_type '{doc_type}'. Must be one of: {', '.join(ALLOWED_DOC_TYPES)}"
+        )
+
+    # Validate file presence
+    if not file or not file.filename:
+        raise HTTPException(status_code=400, detail="No file provided")
+
+    # Validate MIME type (use content_type if provided, else check extension)
+    ct = (file.content_type or "").lower().split(";")[0].strip()
+    ext = Path(file.filename).suffix.lower()
+    if ct not in ALLOWED_MIMES and ext not in {".pdf", ".jpg", ".jpeg", ".png", ".tiff", ".webp"}:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type. Please upload PDF or image files."
+        )
+
+    # Read file bytes (limit 10 MB)
+    MAX_SIZE = 10 * 1024 * 1024
+    file_bytes = await file.read()
+    if len(file_bytes) > MAX_SIZE:
+        raise HTTPException(status_code=413, detail="File too large. Maximum 10 MB allowed.")
+
+    # Run processing pipeline in thread pool (CPU-bound OCR)
+    import asyncio
+    from doc_processor import process_document
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(
+        None,
+        process_document,
+        file_bytes,
+        file.filename,
+        doc_type,
+    )
+
+    # Persist upload record to DB
+    try:
+        db.save_document(app_id, doc_type, file.filename, result)
+    except Exception as e:
+        logger.warning(f"Could not persist document metadata for {app_id}: {e}")
+
+    return {
+        "application_id":   app_id,
+        "doc_type":         doc_type,
+        "filename":         file.filename,
+        "extraction_method": result.get("extraction_method"),
+        "extracted_fields": result.get("extracted_fields", {}),
+        "raw_text_preview": result.get("raw_text_preview", ""),
+        "status":           "processed",
+    }
+
+
+@app.get("/api/upload/{app_id}")
+async def get_uploaded_documents(app_id: str):
+    """List all documents uploaded for an application."""
+    app_row = db.get_application(app_id)
+    if not app_row:
+        raise HTTPException(status_code=404, detail=f"Application {app_id} not found")
+
+    try:
+        docs = db.get_documents(app_id)
+    except Exception:
+        docs = []
+
+    return {"application_id": app_id, "documents": docs}
 
 
 @app.get("/api/health")

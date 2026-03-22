@@ -96,6 +96,16 @@ def init_db():
             created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
         """,
+        """
+        CREATE TABLE IF NOT EXISTS uploaded_documents (
+            id SERIAL PRIMARY KEY,
+            application_id TEXT NOT NULL,
+            doc_type TEXT NOT NULL,
+            filename TEXT NOT NULL,
+            extracted_data TEXT NOT NULL DEFAULT '{}',
+            uploaded_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """,
     ]
     with engine.begin() as conn:
         for statement in statements:
@@ -283,5 +293,47 @@ def list_applications(limit: int = 50) -> list[dict]:
             item["applicant_name"] = "—"
             item["loan_purpose"] = "—"
             item["loan_amount"] = 0
+        result.append(item)
+    return result
+
+
+def save_document(application_id: str, doc_type: str, filename: str, extracted_data: dict):
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                INSERT INTO uploaded_documents (application_id, doc_type, filename, extracted_data)
+                VALUES (:application_id, :doc_type, :filename, :extracted_data)
+                """
+            ),
+            {
+                "application_id": application_id,
+                "doc_type": doc_type,
+                "filename": filename,
+                "extracted_data": json.dumps(extracted_data),
+            },
+        )
+
+
+def get_documents(application_id: str) -> list[dict]:
+    with engine.begin() as conn:
+        rows = conn.execute(
+            text(
+                """
+                SELECT id, doc_type, filename, extracted_data, uploaded_at
+                FROM uploaded_documents
+                WHERE application_id = :application_id
+                ORDER BY uploaded_at DESC
+                """
+            ),
+            {"application_id": application_id},
+        ).mappings().all()
+    result = []
+    for row in rows:
+        item = dict(row)
+        try:
+            item["extracted_data"] = json.loads(item["extracted_data"])
+        except Exception:
+            pass
         result.append(item)
     return result

@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import LandingPage from "./pages/LandingPage";
 import ApplyPage from "./pages/ApplyPage";
 import SuccessPage from "./pages/SuccessPage";
+import UploadDocsPage from "./pages/UploadDocsPage";
 import TrackPage from "./pages/TrackPage";
 import OfficerLoginPage from "./pages/officer/OfficerLoginPage";
 import OfficerLayout from "./components/OfficerLayout";
@@ -28,6 +29,7 @@ const App = () => (
           {/* Public Portal */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/apply" element={<ApplyPage />} />
+          <Route path="/apply/upload" element={<UploadDocsPage />} />
           <Route path="/apply/success" element={<SuccessPage />} />
           <Route path="/track" element={<TrackPage />} />
 
