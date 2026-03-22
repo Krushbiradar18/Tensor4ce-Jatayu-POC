@@ -1,0 +1,458 @@
+[
+  {
+    "case_id": "TC01",
+    "label": "Strong clean profile",
+    "expected_tendency": "APPROVE",
+    "payload": {
+      "form_data": {
+        "applicant_name": "TC01 Clean P1",
+        "pan_number": "PROSP4178O",
+        "aadhaar_last4": "1234",
+        "date_of_birth": "1990-01-01",
+        "gender": "MALE",
+        "employment_type": "SALARIED",
+        "employer_name": "Test Corp",
+        "annual_income": 1800000,
+        "employment_tenure_years": 5,
+        "loan_amount_requested": 300000,
+        "loan_tenure_months": 60,
+        "loan_purpose": "PERSONAL",
+        "existing_emi_monthly": 5000,
+        "residential_assets_value": 0,
+        "mobile_number": "9876543210",
+        "email": "tc01@example.com",
+        "address": {
+          "line1": "101 Demo Street",
+          "city": "Mumbai",
+          "state": "Maharashtra",
+          "pincode": "400001"
+        },
+        "submitted_at": "2026-03-17T12:00:00Z"
+      },
+      "ip_metadata": {
+        "ip_address": "103.21.1.1",
+        "form_fill_seconds": 180,
+        "device_fingerprint": "trusted_device_001",
+        "user_agent": "Mozilla/5.0"
+      }
+    }
+  },
+  {
+    "case_id": "TC02",
+    "label": "Clean low-risk profile",
+    "expected_tendency": "APPROVE",
+    "payload": {
+      "form_data": {
+        "applicant_name": "TC02 Clean P1",
+        "pan_number": "PROSP9722Y",
+        "aadhaar_last4": "1234",
+        "date_of_birth": "1991-02-10",
+        "gender": "FEMALE",
+        "employment_type": "SALARIED",
+        "employer_name": "Test Corp",
+        "annual_income": 1500000,
+        "employment_tenure_years": 4,
+        "loan_amount_requested": 400000,
+        "loan_tenure_months": 48,
+        "loan_purpose": "PERSONAL",
+        "existing_emi_monthly": 0,
+        "residential_assets_value": 0,
+        "mobile_number": "9876543211",
+        "email": "tc02@example.com",
+        "address": {
+          "line1": "102 Demo Street",
+          "city": "Mumbai",
+          "state": "Maharashtra",
+          "pincode": "400001"
+        },
+        "submitted_at": "2026-03-17T12:01:00Z"
+      },
+      "ip_metadata": {
+        "ip_address": "103.21.1.1",
+        "form_fill_seconds": 165,
+        "device_fingerprint": "trusted_device_002",
+        "user_agent": "Mozilla/5.0"
+      }
+    }
+  },
+  {
+    "case_id": "TC03",
+    "label": "Medium-low risk",
+    "expected_tendency": "APPROVE_OR_CONDITIONAL",
+    "payload": {
+      "form_data": {
+        "applicant_name": "TC03 Medium P2",
+        "pan_number": "PROSP5278A",
+        "aadhaar_last4": "1234",
+        "date_of_birth": "1992-03-15",
+        "gender": "MALE",
+        "employment_type": "SALARIED",
+        "employer_name": "Test Corp",
+        "annual_income": 900000,
+        "employment_tenure_years": 3,
+        "loan_amount_requested": 500000,
+        "loan_tenure_months": 60,
+        "loan_purpose": "PERSONAL",
+        "existing_emi_monthly": 7000,
+        "residential_assets_value": 0,
+        "mobile_number": "9876543212",
+        "email": "tc03@example.com",
+        "address": {
+          "line1": "103 Demo Street",
+          "city": "Mumbai",
+          "state": "Maharashtra",
+          "pincode": "400001"
+        },
+        "submitted_at": "2026-03-17T12:02:00Z"
+      },
+      "ip_metadata": {
+        "ip_address": "103.21.1.1",
+        "form_fill_seconds": 170,
+        "device_fingerprint": "trusted_device_003",
+        "user_agent": "Mozilla/5.0"
+      }
+    }
+  },
+  {
+    "case_id": "TC04",
+    "label": "Medium-high risk",
+    "expected_tendency": "ESCALATE_OR_CONDITIONAL",
+    "payload": {
+      "form_data": {
+        "applicant_name": "TC04 MediumHigh P3",
+        "pan_number": "PROSP5908S",
+        "aadhaar_last4": "1234",
+        "date_of_birth": "1989-07-01",
+        "gender": "MALE",
+        "employment_type": "SALARIED",
+        "employer_name": "Test Corp",
+        "annual_income": 800000,
+        "employment_tenure_years": 2.5,
+        "loan_amount_requested": 700000,
+        "loan_tenure_months": 60,
+        "loan_purpose": "PERSONAL",
+        "existing_emi_monthly": 12000,
+        "residential_assets_value": 0,
+        "mobile_number": "9876543213",
+        "email": "tc04@example.com",
+        "address": {
+          "line1": "104 Demo Street",
+          "city": "Mumbai",
+          "state": "Maharashtra",
+          "pincode": "400001"
+        },
+        "submitted_at": "2026-03-17T12:03:00Z"
+      },
+      "ip_metadata": {
+        "ip_address": "103.21.1.1",
+        "form_fill_seconds": 140,
+        "device_fingerprint": "trusted_device_004",
+        "user_agent": "Mozilla/5.0"
+      }
+    }
+  },
+  {
+    "case_id": "TC05",
+    "label": "High risk profile",
+    "expected_tendency": "REJECT",
+    "payload": {
+      "form_data": {
+        "applicant_name": "TC05 HighRisk P4",
+        "pan_number": "PROSP7076Q",
+        "aadhaar_last4": "1234",
+        "date_of_birth": "1993-11-20",
+        "gender": "MALE",
+        "employment_type": "SALARIED",
+        "employer_name": "Test Corp",
+        "annual_income": 700000,
+        "employment_tenure_years": 2,
+        "loan_amount_requested": 900000,
+        "loan_tenure_months": 60,
+        "loan_purpose": "PERSONAL",
+        "existing_emi_monthly": 15000,
+        "residential_assets_value": 0,
+        "mobile_number": "9876543214",
+        "email": "tc05@example.com",
+        "address": {
+          "line1": "105 Demo Street",
+          "city": "Mumbai",
+          "state": "Maharashtra",
+          "pincode": "400001"
+        },
+        "submitted_at": "2026-03-17T12:04:00Z"
+      },
+      "ip_metadata": {
+        "ip_address": "103.21.1.1",
+        "form_fill_seconds": 150,
+        "device_fingerprint": "trusted_device_005",
+        "user_agent": "Mozilla/5.0"
+      }
+    }
+  },
+  {
+    "case_id": "TC06",
+    "label": "Fraud blacklist PAN",
+    "expected_tendency": "REJECT",
+    "payload": {
+      "form_data": {
+        "applicant_name": "TC06 Blacklist Fraud",
+        "pan_number": "FRAUD1234F",
+        "aadhaar_last4": "1234",
+        "date_of_birth": "1992-01-01",
+        "gender": "MALE",
+        "employment_type": "SALARIED",
+        "employer_name": "Test Corp",
+        "annual_income": 900000,
+        "employment_tenure_years": 2,
+        "loan_amount_requested": 1200000,
+        "loan_tenure_months": 60,
+        "loan_purpose": "PERSONAL",
+        "existing_emi_monthly": 10000,
+        "residential_assets_value": 0,
+        "mobile_number": "9876543215",
+        "email": "tc06@example.com",
+        "address": {
+          "line1": "106 Demo Street",
+          "city": "Mumbai",
+          "state": "Maharashtra",
+          "pincode": "400001"
+        },
+        "submitted_at": "2026-03-17T12:05:00Z"
+      },
+      "ip_metadata": {
+        "ip_address": "8.8.8.8",
+        "form_fill_seconds": 12,
+        "device_fingerprint": "device_005",
+        "user_agent": "Mozilla/5.0"
+      }
+    }
+  },
+  {
+    "case_id": "TC07",
+    "label": "Fast-fill suspicious",
+    "expected_tendency": "ESCALATE_OR_REJECT",
+    "payload": {
+      "form_data": {
+        "applicant_name": "TC07 FastFill Suspicious",
+        "pan_number": "PROSP7141R",
+        "aadhaar_last4": "1234",
+        "date_of_birth": "1990-05-15",
+        "gender": "MALE",
+        "employment_type": "SALARIED",
+        "employer_name": "Test Corp",
+        "annual_income": 1400000,
+        "employment_tenure_years": 4,
+        "loan_amount_requested": 450000,
+        "loan_tenure_months": 60,
+        "loan_purpose": "PERSONAL",
+        "existing_emi_monthly": 4000,
+        "residential_assets_value": 0,
+        "mobile_number": "9876543216",
+        "email": "tc07@example.com",
+        "address": {
+          "line1": "107 Demo Street",
+          "city": "Mumbai",
+          "state": "Maharashtra",
+          "pincode": "400001"
+        },
+        "submitted_at": "2026-03-17T12:06:00Z"
+      },
+      "ip_metadata": {
+        "ip_address": "8.8.8.8",
+        "form_fill_seconds": 18,
+        "device_fingerprint": "new_device_777",
+        "user_agent": "Mozilla/5.0"
+      }
+    }
+  },
+  {
+    "case_id": "TC08",
+    "label": "High FOIR stress",
+    "expected_tendency": "CONDITIONAL_OR_REJECT",
+    "payload": {
+      "form_data": {
+        "applicant_name": "TC08 FOIR Stress",
+        "pan_number": "PROSP8524S",
+        "aadhaar_last4": "1234",
+        "date_of_birth": "1991-08-08",
+        "gender": "MALE",
+        "employment_type": "SALARIED",
+        "employer_name": "Test Corp",
+        "annual_income": 500000,
+        "employment_tenure_years": 2,
+        "loan_amount_requested": 1200000,
+        "loan_tenure_months": 36,
+        "loan_purpose": "PERSONAL",
+        "existing_emi_monthly": 25000,
+        "residential_assets_value": 0,
+        "mobile_number": "9876543217",
+        "email": "tc08@example.com",
+        "address": {
+          "line1": "108 Demo Street",
+          "city": "Mumbai",
+          "state": "Maharashtra",
+          "pincode": "400001"
+        },
+        "submitted_at": "2026-03-17T12:07:00Z"
+      },
+      "ip_metadata": {
+        "ip_address": "103.21.1.1",
+        "form_fill_seconds": 130,
+        "device_fingerprint": "trusted_device_008",
+        "user_agent": "Mozilla/5.0"
+      }
+    }
+  },
+  {
+    "case_id": "TC09",
+    "label": "Income below threshold",
+    "expected_tendency": "REJECT",
+    "payload": {
+      "form_data": {
+        "applicant_name": "TC09 LowIncome Block",
+        "pan_number": "PROSP4269F",
+        "aadhaar_last4": "1234",
+        "date_of_birth": "1990-10-10",
+        "gender": "MALE",
+        "employment_type": "SALARIED",
+        "employer_name": "Test Corp",
+        "annual_income": 150000,
+        "employment_tenure_years": 1.5,
+        "loan_amount_requested": 200000,
+        "loan_tenure_months": 60,
+        "loan_purpose": "PERSONAL",
+        "existing_emi_monthly": 2000,
+        "residential_assets_value": 0,
+        "mobile_number": "9876543218",
+        "email": "tc09@example.com",
+        "address": {
+          "line1": "109 Demo Street",
+          "city": "Mumbai",
+          "state": "Maharashtra",
+          "pincode": "400001"
+        },
+        "submitted_at": "2026-03-17T12:08:00Z"
+      },
+      "ip_metadata": {
+        "ip_address": "103.21.1.1",
+        "form_fill_seconds": 200,
+        "device_fingerprint": "trusted_device_009",
+        "user_agent": "Mozilla/5.0"
+      }
+    }
+  },
+  {
+    "case_id": "TC10",
+    "label": "Under-age applicant",
+    "expected_tendency": "REJECT",
+    "payload": {
+      "form_data": {
+        "applicant_name": "TC10 Age Under",
+        "pan_number": "PROSP4949Z",
+        "aadhaar_last4": "1234",
+        "date_of_birth": "2009-01-01",
+        "gender": "MALE",
+        "employment_type": "SALARIED",
+        "employer_name": "Test Corp",
+        "annual_income": 600000,
+        "employment_tenure_years": 1,
+        "loan_amount_requested": 250000,
+        "loan_tenure_months": 60,
+        "loan_purpose": "PERSONAL",
+        "existing_emi_monthly": 0,
+        "residential_assets_value": 0,
+        "mobile_number": "9876543219",
+        "email": "tc10@example.com",
+        "address": {
+          "line1": "110 Demo Street",
+          "city": "Mumbai",
+          "state": "Maharashtra",
+          "pincode": "400001"
+        },
+        "submitted_at": "2026-03-17T12:09:00Z"
+      },
+      "ip_metadata": {
+        "ip_address": "103.21.1.1",
+        "form_fill_seconds": 190,
+        "device_fingerprint": "trusted_device_010",
+        "user_agent": "Mozilla/5.0"
+      }
+    }
+  },
+  {
+    "case_id": "TC11",
+    "label": "Tenure too high",
+    "expected_tendency": "REJECT",
+    "payload": {
+      "form_data": {
+        "applicant_name": "TC11 Tenure OverLimit",
+        "pan_number": "PROSP8285X",
+        "aadhaar_last4": "1234",
+        "date_of_birth": "1988-03-03",
+        "gender": "MALE",
+        "employment_type": "SALARIED",
+        "employer_name": "Test Corp",
+        "annual_income": 900000,
+        "employment_tenure_years": 3,
+        "loan_amount_requested": 500000,
+        "loan_tenure_months": 120,
+        "loan_purpose": "PERSONAL",
+        "existing_emi_monthly": 5000,
+        "residential_assets_value": 0,
+        "mobile_number": "9876543220",
+        "email": "tc11@example.com",
+        "address": {
+          "line1": "111 Demo Street",
+          "city": "Mumbai",
+          "state": "Maharashtra",
+          "pincode": "400001"
+        },
+        "submitted_at": "2026-03-17T12:10:00Z"
+      },
+      "ip_metadata": {
+        "ip_address": "103.21.1.1",
+        "form_fill_seconds": 175,
+        "device_fingerprint": "trusted_device_011",
+        "user_agent": "Mozilla/5.0"
+      }
+    }
+  },
+  {
+    "case_id": "TC12",
+    "label": "Borderline profile",
+    "expected_tendency": "CONDITIONAL_OR_ESCALATE",
+    "payload": {
+      "form_data": {
+        "applicant_name": "TC12 Borderline",
+        "pan_number": "PROSP0955P",
+        "aadhaar_last4": "1234",
+        "date_of_birth": "1994-04-04",
+        "gender": "MALE",
+        "employment_type": "SALARIED",
+        "employer_name": "Test Corp",
+        "annual_income": 650000,
+        "employment_tenure_years": 2,
+        "loan_amount_requested": 650000,
+        "loan_tenure_months": 60,
+        "loan_purpose": "PERSONAL",
+        "existing_emi_monthly": 15000,
+        "residential_assets_value": 0,
+        "mobile_number": "9876543221",
+        "email": "tc12@example.com",
+        "address": {
+          "line1": "112 Demo Street",
+          "city": "Mumbai",
+          "state": "Maharashtra",
+          "pincode": "400001"
+        },
+        "submitted_at": "2026-03-17T12:11:00Z"
+      },
+      "ip_metadata": {
+        "ip_address": "103.21.1.1",
+        "form_fill_seconds": 145,
+        "device_fingerprint": "trusted_device_012",
+        "user_agent": "Mozilla/5.0"
+      }
+    }
+  }
+]

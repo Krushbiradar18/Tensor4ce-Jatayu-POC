@@ -1,0 +1,24 @@
+{
+  "_note": "Change stress_scenario to HIGH_STRESS during demo — server reads this file fresh every call",
+  "rbi_repo_rate": 6.50,
+  "inflation_rate_cpi": 4.83,
+  "gdp_growth_rate": 6.40,
+  "stress_scenario": "NORMAL",
+  "stress_multipliers": {
+    "NORMAL":      0.0,
+    "MILD_STRESS": 0.5,
+    "HIGH_STRESS": 1.2
+  },
+  "sector_npa_rates": {
+    "HOME":      0.032,
+    "AUTO":      0.038,
+    "PERSONAL":  0.061,
+    "EDUCATION": 0.045
+  },
+  "effective_rates": {
+    "HOME":      9.0,
+    "AUTO":      9.5,
+    "PERSONAL":  12.0,
+    "EDUCATION": 10.0
+  }
+}

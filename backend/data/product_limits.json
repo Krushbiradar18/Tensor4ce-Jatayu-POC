@@ -1,0 +1,6 @@
+{
+  "HOME":      {"max_ltv": 0.80, "max_foir": 0.55, "min_income": 300000, "min_cibil": 650,  "max_amount": 100000000},
+  "AUTO":      {"max_ltv": 0.85, "max_foir": 0.55, "min_income": 250000, "min_cibil": 620,  "max_amount": 10000000},
+  "PERSONAL":  {"max_ltv": 0.00, "max_foir": 0.50, "min_income": 300000, "min_cibil": 680,  "max_amount": 2500000},
+  "EDUCATION": {"max_ltv": 0.00, "max_foir": 0.45, "min_income": 0,      "min_cibil": 0,    "max_amount": 5000000}
+}

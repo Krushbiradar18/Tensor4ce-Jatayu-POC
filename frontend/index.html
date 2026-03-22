@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Tensor4ce Credit AI</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',sans-serif;background:#f0f4f8;color:#1a202c;min-height:100vh}
+  :root{--teal:#1B5E6A;--teal2:#2E8B9A;--teal-light:#E6F4F7;--red:#dc2626;--green:#16a34a;--amber:#d97706;--grey:#6b7280;--border:#e2e8f0}
+  .btn{padding:10px 20px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all .2s}
+  .btn-primary{background:var(--teal);color:#fff} .btn-primary:hover{background:var(--teal2)}
+  .btn-secondary{background:#fff;color:var(--teal);border:1.5px solid var(--teal)} .btn-secondary:hover{background:var(--teal-light)}
+  .btn-green{background:#16a34a;color:#fff} .btn-red{background:#dc2626;color:#fff} .btn-amber{background:#d97706;color:#fff}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .card{background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:24px}
+  .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600}
+  .badge-green{background:#dcfce7;color:#16a34a} .badge-red{background:#fee2e2;color:#dc2626}
+  .badge-amber{background:#fef3c7;color:#d97706} .badge-blue{background:#dbeafe;color:#1d4ed8}
+  .badge-grey{background:#f3f4f6;color:#6b7280} .badge-teal{background:#E6F4F7;color:var(--teal)}
+  input,select,textarea{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Inter',sans-serif;outline:none;transition:border .2s}
+  input:focus,select:focus,textarea:focus{border-color:var(--teal2)}
+  label{display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px}
+  .field{margin-bottom:16px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+  .error-msg{color:var(--red);font-size:12px;margin-top:4px}
+  h1{font-size:24px;font-weight:700;color:var(--teal)}
+  h2{font-size:18px;font-weight:600;color:var(--teal)}
+  h3{font-size:15px;font-weight:600;color:#374151}
+  .divider{height:1px;background:var(--border);margin:20px 0}
+  .spinner{display:inline-block;width:20px;height:20px;border:2.5px solid rgba(255,255,255,.4);border-radius:50%;border-top-color:#fff;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .progress-bar{height:4px;background:var(--teal);border-radius:2px;transition:width .4s}
+  .tab-bar{display:flex;gap:2px;background:#f0f4f8;padding:4px;border-radius:10px;margin-bottom:24px}
+  .tab{flex:1;padding:8px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;text-align:center;border:none;background:transparent;color:var(--grey);transition:all .2s}
+  .tab.active{background:#fff;color:var(--teal);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+  .alert{padding:12px 16px;border-radius:8px;font-size:14px;margin-bottom:16px}
+  .alert-green{background:#dcfce7;color:#16a34a;border:1px solid #bbf7d0}
+  .alert-red{background:#fee2e2;color:#dc2626;border:1px solid #fecaca}
+  .alert-amber{background:#fef3c7;color:#92400e;border:1px solid #fde68a}
+  .alert-blue{background:#dbeafe;color:#1d4ed8;border:1px solid #bfdbfe}
+  table{width:100%;border-collapse:collapse}
+  th{background:#f8fafc;padding:10px 14px;font-size:12px;font-weight:600;text-align:left;color:var(--grey);border-bottom:1px solid var(--border)}
+  td{padding:10px 14px;font-size:13px;border-bottom:1px solid var(--border)}
+  tr:hover td{background:#f8fafc}
+  .metric-card{background:#f8fafc;border-radius:10px;padding:16px;text-align:center}
+  .metric-val{font-size:24px;font-weight:700;color:var(--teal)}
+  .metric-label{font-size:12px;color:var(--grey);margin-top:4px}
+  .shap-bar-wrap{display:flex;align-items:center;gap:8px;margin:6px 0}
+  .shap-label{font-size:12px;width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .shap-bar-outer{flex:1;background:#f0f4f8;border-radius:4px;height:10px}
+  .shap-bar-inner{height:100%;border-radius:4px;transition:width .6s}
+  .nav{background:var(--teal);padding:0 32px;display:flex;align-items:center;justify-content:space-between;height:60px}
+  .nav-brand{color:#fff;font-size:18px;font-weight:700;cursor:pointer}
+  .nav-links{display:flex;gap:4px}
+  .nav-link{color:rgba(255,255,255,.8);padding:8px 14px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer;transition:all .2s;border:none;background:transparent}
+  .nav-link:hover,.nav-link.active{color:#fff;background:rgba(255,255,255,.15)}
+  .page{max-width:900px;margin:0 auto;padding:32px 24px}
+  .step-indicator{display:flex;gap:0;margin-bottom:32px}
+  .step{flex:1;display:flex;align-items:center;font-size:13px;font-weight:500}
+  .step-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+  .step.done .step-num{background:var(--teal);color:#fff}
+  .step.active .step-num{background:var(--teal2);color:#fff;box-shadow:0 0 0 3px rgba(46,139,154,.25)}
+  .step.pending .step-num{background:#e2e8f0;color:#9ca3af}
+  .step-line{flex:1;height:2px;background:#e2e8f0;margin:0 8px}
+  .step-line.done{background:var(--teal)}
+  .factor-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f0f4f8}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const API = "http://localhost:8000";
+
+// ── Utilities ──────────────────────────────────────────────────────────────
+const fmt = (n) => new Intl.NumberFormat("en-IN", {style:"currency",currency:"INR",maximumFractionDigits:0}).format(n);
+const fmtPct = (n) => `${(n*100).toFixed(1)}%`;
+const fmtPdPct = (n) => {
+  const pct = Number(n || 0) * 100;
+  if (!Number.isFinite(pct)) return "—";
+  if (pct > 0 && pct < 0.1) return `${pct.toFixed(2)}%`;
+  return `${pct.toFixed(1)}%`;
+};
+const fmtRiskScore = (cr) => {
+  const raw = Number(cr?.model_risk_score);
+  if (Number.isFinite(raw)) {
+    if (raw > 0 && raw < 0.1) return `${raw.toFixed(2)}/100`;
+    return `${raw.toFixed(1)}/100`;
+  }
+  const pdBased = Number(cr?.credit_score) * 100;
+  if (!Number.isFinite(pdBased)) return "—";
+  if (pdBased > 0 && pdBased < 0.1) return `${pdBased.toFixed(2)}/100`;
+  return `${pdBased.toFixed(1)}/100`;
+};
+const titleCaseWords = (text) => {
+  const acronyms = new Set(["EMI", "CIBIL", "FOIR", "DPD", "LTV", "NPA", "EL"]);
+  return String(text || "")
+    .split(" ")
+    .filter(Boolean)
+    .map((w) => {
+      const up = w.toUpperCase();
+      if (acronyms.has(up)) return up;
+      return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+    })
+    .join(" ");
+};
+const humanizeLabel = (raw) => {
+  if (!raw) return "—";
+  const compact = String(raw).toLowerCase().replace(/[^a-z0-9]/g, "");
+  const known = {
+    netmonthlyincome: "Net Monthly Income",
+    numstd: "Number Of Standard Accounts",
+    numsub: "Number Of Substandard Accounts",
+    numdbt: "Number Of Doubtful Accounts",
+    numlss: "Number Of Loss Accounts",
+    timewithcurrempr: "Employment Tenure",
+    timesincerecentenq: "Time Since Recent Enquiry",
+    creditscore: "CIBIL Score",
+  };
+  if (known[compact]) return known[compact];
+
+  const replaced = String(raw)
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\bemi\b/gi, "EMI")
+    .replace(/\bcibil\b/gi, "CIBIL")
+    .replace(/\bfoir\b/gi, "FOIR")
+    .replace(/\bdpd\b/gi, "DPD");
+  return titleCaseWords(replaced);
+};
+const toPointList = (text) => {
+  if (!text) return [];
+  const raw = String(text).trim();
+  if (!raw) return [];
+
+  const normalizeItem = (line) =>
+    String(line || "")
+      .replace(/^\d+\.\s*/, "")
+      .replace(/^[\-•]\s*/, "")
+      .trim();
+  const isNoiseItem = (line) => /^\d+\.?$/.test(line);
+
+  const lineItems = raw
+    .split(/\n+/)
+    .map((l) => normalizeItem(l))
+    .filter((l) => l && !isNoiseItem(l));
+  if (lineItems.length > 1) {
+    return lineItems;
+  }
+
+  const inlineNumbered = raw.replace(/\s+(\d+)\.\s+/g, "\n$1. ");
+  const numberedItems = inlineNumbered
+    .split(/\n+/)
+    .map((l) => normalizeItem(l))
+    .filter((l) => l && !isNoiseItem(l));
+  if (numberedItems.length > 1) {
+    return numberedItems;
+  }
+
+  const bulletSplit = raw
+    .split(/•|\u2022|\n+/)
+    .map((p) => normalizeItem(p))
+    .filter((p) => p && !isNoiseItem(p));
+  if (bulletSplit.length > 1) return bulletSplit;
+
+  const sentenceSplit = raw
+    .split(/(?<=[.!?])\s+/)
+    .map((p) => normalizeItem(p))
+    .filter((p) => p && !isNoiseItem(p));
+  return sentenceSplit.length ? sentenceSplit : [raw];
+};
+const cls = (...args) => args.filter(Boolean).join(" ");
+
+function Badge({text, color="teal"}) {
+  const colors = {teal:"badge-teal",green:"badge-green",red:"badge-red",amber:"badge-amber",blue:"badge-blue",grey:"badge-grey"};
+  return <span className={cls("badge",colors[color]||"badge-grey")}>{text}</span>;
+}
+
+function riskColor(rb) {
+  return {LOW:"green",MEDIUM:"blue",HIGH:"amber",VERY_HIGH:"red"}[rb]||"grey";
+}
+function decisionColor(d) {
+  return {APPROVE:"green",CONDITIONAL:"amber",REJECT:"red",ESCALATE:"amber",
+          OFFICER_APPROVED:"green",OFFICER_REJECTED:"red",OFFICER_CONDITIONAL:"amber",OFFICER_ESCALATED:"amber"}[d]||"grey";
+}
+function statusLabel(s) {
+  return {
+    PENDING:"Received",DIL_PROCESSING:"Verifying Documents",AGENTS_RUNNING:"Under Review",
+    DECIDED_PENDING_OFFICER:"Decision Ready",OFFICER_APPROVED:"Approved",
+    OFFICER_REJECTED:"Rejected",OFFICER_CONDITIONAL:"Conditional",OFFICER_ESCALATED:"Escalated",ERROR:"Error"
+  }[s]||s;
+}
+
+function applicantPublicState(status) {
+  return ["OFFICER_APPROVED", "OFFICER_REJECTED", "OFFICER_CONDITIONAL"].includes(status)
+    ? "FINAL"
+    : "IN_PROCESS";
+}
+
+function applicantPublicLabel(status) {
+  if (status === "OFFICER_APPROVED") return "Approved";
+  if (status === "OFFICER_REJECTED") return "Not Approved";
+  if (status === "OFFICER_CONDITIONAL") return "Conditional Approval";
+  return "In Process";
+}
+
+function applicantPublicColor(status) {
+  if (status === "OFFICER_APPROVED") return "green";
+  if (status === "OFFICER_REJECTED") return "red";
+  if (status === "OFFICER_CONDITIONAL") return "amber";
+  return "blue";
+}
+
+function officerStageFallback(status) {
+  if (status === "PENDING") return "Queued for processing";
+  if (status === "DIL_PROCESSING") return "DIL verification in progress";
+  if (status === "AGENTS_RUNNING") return "Specialist agents running";
+  if (status === "DECIDED_PENDING_OFFICER") return "Awaiting officer action";
+  if (status && status.startsWith("OFFICER_")) return "Final decision completed";
+  if (status === "ERROR") return "Processing error";
+  return "In progress";
+}
+
+// ── NavBar ──────────────────────────────────────────────────────────────────
+function NavBar({page, setPage}) {
+  return (
+    <nav className="nav">
+      <span className="nav-brand" onClick={()=>setPage("home")}>⬡ Tensor4ce Credit AI</span>
+      <div className="nav-links">
+        <button className={cls("nav-link",page==="apply"&&"active")} onClick={()=>setPage("apply")}>Apply for Loan</button>
+        <button className={cls("nav-link",page==="track"&&"active")} onClick={()=>setPage("track")}>Track Application</button>
+        <button className={cls("nav-link",page==="officer"&&"active")} onClick={()=>setPage("officer")}>Officer Dashboard</button>
+      </div>
+    </nav>
+  );
+}
+
+// ── HOME PAGE ───────────────────────────────────────────────────────────────
+function HomePage({setPage}) {
+  return (
+    <div className="page">
+      <div style={{textAlign:"center",padding:"60px 0 40px"}}>
+        <div style={{fontSize:48,marginBottom:16}}>🏦</div>
+        <h1 style={{fontSize:32,marginBottom:12}}>Smart Loan Decisions</h1>
+        <p style={{color:var_grey,maxWidth:500,margin:"0 auto 32px",lineHeight:1.6}}>
+          AI-powered credit assessment that is fast, fair, and fully explainable.
+          Apply in minutes, get a decision in hours.
+        </p>
+        <div style={{display:"flex",gap:12,justifyContent:"center"}}>
+          <button className="btn btn-primary" style={{padding:"14px 32px",fontSize:16}} onClick={()=>setPage("apply")}>
+            Apply for a Loan
+          </button>
+          <button className="btn btn-secondary" style={{padding:"14px 32px",fontSize:16}} onClick={()=>setPage("track")}>
+            Track My Application
+          </button>
+        </div>
+      </div>
+      <div className="grid3" style={{marginTop:40}}>
+        {[
+          {icon:"⚡",title:"Fast Processing",desc:"AI evaluation in minutes, not days"},
+          {icon:"🔍",title:"Transparent Decisions",desc:"Clear explanations for every outcome"},
+          {icon:"🔒",title:"Secure & Compliant",desc:"RBI-compliant with full audit trail"},
+        ].map(c=>(
+          <div key={c.title} className="card" style={{textAlign:"center"}}>
+            <div style={{fontSize:36,marginBottom:12}}>{c.icon}</div>
+            <h3 style={{marginBottom:8}}>{c.title}</h3>
+            <p style={{color:var_grey,fontSize:13}}>{c.desc}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+const var_grey="#6b7280";
+
+// ── APPLY PAGE ──────────────────────────────────────────────────────────────
+const STEPS = ["Personal","Financial","Loan Details","Review"];
+
+function FormField({label, name, type="text", req, children, err, form, set, errors}) {
+  return (
+    <div className="field">
+      <label>{label}{req&&<span style={{color:"var(--red)"}}>*</span>}</label>
+      {children || <input type={type} value={form[name]||""} onChange={e=>set(name,e.target.value)}/>}
+      {(err||errors[name])&&<p className="error-msg">{err||errors[name]}</p>}
+    </div>
+  );
+}
+
+function ApplyPage() {
+  const [step, setStep] = React.useState(0);
+  const [formStartedAt] = React.useState(() => Date.now());
+  const [form, setForm] = React.useState({
+    applicant_name:"",pan_number:"",aadhaar_last4:"",date_of_birth:"",gender:"MALE",
+    employment_type:"SALARIED",employer_name:"",annual_income:"",employment_tenure_years:"",
+    loan_amount_requested:"",loan_tenure_months:"",loan_purpose:"HOME",
+    existing_emi_monthly:"0",residential_assets_value:"0",
+    mobile_number:"",email:"",
+    address:{line1:"",city:"",state:"Maharashtra",pincode:""},
+  });
+  const [errors, setErrors] = React.useState({});
+  const [loading, setLoading] = React.useState(false);
+  const [submitted, setSubmitted] = React.useState(null);
+
+  const today = new Date();
+  const todayStr = new Date(today.getTime() - today.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  const minDob = `${today.getFullYear() - 100}-01-01`;
+  const maxDob = `${today.getFullYear() - 18}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+  const setAddr = (k,v) => setForm(f=>({...f,address:{...f.address,[k]:v}}));
+
+  function validateDob(dobValue) {
+    if (!dobValue) return "Required";
+    const m = String(dobValue).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return "Use YYYY-MM-DD format";
+
+    const year = Number(m[1]);
+    const month = Number(m[2]);
+    const day = Number(m[3]);
+    const dob = new Date(year, month - 1, day);
+
+    if (
+      dob.getFullYear() !== year ||
+      dob.getMonth() !== month - 1 ||
+      dob.getDate() !== day
+    ) {
+      return "Enter a valid calendar date";
+    }
+
+    const maxDobDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
+    const minDobDate = new Date(today.getFullYear() - 100, 0, 1);
+    if (dob > maxDobDate) return "Applicant must be at least 18 years old";
+    if (dob < minDobDate) return "Date of birth year is out of valid range";
+    if (dobValue > todayStr) return "Date of birth cannot be in the future";
+
+    return "";
+  }
+
+  function validate() {
+    const e={};
+    if(step===0){
+      if(!form.applicant_name.trim()) e.applicant_name="Required";
+      if(!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(form.pan_number.toUpperCase())) e.pan_number="Invalid PAN format (e.g. ABCDE1234F)";
+      if(!form.aadhaar_last4.match(/^\d{4}$/)) e.aadhaar_last4="Enter last 4 digits of Aadhaar";
+      const dobErr = validateDob(form.date_of_birth);
+      if(dobErr) e.date_of_birth=dobErr;
+      if(form.mobile_number && !/^[6-9]\d{9}$/.test(form.mobile_number)) e.mobile_number="Enter a valid 10-digit Indian mobile number";
+      if(form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email="Enter a valid email address";
+    }
+    if(step===1){
+      if(!form.employer_name.trim()) e.employer_name="Required";
+      if(!(Number(form.annual_income)>0)) e.annual_income="Enter a valid annual income";
+    }
+    if(step===2){
+      if(!(Number(form.loan_amount_requested)>0)) e.loan_amount_requested="Enter a valid loan amount";
+      if(!(Number(form.loan_tenure_months)>0)) e.loan_tenure_months="Enter tenure in months";
+    }
+    setErrors(e);
+    return Object.keys(e).length===0;
+  }
+
+  async function submit() {
+    setLoading(true);
+    const fd = {...form,
+      annual_income:Number(form.annual_income),
+      loan_amount_requested:Number(form.loan_amount_requested),
+      loan_tenure_months:Number(form.loan_tenure_months),
+      existing_emi_monthly:Number(form.existing_emi_monthly)||0,
+      residential_assets_value:Number(form.residential_assets_value)||0,
+      employment_tenure_years:Number(form.employment_tenure_years)||1,
+      pan_number:form.pan_number.toUpperCase(),
+      submitted_at:new Date().toISOString(),
+    };
+    const fillTime  = Math.max(90, (Date.now() - formStartedAt) / 1000);
+    const ipMeta    = {ip_address:"103.21.1.1",form_fill_seconds:fillTime,device_fingerprint:"demo-device-001"};
+    try {
+      const res = await fetch(`${API}/api/apply`,{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({form_data:fd,ip_metadata:ipMeta})
+      });
+      const data = await res.json();
+      setSubmitted(data.application_id);
+    } catch(e) {
+      alert("Error submitting application. Is the backend running?");
+    }
+    setLoading(false);
+  }
+
+  if(submitted) return (
+    <div className="page">
+      <div className="card" style={{textAlign:"center",padding:"48px 32px"}}>
+        <div style={{fontSize:56,marginBottom:16}}>✅</div>
+        <h1 style={{marginBottom:8}}>Application Submitted!</h1>
+        <p style={{color:var_grey,marginBottom:24}}>Your application is being reviewed by our AI system.</p>
+        <div style={{background:"#f0f4f8",borderRadius:10,padding:"16px 24px",display:"inline-block",marginBottom:24}}>
+          <p style={{fontSize:12,color:var_grey,marginBottom:4}}>APPLICATION NUMBER</p>
+          <p style={{fontSize:22,fontWeight:700,color:"var(--teal)",letterSpacing:1}}>{submitted}</p>
+        </div>
+        <p style={{color:var_grey,fontSize:13}}>Save this number to track your application status.</p>
+        <button className="btn btn-primary" style={{marginTop:24}} onClick={()=>window.location.href="/?track="+submitted}>
+          Track My Application →
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="page">
+      <div style={{marginBottom:32}}>
+        <h1 style={{marginBottom:4}}>Loan Application</h1>
+        <p style={{color:var_grey,fontSize:14}}>Complete all steps to submit your application.</p>
+      </div>
+
+      {/* Step indicator */}
+      <div className="step-indicator">
+        {STEPS.map((s,i)=>(
+          <React.Fragment key={s}>
+            <div className={cls("step",i<step&&"done",i===step&&"active",i>step&&"pending")}>
+              <div className="step-num">{i<step?"✓":i+1}</div>
+              <span style={{marginLeft:8,fontSize:12,color:i===step?"var(--teal)":var_grey}}>{s}</span>
+            </div>
+            {i<STEPS.length-1&&<div className={cls("step-line",i<step&&"done")}/>}
+          </React.Fragment>
+        ))}
+      </div>
+
+      <div className="card">
+        {/* Step 0: Personal */}
+        {step===0&&(
+          <>
+            <h2 style={{marginBottom:20}}>Personal Information</h2>
+            <div className="grid2">
+              <FormField label="Full Name" name="applicant_name" req form={form} set={set} errors={errors}><input value={form.applicant_name} onChange={e=>set("applicant_name",e.target.value)} placeholder="As per PAN card"/></FormField>
+              <FormField label="Gender" name="gender" form={form} set={set} errors={errors}><select value={form.gender} onChange={e=>set("gender",e.target.value)}><option value="MALE">Male</option><option value="FEMALE">Female</option><option value="OTHER">Other</option></select></FormField>
+              <FormField label="PAN Number" name="pan_number" req form={form} set={set} errors={errors}><input value={form.pan_number} onChange={e=>set("pan_number",e.target.value.toUpperCase())} placeholder="ABCDE1234F" maxLength={10} style={{textTransform:"uppercase"}}/></FormField>
+              <FormField label="Aadhaar Last 4 Digits" name="aadhaar_last4" req form={form} set={set} errors={errors}><input value={form.aadhaar_last4} onChange={e=>set("aadhaar_last4",e.target.value.replace(/\D/,""))} placeholder="XXXX" maxLength={4}/></FormField>
+              <FormField label="Date of Birth" name="date_of_birth" req form={form} set={set} errors={errors}><input type="date" value={form.date_of_birth} min={minDob} max={maxDob} onChange={e=>set("date_of_birth",e.target.value)}/></FormField>
+              <FormField label="Mobile Number" name="mobile_number" form={form} set={set} errors={errors}><input value={form.mobile_number} maxLength={10} onChange={e=>set("mobile_number",e.target.value.replace(/\D/g, ""))} placeholder="10-digit number"/></FormField>
+              <FormField label="Email" name="email" form={form} set={set} errors={errors}><input type="email" value={form.email} onChange={e=>set("email",e.target.value.trim())} placeholder="your@email.com"/></FormField>
+            </div>
+            <div className="divider"/>
+            <h3 style={{marginBottom:16}}>Address</h3>
+            <div className="grid2">
+              <div className="field"><label>Address Line 1</label><input value={form.address.line1} onChange={e=>setAddr("line1",e.target.value)} placeholder="House / Street"/></div>
+              <div className="field"><label>City</label><input value={form.address.city} onChange={e=>setAddr("city",e.target.value)}/></div>
+              <div className="field"><label>State</label>
+                <select value={form.address.state} onChange={e=>setAddr("state",e.target.value)}>
+                  {["Maharashtra","Karnataka","Delhi","Tamil Nadu","Telangana","Gujarat","Rajasthan","West Bengal","Uttar Pradesh","Kerala"].map(s=><option key={s}>{s}</option>)}
+                </select>
+              </div>
+              <div className="field"><label>Pincode</label><input value={form.address.pincode} onChange={e=>setAddr("pincode",e.target.value)} maxLength={6}/></div>
+            </div>
+          </>
+        )}
+
+        {/* Step 1: Financial */}
+        {step===1&&(
+          <>
+            <h2 style={{marginBottom:20}}>Financial Information</h2>
+            <div className="grid2">
+              <FormField label="Employment Type" name="employment_type" form={form} set={set} errors={errors}><select value={form.employment_type} onChange={e=>set("employment_type",e.target.value)}><option value="SALARIED">Salaried</option><option value="SELF_EMPLOYED">Self-Employed</option></select></FormField>
+              <FormField label="Employer / Business Name" name="employer_name" req form={form} set={set} errors={errors}><input value={form.employer_name} onChange={e=>set("employer_name",e.target.value)} placeholder="Company or business name"/></FormField>
+              <FormField label="Annual Income (₹)" name="annual_income" req form={form} set={set} errors={errors}><input type="number" value={form.annual_income} onChange={e=>set("annual_income",e.target.value)} placeholder="e.g. 1200000"/></FormField>
+              <FormField label="Years at Current Employer" name="employment_tenure_years" form={form} set={set} errors={errors}><input type="number" value={form.employment_tenure_years} onChange={e=>set("employment_tenure_years",e.target.value)} placeholder="e.g. 3"/></FormField>
+              <FormField label="Existing EMI / Month (₹)" form={form} set={set} errors={errors}><input type="number" value={form.existing_emi_monthly} onChange={e=>set("existing_emi_monthly",e.target.value)} placeholder="0 if none"/></FormField>
+              <FormField label="Residential Property Value (₹)" form={form} set={set} errors={errors}><input type="number" value={form.residential_assets_value} onChange={e=>set("residential_assets_value",e.target.value)} placeholder="0 if none"/></FormField>
+            </div>
+          </>
+        )}
+
+        {/* Step 2: Loan */}
+        {step===2&&(
+          <>
+            <h2 style={{marginBottom:20}}>Loan Details</h2>
+            <div className="grid2">
+              <FormField label="Loan Product" form={form} set={set} errors={errors}><select value={form.loan_purpose} onChange={e=>set("loan_purpose",e.target.value)}>
+                <option value="PERSONAL">Personal Loan</option>
+            
+              </select></FormField>
+              <FormField label="Loan Amount (₹)" name="loan_amount_requested" req form={form} set={set} errors={errors}><input type="number" value={form.loan_amount_requested} onChange={e=>set("loan_amount_requested",e.target.value)} placeholder="e.g. 4500000"/></FormField>
+              <FormField label="Tenure (months)" name="loan_tenure_months" req form={form} set={set} errors={errors}>
+                <select value={form.loan_tenure_months} onChange={e=>set("loan_tenure_months",e.target.value)}>
+                  {[12,24,36,48,60,84,120,180,240,300,360].map(t=><option key={t} value={t}>{t} months ({(t/12).toFixed(1)} years)</option>)}
+                </select>
+              </FormField>
+            </div>
+            <div style={{background:"#f0f9ff",borderRadius:10,padding:16,marginTop:8}}>
+              <p style={{fontSize:13,color:"#0369a1",fontWeight:500}}>
+                ℹ️ You will need to upload: PAN Card, Aadhaar Card, 6-month Bank Statement, Form 16.
+                For this demo, sample documents will be used automatically.
+              </p>
+            </div>
+          </>
+        )}
+
+        {/* Step 3: Review */}
+        {step===3&&(
+          <>
+            <h2 style={{marginBottom:20}}>Review & Submit</h2>
+            <div className="grid2">
+              {[
+                ["Name",form.applicant_name],["PAN",form.pan_number],
+                ["DOB",form.date_of_birth],["Employment",form.employment_type],
+                ["Employer",form.employer_name],["Annual Income",`₹${Number(form.annual_income).toLocaleString("en-IN")}`],
+                ["Loan Product",form.loan_purpose],["Loan Amount",`₹${Number(form.loan_amount_requested).toLocaleString("en-IN")}`],
+                ["Tenure",`${form.loan_tenure_months} months`],["Existing EMI",`₹${Number(form.existing_emi_monthly).toLocaleString("en-IN")}`],
+              ].map(([k,v])=>(
+                <div key={k} style={{borderBottom:"1px solid #f0f4f8",padding:"8px 0"}}>
+                  <span style={{fontSize:12,color:var_grey}}>{k}</span>
+                  <p style={{fontWeight:500,fontSize:14}}>{v||"—"}</p>
+                </div>
+              ))}
+            </div>
+            <div className="alert alert-blue" style={{marginTop:20}}>
+              By submitting, you consent to your information being used for credit assessment purposes.
+            </div>
+          </>
+        )}
+
+        <div style={{display:"flex",justifyContent:"space-between",marginTop:24}}>
+          {step>0
+            ? <button className="btn btn-secondary" onClick={()=>setStep(s=>s-1)}>← Back</button>
+            : <span/>
+          }
+          {step<STEPS.length-1
+            ? <button className="btn btn-primary" onClick={()=>{if(validate())setStep(s=>s+1)}}>Next →</button>
+            : <button className="btn btn-primary" disabled={loading} onClick={submit}>
+                {loading?<><span className="spinner"/>&nbsp;Submitting...</>:"Submit Application"}
+              </button>
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── TRACK PAGE ──────────────────────────────────────────────────────────────
+function TrackPage() {
+  const [appId, setAppId] = React.useState("");
+  const [result, setResult] = React.useState(null);
+  const [loading, setLoading] = React.useState(false);
+  const [polling, setPolling] = React.useState(null);
+
+  React.useEffect(()=>{
+    const p=new URLSearchParams(window.location.search);
+    const id=p.get("track");
+    if(id){setAppId(id);checkStatus(id);}
+  },[]);
+
+  async function checkStatus(id) {
+    const aid=id||appId.trim();
+    if(!aid) return;
+    setLoading(true);
+    try {
+      const res=await fetch(`${API}/api/status/${aid}`);
+      if(!res.ok){setResult({error:"Application not found"});setLoading(false);return;}
+      const data=await res.json();
+      setResult(data);
+
+      // Auto-poll while still in process from applicant perspective.
+      const processingStates = new Set(["PENDING", "DIL_PROCESSING", "AGENTS_RUNNING", "DECIDED_PENDING_OFFICER", "OFFICER_ESCALATED"]);
+      if(processingStates.has(data.status)){
+        if(polling) clearTimeout(polling);
+        const t=setTimeout(()=>checkStatus(aid),3000);
+        setPolling(t);
+      } else if (polling) {
+        clearTimeout(polling);
+        setPolling(null);
+      }
+    } catch(e){setResult({error:"Cannot reach server"});}
+    setLoading(false);
+  }
+
+  const isFinal = applicantPublicState(result?.status) === "FINAL";
+  const publicLabel = applicantPublicLabel(result?.status);
+  const publicColor = applicantPublicColor(result?.status);
+  const publicIcon = isFinal
+    ? (result?.status === "OFFICER_APPROVED" ? "✅" : result?.status === "OFFICER_REJECTED" ? "❌" : "⚠️")
+    : "⏳";
+
+  return (
+    <div className="page">
+      <h1 style={{marginBottom:4}}>Track Your Application</h1>
+      <p style={{color:var_grey,marginBottom:24,fontSize:14}}>Enter your application number to check the status.</p>
+      <div className="card" style={{marginBottom:24}}>
+        <div style={{display:"flex",gap:12}}>
+          <input value={appId} onChange={e=>setAppId(e.target.value.toUpperCase())}
+            placeholder="e.g. APP-A1B2C3D4" style={{flex:1}}
+            onKeyDown={e=>e.key==="Enter"&&checkStatus()}/>
+          <button className="btn btn-primary" disabled={loading||!appId.trim()} onClick={()=>checkStatus()}>
+            {loading?<span className="spinner"/>:"Check Status"}
+          </button>
+        </div>
+      </div>
+
+      {result&&!result.error&&(
+        <div className="card">
+          <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:20}}>
+            <span style={{fontSize:40}}>{publicIcon}</span>
+            <div>
+              <h2 style={{marginBottom:4}}>{publicLabel}</h2>
+              <p style={{color:var_grey,fontSize:13}}>{result.application_id}</p>
+            </div>
+            <div style={{marginLeft:"auto"}}>
+              <Badge text={publicLabel} color={publicColor}/>
+            </div>
+          </div>
+
+          {!isFinal&&<div className="alert alert-blue">Your application is currently being processed. We will notify you once a final decision is available.</div>}
+
+          {result.officer_decision&&(
+            <>
+              <div className={`alert ${result.officer_decision==="APPROVED"?"alert-green":result.officer_decision==="REJECTED"?"alert-red":"alert-amber"}`}>
+                <p style={{fontWeight:600,marginBottom:4}}>{
+                  result.officer_decision==="APPROVED"?"🎉 Loan Approved":
+                  result.officer_decision==="REJECTED"?"Application Not Approved":
+                  result.officer_decision==="CONDITIONAL"?"Conditional Approval":"Decision Update"
+                }</p>
+                {result.officer_reason&&<p style={{fontSize:13}}>{result.officer_reason}</p>}
+              </div>
+              {result.actioned_at&&<p style={{fontSize:12,color:var_grey,marginTop:8}}>Decision on: {new Date(result.actioned_at).toLocaleString("en-IN")}</p>}
+            </>
+          )}
+
+          {(!isFinal)&&(
+            <div style={{display:"flex",alignItems:"center",gap:12,marginTop:16,padding:12,background:"#f8fafc",borderRadius:8}}>
+              <div style={{width:16,height:16,border:"2px solid var(--teal2)",borderRadius:"50%",borderTopColor:"transparent",animation:"spin .8s linear infinite"}}/>
+              <span style={{fontSize:13,color:var_grey}}>Checking for updates every 3 seconds…</span>
+            </div>
+          )}
+        </div>
+      )}
+      {result?.error&&<div className="alert alert-red">{result.error}</div>}
+    </div>
+  );
+}
+
+// ── OFFICER DASHBOARD ───────────────────────────────────────────────────────
+function OfficerDashboard() {
+  const [tab,setTab]=React.useState("queue");
+  const [queue,setQueue]=React.useState([]);
+  const [selected,setSelected]=React.useState(null);
+  const [detail,setDetail]=React.useState(null);
+  const [loading,setLoading]=React.useState(false);
+  const [action,setAction]=React.useState({decision:"APPROVED",reason:""});
+  const [actioned,setActioned]=React.useState(false);
+
+  React.useEffect(()=>{
+    loadQueue();
+    const t=setInterval(loadQueue,5000);
+    return()=>clearInterval(t);
+  },[]);
+
+  async function loadQueue(){
+    try{const r=await fetch(`${API}/api/officer/queue`);const d=await r.json();setQueue(d);}catch(e){}
+  }
+
+  async function loadDetail(id){
+    setLoading(true);setSelected(id);setActioned(false);setAction({decision:"APPROVED",reason:""});
+    try{const r=await fetch(`${API}/api/officer/decision/${id}`);const d=await r.json();setDetail(d);}catch(e){setDetail(null);}
+    setTab("detail");setLoading(false);
+  }
+
+  async function submitAction(){
+    if(action.reason.length<15){alert("Please provide a reason (at least 15 characters)");return;}
+    const r=await fetch(`${API}/api/officer/action/${selected}`,{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({officer_id:"OFF-001",...action})
+    });
+    if(r.ok){setActioned(true);loadQueue();}
+  }
+
+  const dec=detail?.decision;
+  const cr=dec?.credit_risk;
+  const fr=dec?.fraud;
+  const co=dec?.compliance;
+  const po=dec?.portfolio;
+  const matrixRow=dec?.decision_matrix_row||"";
+  const reasonTitle = (() => {
+    if (!matrixRow) return "Decision rule not available";
+    if (matrixRow.includes("R4_PORTFOLIO_BREACH")) return "Rejected due to portfolio concentration limit breach";
+    if (matrixRow.includes("R1_COMPLIANCE_BLOCK")) return "Rejected due to compliance policy block";
+    if (matrixRow.includes("R2_FRAUD_HIGH_RISK")) return "Rejected due to high fraud risk";
+    if (matrixRow.includes("R3_CREDIT_VERY_HIGH")) return "Rejected due to very high credit risk";
+    if (matrixRow.includes("R5_HIGH_RISK_ESCALATE")) return "Escalated due to high credit risk";
+    if (matrixRow.includes("R6_SUSPICIOUS_FRAUD")) return "Escalated due to suspicious fraud signals";
+    if (matrixRow.includes("R7")) return "Approved or conditional based on composite checks";
+    return humanizeLabel(matrixRow);
+  })();
+  const reasonItems = (() => {
+    const items = [];
+    const concentrationFlags = po?.concentration_flags || [];
+    const sectorFlag = concentrationFlags.find((f) => /SECTOR_(BREACH|WARNING)/i.test(String(f || "")));
+    const limitMatch = String(sectorFlag || "").match(/(\d+)%\s*limit/i);
+    const policyLimit = limitMatch ? `${limitMatch[1]}%` : "40%";
+    const isPortfolioDrivenRejection =
+      String(matrixRow).includes("R4_PORTFOLIO_BREACH") ||
+      concentrationFlags.some((f) => /SECTOR_BREACH/i.test(String(f || "")));
+
+    if (matrixRow) items.push(`Matrix rule: ${humanizeLabel(matrixRow)}`);
+    if (po?.portfolio_recommendation) {
+      items.push(`Portfolio recommendation: ${humanizeLabel(po.portfolio_recommendation)}`);
+    }
+    if (concentrationFlags.length > 0) {
+      concentrationFlags.forEach((f) => items.push(humanizeLabel(f)));
+    }
+    if (isPortfolioDrivenRejection && po?.sector_concentration_new != null) {
+      items.push(`Sector concentration after approval: ${fmtPct(po.sector_concentration_new)} (policy limit ${policyLimit})`);
+    }
+    return items;
+  })();
+
+  return (
+    <div className="page">
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:24}}>
+        <div><h1 style={{marginBottom:4}}>Officer Dashboard</h1><p style={{color:var_grey,fontSize:14}}>Review applications and monitor current processing stage.</p></div>
+        <div style={{fontSize:13,color:var_grey}}>Auto-refreshes every 5s</div>
+      </div>
+
+      <div className="tab-bar">
+        <button className={cls("tab",tab==="queue"&&"active")} onClick={()=>setTab("queue")}>Application Queue ({queue.length})</button>
+        {selected&&<button className={cls("tab",tab==="detail"&&"active")} onClick={()=>setTab("detail")}>Decision Detail</button>}
+      </div>
+
+      {/* Queue Tab */}
+      {tab==="queue"&&(
+        <div className="card" style={{padding:0,overflow:"hidden"}}>
+          {queue.length===0
+            ? <div style={{padding:48,textAlign:"center",color:var_grey}}>No applications yet. Submit one via the Apply page.</div>
+            : <table>
+                <thead><tr><th>Application ID</th><th>Applicant</th><th>Product</th><th>Amount</th><th>Status</th><th>In-Progress Stage</th><th>AI Decision</th><th></th></tr></thead>
+                <tbody>
+                  {queue.map(a=>(
+                    <tr key={a.application_id} style={{cursor:"pointer"}} onClick={()=>loadDetail(a.application_id)}>
+                      <td style={{fontFamily:"monospace",fontSize:12}}>{a.application_id}</td>
+                      <td>{a.applicant_name||"—"}</td>
+                      <td><Badge text={a.loan_purpose||"—"} color="teal"/></td>
+                      <td>{a.loan_amount?fmt(a.loan_amount):"—"}</td>
+                      <td><Badge text={statusLabel(a.status)} color={decisionColor(a.status)}/></td>
+                      <td style={{fontSize:12,color:var_grey}}>{a.processing_stage||officerStageFallback(a.status)}</td>
+                      <td>{a.ai_recommendation?<Badge text={a.ai_recommendation} color={decisionColor(a.ai_recommendation)}/>:"—"}</td>
+                      <td><button className="btn btn-secondary" style={{padding:"4px 12px",fontSize:12}}>Review →</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+          }
+        </div>
+      )}
+
+      {/* Detail Tab */}
+      {tab==="detail"&&(
+        loading ? <div className="card" style={{textAlign:"center",padding:48}}><div className="spinner" style={{border:"3px solid #e2e8f0",borderTopColor:"var(--teal)",width:32,height:32,display:"inline-block"}}/></div>
+        : detail&&dec ? (
+          <>
+            {/* AI Decision Banner */}
+            <div className={`alert ${
+              dec.ai_recommendation==="APPROVE"?"alert-green":
+              dec.ai_recommendation==="REJECT"?"alert-red":"alert-amber"
+            }`} style={{marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div>
+                <span style={{fontWeight:700,fontSize:16}}>AI Recommendation: {dec.ai_recommendation}</span>
+              </div>
+              <span style={{fontSize:28}}>{dec.ai_recommendation==="APPROVE"?"✅":dec.ai_recommendation==="REJECT"?"❌":"⚠️"}</span>
+            </div>
+
+            <div className={`alert ${dec.ai_recommendation==="REJECT"?"alert-red":"alert-blue"}`} style={{marginBottom:16}}>
+              <p style={{fontWeight:700,marginBottom:6}}>Why this decision</p>
+              <p style={{fontSize:13,marginBottom:8}}>{reasonTitle}</p>
+              {reasonItems.length>0 && reasonItems.map((item,i)=>(
+                <p key={i} style={{fontSize:12,marginBottom:4}}>• {item}</p>
+              ))}
+            </div>
+
+            {dec.conditions?.length>0&&(
+              <div className="alert alert-amber" style={{marginBottom:16}}>
+                <p style={{fontWeight:600,marginBottom:8}}>Conditions Required:</p>
+                {dec.conditions.map((c,i)=><p key={i} style={{fontSize:13}}>• [{c.condition_type}] {c.description}</p>)}
+              </div>
+            )}
+
+            {/* Metrics Row */}
+            <div className="grid3" style={{marginBottom:16}}>
+              
+              <div className="metric-card">
+                <div className="metric-val">{cr?<Badge text={cr.risk_band} color={riskColor(cr.risk_band)}/>:"—"}</div>
+                <div className="metric-label">Credit Risk Band</div>
+              </div>
+              <div className="metric-card">
+                <div className="metric-val">{cr?fmtPdPct(cr.credit_score):"—"}</div>
+                <div className="metric-label">Probability of Default</div>
+              </div>
+              <div className="metric-card">
+                <div className="metric-val">{cr?fmtPct(cr.foir):"—"}</div>
+                <div className="metric-label">FOIR</div>
+              </div>
+              <div className="metric-card">
+                <div className="metric-val"><Badge text={fr?.fraud_level||"—"} color={fr?.fraud_level==="CLEAN"?"green":fr?.fraud_level==="HIGH_RISK"?"red":"amber"}/></div>
+                <div className="metric-label">Fraud Level</div>
+              </div>
+              <div className="metric-card">
+                <div className="metric-val">{co?<Badge text={co.overall_status} color={co.all_blocks_passed?"green":"red"}/>:"—"}</div>
+                <div className="metric-label">Compliance</div>
+              </div>
+              <div className="metric-card">
+                <div className="metric-val">{po?fmt(po.el_impact_inr):"—"}</div>
+                <div className="metric-label">EL Impact</div>
+              </div>
+            </div>
+
+            {/* 4-agent cards */}
+            <div className="grid2" style={{marginBottom:16}}>
+              {/* Credit Risk */}
+              <div className="card">
+                <h3 style={{marginBottom:12}}>📊 Credit Risk Agent</h3>
+                {cr&&<>
+                  {toPointList(cr.officer_narrative || cr.customer_narrative).length>0 ? (
+                    <ol style={{marginBottom:12,paddingLeft:18}}>
+                      {toPointList(cr.officer_narrative || cr.customer_narrative).map((p,i)=>(
+                        <li key={i} style={{fontSize:13,color:var_grey,marginBottom:6,lineHeight:1.45}}>{p}</li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p style={{fontSize:13,color:var_grey,marginBottom:12}}>No narrative available.</p>
+                  )}
+                  <div style={{marginBottom:8}}>
+                    {[["Risk Score",fmtRiskScore(cr)],["Proposed EMI",fmt(cr.proposed_emi)],["Surplus/mo",fmt(cr.net_monthly_surplus)],
+                      ["LTV",fmtPct(cr.ltv_ratio)],["Stress",cr.stress_scenario]].map(([k,v])=>(
+                      <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:"1px solid #f0f4f8"}}>
+                        <span style={{fontSize:12,color:var_grey}}>{k}</span><span style={{fontSize:13,fontWeight:500}}>{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {cr.top_factors?.length>0&&<>
+                    <p style={{fontSize:12,fontWeight:600,color:var_grey,marginTop:12,marginBottom:6}}>TOP FACTORS</p>
+                    {cr.top_factors.slice(0,8).map((f, idx)=>(
+                      <div key={`${f.feature}-${idx}`} className="factor-row">
+                        <span style={{fontSize:11,flex:"0 0 42%",lineHeight:1.3,color:var_grey}}>{humanizeLabel(f.human_label || f.feature)}</span>
+                        <div style={{flex:1,height:8,background:"#f0f4f8",borderRadius:4}}>
+                          <div style={{width:`${Math.max(8, Math.min(100, Math.abs(Number(f.shap_value) || 0) * 5000))}%`,height:"100%",borderRadius:4,background:f.direction==="POSITIVE"?"#16a34a":"#dc2626"}}/>
+                        </div>
+                        <span style={{fontSize:11,width:48,textAlign:"right",color:f.direction==="POSITIVE"?"#16a34a":"#dc2626"}}>{Number(f.shap_value)>0?"↑":"↓"}</span>
+                      </div>
+                    ))}
+                  </>}
+                </>}
+              </div>
+
+              {/* Fraud */}
+              <div className="card">
+                <h3 style={{marginBottom:12}}>🔍 Fraud Agent</h3>
+                {fr&&<>
+                  {toPointList(fr.explanation).length>0 ? (
+                    <ol style={{marginBottom:10,paddingLeft:18}}>
+                      {toPointList(fr.explanation).map((p,i)=>(
+                        <li key={i} style={{fontSize:13,color:var_grey,marginBottom:5,lineHeight:1.45}}>{p}</li>
+                      ))}
+                    </ol>
+                  ) : null}
+                  <div style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:"1px solid #f0f4f8",marginBottom:10}}>
+                    <span style={{fontSize:12,color:var_grey}}>Fraud Probability</span>
+                    <span style={{fontSize:13,fontWeight:500}}>{fmtPdPct(fr.fraud_probability || 0)}</span>
+                  </div>
+                  {fr.fired_hard_rules?.length>0&&(
+                    <div className="alert alert-red" style={{marginBottom:8,padding:"8px 12px"}}>
+                      <p style={{fontSize:12,fontWeight:600,marginBottom:4}}>Hard Rules Fired:</p>
+                      {fr.fired_hard_rules.map((r,i)=><p key={i} style={{fontSize:12}}>• {humanizeLabel(r)}</p>)}
+                    </div>
+                  )}
+                  {fr.fired_soft_signals?.length>0&&(
+                    <div className="alert alert-amber" style={{padding:"8px 12px"}}>
+                      <p style={{fontSize:12,fontWeight:600,marginBottom:4}}>Soft Signals:</p>
+                      {fr.fired_soft_signals.map((r,i)=><p key={i} style={{fontSize:12}}>• {humanizeLabel(r)}</p>)}
+                    </div>
+                  )}
+                  {fr.fired_hard_rules?.length===0&&fr.fired_soft_signals?.length===0&&(
+                    <div className="alert alert-green" style={{padding:"8px 12px"}}><p style={{fontSize:12}}>✓ No fraud signals detected</p></div>
+                  )}
+                </>}
+              </div>
+
+              {/* Compliance */}
+              <div className="card">
+                <h3 style={{marginBottom:12}}>⚖️ Compliance Agent</h3>
+                {co&&<>
+                  {toPointList(co.narrative || co.cot_reasoning).length>0 ? (
+                    <ol style={{marginBottom:12,paddingLeft:18}}>
+                      {toPointList(co.narrative || co.cot_reasoning).map((p,i)=>(
+                        <li key={i} style={{fontSize:13,color:var_grey,marginBottom:5,lineHeight:1.45}}>{p}</li>
+                      ))}
+                    </ol>
+                  ) : null}
+                  {co.block_flags?.map((f,i)=>(
+                    <div key={i} className="alert alert-red" style={{padding:"6px 10px",marginBottom:6}}>
+                      <span style={{fontSize:12,fontWeight:600}}>{f.rule_id}</span>
+                      <span style={{fontSize:12}}> — {humanizeLabel(f.message || f.description || "Policy violation")}</span>
+                    </div>
+                  ))}
+                  {co.warn_flags?.map((f,i)=>(
+                    <div key={i} className="alert alert-amber" style={{padding:"6px 10px",marginBottom:6}}>
+                      <span style={{fontSize:12,fontWeight:600}}>{f.rule_id}</span>
+                      <span style={{fontSize:12}}> — {humanizeLabel(f.message || f.description || "Manual review recommended")}</span>
+                    </div>
+                  ))}
+                  {(co.overall_status==="PASS" || co.all_blocks_passed)&&co.warn_flags?.length===0&&(
+                    <div className="alert alert-green" style={{padding:"8px 12px"}}><p style={{fontSize:12}}>✓ All {detail.audit_log?.filter(e=>e.agent_name==="compliance_agent").length||14} RBI rules passed</p></div>
+                  )}
+                </>}
+              </div>
+
+              {/* Portfolio */}
+              <div className="card">
+                <h3 style={{marginBottom:12}}>📈 Portfolio Agent</h3>
+                {po&&<>
+                  {toPointList(po.cot_reasoning || po.narrative).length>0 ? (
+                    <ol style={{marginBottom:12,paddingLeft:18}}>
+                      {toPointList(po.cot_reasoning || po.narrative).map((p,i)=>(
+                        <li key={i} style={{fontSize:13,color:var_grey,marginBottom:5,lineHeight:1.45}}>{p}</li>
+                      ))}
+                    </ol>
+                  ) : null}
+                  {[
+                    ["Sector (before)",fmtPct(po.sector_concentration_current)],
+                    ["Sector (after)",fmtPct(po.sector_concentration_new)],
+                    ["Geo (after)",fmtPct(po.geo_concentration_new)],
+                    ["Similar NPA rate",fmtPct(po.similar_cases_npa_rate)],
+                  ].map(([k,v])=>(
+                    <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:"1px solid #f0f4f8"}}>
+                      <span style={{fontSize:12,color:var_grey}}>{k}</span><span style={{fontSize:13,fontWeight:500}}>{v}</span>
+                    </div>
+                  ))}
+                  {po.concentration_flags?.length>0&&(
+                    <div className="alert alert-amber" style={{marginTop:8,padding:"6px 10px"}}>
+                      {po.concentration_flags.map((f,i)=><p key={i} style={{fontSize:12}}>⚠ {humanizeLabel(f)}</p>)}
+                    </div>
+                  )}
+                  <p style={{fontSize:11,color:var_grey,marginTop:10}}>
+                    EL impact is incremental expected loss for this single loan (EL = PD × LGD × Loan Amount), not total portfolio loss.
+                  </p>
+                </>}
+              </div>
+            </div>
+
+            {/* Officer Action */}
+            {!actioned&&!detail.status?.startsWith("OFFICER_")&&(
+              <div className="card">
+                <h3 style={{marginBottom:16}}>Officer Action</h3>
+                <div className="field">
+                  <label>Decision</label>
+                  <select value={action.decision} onChange={e=>setAction(a=>({...a,decision:e.target.value}))}>
+                    <option value="APPROVED">Approve</option>
+                    <option value="REJECTED">Reject</option>
+                    <option value="CONDITIONAL">Conditional Approval</option>
+                    <option value="ESCALATED">Escalate to Senior Officer</option>
+                  </select>
+                </div>
+                <div className="field">
+                  <label>Reason / Notes <span style={{color:"var(--red)"}}>*</span></label>
+                  <textarea value={action.reason} onChange={e=>setAction(a=>({...a,reason:e.target.value}))}
+                    placeholder="Provide reason for your decision (min 15 characters)"
+                    rows={3}/>
+                </div>
+                <div style={{display:"flex",gap:12}}>
+                  <button className={cls("btn",action.decision==="APPROVED"?"btn-green":action.decision==="REJECTED"?"btn-red":"btn-amber")}
+                    onClick={submitAction}>Submit Decision</button>
+                  <button className="btn btn-secondary" onClick={()=>setTab("queue")}>← Back to Queue</button>
+                </div>
+              </div>
+            )}
+            {(actioned||detail.status?.startsWith("OFFICER_"))&&(
+              <div className="alert alert-green">✓ Officer action recorded. Application status updated.</div>
+            )}
+          </>
+        ) : <div className="alert alert-amber">No decision data yet for this application. It may still be processing.</div>
+      )}
+    </div>
+  );
+}
+
+// ── APP ─────────────────────────────────────────────────────────────────────
+function App() {
+  const [page,setPage]=React.useState(()=>{
+    const p=new URLSearchParams(window.location.search);
+    if(p.get("track")) return "track";
+    return "home";
+  });
+
+  return (
+    <>
+      <NavBar page={page} setPage={setPage}/>
+      {page==="home"    && <HomePage setPage={setPage}/>}
+      {page==="apply"   && <ApplyPage/>}
+      {page==="track"   && <TrackPage/>}
+      {page==="officer" && <OfficerDashboard/>}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>

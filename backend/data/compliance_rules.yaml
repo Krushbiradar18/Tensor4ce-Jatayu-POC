@@ -1,0 +1,64 @@
+version: "2.0"
+rules:
+  - id: C001
+    description: Applicant age must be between 21 and 65 years
+    expression: "21 <= applicant_age <= 65"
+    severity: BLOCK
+    regulation: RBI Retail Lending Master Direction 2023
+    error_message: "Age {applicant_age} outside eligible range 21-65"
+
+  - id: C002
+    description: FOIR must not exceed 55%
+    expression: "foir <= 0.55"
+    severity: BLOCK
+    regulation: RBI Household Income Guidelines 2023
+    error_message: "FOIR {foir:.1%} exceeds 55% RBI limit"
+
+  - id: C003
+    description: "LTV for HOME loans: <=80% (below 30L), <=75% (above 30L)"
+    expression: "ltv_ratio <= (0.80 if loan_amount < 3000000 else 0.75) if loan_product == 'HOME' else True"
+    severity: BLOCK
+    regulation: RBI Housing Finance Circular 2024
+    error_message: "LTV {ltv_ratio:.1%} exceeds RBI limit for home loan amount"
+
+  - id: C004
+    description: LTV for AUTO loans must not exceed 85%
+    expression: "ltv_ratio <= 0.85 if loan_product == 'AUTO' else True"
+    severity: BLOCK
+    regulation: RBI Vehicle Loan Guidelines 2022
+    error_message: "LTV {ltv_ratio:.1%} exceeds 85% for auto loans"
+
+  - id: C005
+    description: Credit bureau check is mandatory
+    expression: "bureau_check_done == True"
+    severity: BLOCK
+    regulation: RBI Credit Information Companies Act 2005
+    error_message: "Bureau check not completed"
+
+  - id: C006
+    description: KYC — PAN and Aadhaar both required
+    expression: "kyc_pan_present and kyc_aadhaar_present"
+    severity: BLOCK
+    regulation: RBI KYC Master Direction 2016 (amended 2023)
+    error_message: "Incomplete KYC: PAN={kyc_pan_present}, Aadhaar={kyc_aadhaar_present}"
+
+  - id: C010
+    description: PAN must not be on fraud blacklist
+    expression: "pan_blacklisted == False"
+    severity: BLOCK
+    regulation: RBI Fraud Registry Master Circular 2023
+    error_message: "PAN on fraud registry — application rejected"
+
+  - id: C007
+    description: Income proof (Form 16) should be less than 2 years old
+    expression: "income_proof_age_months <= 24"
+    severity: WARN
+    regulation: Internal Credit Policy ICP-2024-07
+    warning_message: "Income proof is {income_proof_age_months} months old (limit 24)"
+
+  - id: C012
+    description: Personal loans above 10L require AML source-of-funds declaration
+    expression: "not (loan_product == 'PERSONAL' and loan_amount > 1000000) or aml_declaration_present"
+    severity: WARN
+    regulation: PMLA / RBI AML Guidelines 2023
+    warning_message: "Personal loan > 10L needs AML declaration before disbursement"

@@ -1,0 +1,32 @@
+# Core ML
+scikit-learn>=1.6.1
+numpy>=2.0.0
+pandas>=2.2.0
+joblib>=1.4.0
+xgboost>=2.0.0
+openpyxl>=3.1.0
+
+# API
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+
+# AI Agent Orchestration
+langgraph>=0.2.0
+langchain-core>=0.2.0
+
+# Explainability (install when available)
+# shap>=0.43.0
+
+# LLM
+google-generativeai>=0.5.0  # or set GEMINI_API_KEY for HTTP-based calls
+
+# Database
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+
+# Optional: Document parsing
+# pypdf>=3.0.0
+# pytesseract>=0.3.10  # for OCR

@@ -1,0 +1,9 @@
+{
+  "blacklisted_pans": [
+    {"pan": "FRAUD1234F", "reason": "Synthetic fraud test case"},
+    {"pan": "BLKLT5678G", "reason": "Synthetic blacklist test"},
+    {"pan": "TESTFRAUD0", "reason": "Demo fraud case"},
+    {"pan": "BNKFRDS123", "reason": "Identity theft case"},
+    {"pan": "MONY00LAUN", "reason": "AML suspicion"}
+  ]
+}
