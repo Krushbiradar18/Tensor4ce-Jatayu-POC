@@ -148,6 +148,14 @@ app = FastAPI(title="Tensor4ce Credit AI", version="3.0.0", lifespan=lifespan)
 
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
+# Mount portfolio mock API router (GET /mock/bank/portfolio-summary)
+try:
+    from mock_apis.portfolio import router as portfolio_router
+    app.include_router(portfolio_router)
+    logger.info("✓ Portfolio mock API router mounted at /mock/bank/portfolio-summary")
+except Exception as _portfolio_router_err:
+    logger.warning(f"Portfolio mock API router not mounted: {_portfolio_router_err}")
+
 frontend_dir = Path(__file__).parent.parent / "frontend"
 if frontend_dir.exists():
     app.mount("/static", StaticFiles(directory=str(frontend_dir)), name="static")

@@ -370,107 +370,83 @@ def build_compliance_graph():
 # ═══════════════════════════════════════════════════════════════════════════════
 # GRAPH 4 — PORTFOLIO INTELLIGENCE
 # ═══════════════════════════════════════════════════════════════════════════════
+# This is a bridge to the new portfolio_agent package.
+# The rich 6-node LangGraph lives in portfolio_agent/agent.py.
+# This file preserves the existing run_portfolio_graph() interface so that
+# orchestrator.py, crew_runner.py, and tools.py remain unchanged.
+# ═══════════════════════════════════════════════════════════════════════════════
 
-class PortfolioState(TypedDict):
-    application_id: str
-    features: dict
-    form_data: dict
-    credit_output: dict      # A2A: received from Credit Risk agent
-    portfolio_data: dict     # from _get_portfolio_data
-    el_impact: float
-    cot_reasoning: str
-    output: dict
-    error: str
-
-
-def po_fetch(state: PortfolioState) -> dict:
-    """Node 1: Fetch features, form data, and portfolio exposure data."""
-    _log_event(state["application_id"], "portfolio_graph", "NODE", {"node": "fetch"})
-    try:
-        ctx = _get_context_dict(state["application_id"])
-        form = ctx["form"]
-        portfolio = _get_portfolio_data(
-            form.get("loan_purpose", "PERSONAL"),
-            form.get("address", {}).get("state", "Maharashtra"),
-            form.get("loan_amount_requested", 0),
-        )
-        return {"features": ctx["features"], "form_data": form, "portfolio_data": portfolio}
-    except Exception as e:
-        return {"error": str(e)}
-
-def po_compute_el(state: PortfolioState) -> dict:
+def _run_portfolio_agent_bridge(app_id: str, credit_out: dict) -> dict:
     """
-    Node 2: Compute Expected Loss.
-    Uses the ACTUAL PD from the Credit Risk agent (A2A dependency).
-    EL = PD × LGD × EAD
+    Bridge: extract context from DIL store → call portfolio_agent → return
+    a dict with the field names expected by PortfolioOutput in schemas.py.
     """
-    _log_event(state["application_id"], "portfolio_graph", "NODE", {"node": "compute_el"})
-    # A2A: use actual PD from credit agent if available, otherwise default
-    actual_pd = state.get("credit_output", {}).get("credit_score", 0.05)
-    lgd       = state["portfolio_data"].get("lgd", 0.50)
-    amount    = state["form_data"].get("loan_amount_requested", 0)
-    el        = actual_pd * lgd * amount
-    return {"el_impact": round(el)}
+    import os, sys
+    # Ensure project root is on path so portfolio_agent can be imported
+    here = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(here)
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
 
-def po_cot(state: PortfolioState) -> dict:
-    """Node 3: Gemini CoT analysis of portfolio impact and strategy fit."""
-    _log_event(state["application_id"], "portfolio_graph", "NODE", {"node": "cot"})
-    pd = state["portfolio_data"]
-    product = state["form_data"].get("loan_purpose", "PERSONAL")
-    amount  = state["form_data"].get("loan_amount_requested", 0)
-    el      = state.get("el_impact", 0)
-    rec     = pd.get("recommendation", "ACCEPT")
-    flags   = pd.get("flags", [])
-
-    cot = _call_gemini(
-        f"You are a bank portfolio risk manager. In 2 sentences, explain whether this "
-        f"{product} loan of ₹{amount:,.0f} fits the portfolio strategy. "
-        f"Sector concentration: {pd.get('sector_new',0):.1%} (limit 40%), "
-        f"EL impact: ₹{el:,.0f}, portfolio NPA: {pd.get('portfolio_npa_rate',0.03):.1%}. "
-        f"Recommendation: {rec}. {'Flags: ' + '; '.join(flags) if flags else ''}",
-        fallback=(
-            f"Portfolio recommendation: {rec}. "
-            f"{product} sector at {pd.get('sector_new',0):.1%} post-approval. "
-            f"Expected loss impact: ₹{el:,.0f}."
-        )
+    from portfolio_agent.agent import run_portfolio_agent
+    from portfolio_agent.schemas import (
+        ApplicationFormData, CreditAgentOutput, FraudAgentOutput,
+        ComplianceAgentOutput, BankStatementData, MacroConfigData, PortfolioStats,
     )
-    return {"cot_reasoning": cot}
+    from portfolio_agent.portfolio_db import get_portfolio_stats_from_file
 
-def po_finalize(state: PortfolioState) -> dict:
-    _log_event(state["application_id"], "portfolio_graph", "NODE", {"node": "finalize"})
-    pd = state.get("portfolio_data", {})
-    if state.get("error"):
-        out = {"application_id": state["application_id"], "error": state["error"],
-               "portfolio_recommendation": "ACCEPT"}
-    else:
-        out = {
-            "application_id":              state["application_id"],
-            "portfolio_recommendation":    pd.get("recommendation", "ACCEPT"),
-            "sector_concentration_current":pd.get("sector_current", 0),
-            "sector_concentration_new":    pd.get("sector_new", 0),
-            "geo_concentration_current":   pd.get("geo_current", 0),
-            "geo_concentration_new":       pd.get("geo_new", 0),
-            "risk_band_distribution":      pd.get("risk_band_dist", {}),
-            "el_impact_inr":               state.get("el_impact", 0),
-            "concentration_flags":         pd.get("flags", []),
-            "similar_cases_npa_rate":      pd.get("portfolio_npa_rate", 0.03),
-            "cot_reasoning":               state.get("cot_reasoning", ""),
-        }
-    return {"output": out}
+    # ── Extract context from DIL feature store ────────────────────────────────
+    ctx_dict = _get_context_dict(app_id)
+    form = ctx_dict.get("form", {})
+    features = ctx_dict.get("features", {})
+    macro_cfg = _get_macro_config()
 
-def build_portfolio_graph():
-    g = StateGraph(PortfolioState)
-    g.add_node("fetch",      po_fetch)
-    g.add_node("compute_el", po_compute_el)
-    g.add_node("cot",        po_cot)
-    g.add_node("finalize",   po_finalize)
-    g.add_edge(START, "fetch")
-    g.add_conditional_edges("fetch", lambda s: "finalize" if s.get("error") else "compute_el",
-                             {"compute_el": "compute_el", "finalize": "finalize"})
-    g.add_edge("compute_el", "cot")
-    g.add_edge("cot",        "finalize")
-    g.add_edge("finalize",   END)
-    return g.compile()
+    # ── Build ApplicationFormData ─────────────────────────────────────────────
+    address = form.get("address") or {}
+    application = ApplicationFormData(
+        loan_purpose="PERSONAL",
+        loan_amount_requested=float(form.get("loan_amount_requested", 300_000)),
+        loan_tenure_months=int(form.get("loan_tenure_months", 36)),
+        employment_type=(
+            "SELF_EMPLOYED"
+            if str(form.get("employment_type", "SALARIED")).upper() == "SELF_EMPLOYED"
+            else "SALARIED"
+        ),
+        annual_income=float(form.get("annual_income", 0)),
+        employer_name=str(form.get("employer_name", "Unknown")),
+        applicant_state=str(address.get("state") or form.get("applicant_state", "Maharashtra")),
+        applicant_city=str(address.get("city") or form.get("applicant_city", "Mumbai")),
+    )
+
+    # ── Build CreditAgentOutput ───────────────────────────────────────────────
+    credit_output = CreditAgentOutput.from_agent_dict(credit_out)
+
+    # ── Fraud / Compliance — use defaults (portfolio called after credit only) ─
+    fraud_output = FraudAgentOutput(fraud_level="CLEAN", fraud_probability=0.05)
+    compliance_output = ComplianceAgentOutput(overall_status="PASS")
+
+    # ── Bank data from features ────────────────────────────────────────────────
+    bank_data = BankStatementData.from_features(features)
+
+    # ── Macro config ──────────────────────────────────────────────────────────
+    macro_data = MacroConfigData.from_dict(macro_cfg)
+
+    # ── Portfolio stats from Excel ────────────────────────────────────────────
+    raw_ps = get_portfolio_stats_from_file()
+    portfolio_stats = PortfolioStats(**{k: v for k, v in raw_ps.items() if k != "data_source"})
+
+    # ── Run the agent ─────────────────────────────────────────────────────────
+    result = run_portfolio_agent(
+        application=application,
+        credit_output=credit_output,
+        fraud_output=fraud_output,
+        compliance_output=compliance_output,
+        bank_data=bank_data,
+        macro_data=macro_data,
+        portfolio_stats=portfolio_stats,
+    )
+    result["application_id"] = app_id
+    return result
 
 
 # ─── Compiled graph instances (built once at import time) ─────────────────────
@@ -495,9 +471,9 @@ def _get_compliance_graph():
     return _COMPLIANCE_GRAPH
 
 def _get_portfolio_graph():
-    global _PORTFOLIO_GRAPH
-    if _PORTFOLIO_GRAPH is None: _PORTFOLIO_GRAPH = build_portfolio_graph()
-    return _PORTFOLIO_GRAPH
+    # Portfolio graph is now implemented via portfolio_agent bridge.
+    # This function kept for import-compatibility only; returns None.
+    return None
 
 
 # ─── Graph runner functions (called by agent runner @tools) ───────────────────
@@ -528,11 +504,26 @@ def run_compliance_graph(app_id: str) -> dict:
     return result["output"]
 
 def run_portfolio_graph(app_id: str, credit_output: dict) -> dict:
-    initial: PortfolioState = {
-        "application_id": app_id, "features": {}, "form_data": {},
-        "credit_output": credit_output,   # A2A input
-        "portfolio_data": {}, "el_impact": 0.0,
-        "cot_reasoning": "", "output": {}, "error": "",
-    }
-    result = _get_portfolio_graph().invoke(initial)
-    return result["output"]
+    """
+    Portfolio Intelligence Agent entry point.
+    Delegates to portfolio_agent/agent.py via _run_portfolio_agent_bridge().
+    Falls back to a minimal dict if the bridge fails.
+    """
+    try:
+        return _run_portfolio_agent_bridge(app_id, credit_output)
+    except Exception as e:
+        logger.exception(f"[{app_id}] Portfolio bridge failed: {e}")
+        return {
+            "application_id": app_id,
+            "portfolio_recommendation": "ACCEPT",
+            "sector_concentration_current": 0.28,
+            "sector_concentration_new": 0.28,
+            "geo_concentration_current": 0.22,
+            "geo_concentration_new": 0.22,
+            "risk_band_distribution": {"LOW": 0.45, "MEDIUM": 0.38, "HIGH": 0.12, "VERY_HIGH": 0.05},
+            "el_impact_inr": 0.0,
+            "concentration_flags": [f"bridge_error: {str(e)[:80]}"],
+            "similar_cases_npa_rate": 0.038,
+            "cot_reasoning": f"Portfolio bridge error: {e}",
+            "error": str(e),
+        }
