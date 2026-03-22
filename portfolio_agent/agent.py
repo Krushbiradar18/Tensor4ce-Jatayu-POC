@@ -375,14 +375,26 @@ Write a 3-sentence portfolio manager narrative for the Senior Credit Officer. Be
 Respond ONLY with the narrative text — no JSON, no headers."""
 
     try:
-        import google.generativeai as genai
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-2.5-flash")
-        response = model.generate_content(
-            prompt,
-            generation_config={"max_output_tokens": 400},
-        )
-        narrative = response.text.strip()
+        # Try new google.genai SDK first (google-genai package)
+        try:
+            from google import genai
+            client = genai.Client(api_key=api_key)
+            response = client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=prompt,
+            )
+            narrative = response.text.strip()
+        except ImportError:
+            # Fall back to legacy google.generativeai (still functional)
+            import google.generativeai as genai_legacy
+            genai_legacy.configure(api_key=api_key)
+            model = genai_legacy.GenerativeModel("gemini-2.5-flash")
+            response = model.generate_content(
+                prompt,
+                generation_config={"max_output_tokens": 400},
+            )
+            narrative = response.text.strip()
+
         if narrative:
             return {"narrative": narrative}
     except Exception as exc:

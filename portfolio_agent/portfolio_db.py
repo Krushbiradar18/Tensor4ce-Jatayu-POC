@@ -211,10 +211,53 @@ def _build_stats_from_excel(excel_path: Path) -> dict:
     return stats
 
 
+# ── Persistent JSON cache ──────────────────────────────────────────────────────
+import json
+from datetime import datetime, timedelta
+
+_CACHE_FILE = Path(__file__).resolve().parent / "portfolio_cache.json"
+_CACHE_TTL_HOURS = 24
+
+
+def _is_cache_valid() -> bool:
+    """Return True if cache file exists and is less than TTL hours old."""
+    if not _CACHE_FILE.exists():
+        return False
+    mtime = datetime.fromtimestamp(_CACHE_FILE.stat().st_mtime)
+    return datetime.now() - mtime < timedelta(hours=_CACHE_TTL_HOURS)
+
+
+def _read_cache() -> Optional[dict]:
+    """Read cached stats from JSON file. Returns None on any error."""
+    try:
+        with open(_CACHE_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        logger.info(f"✓ Portfolio stats loaded from cache ({_CACHE_FILE.name})")
+        return data
+    except Exception as exc:
+        logger.warning(f"Cache read failed: {exc} — rebuilding")
+        return None
+
+
+def _write_cache(stats: dict) -> None:
+    """Write stats dict to JSON cache file. Silently ignores write errors."""
+    try:
+        with open(_CACHE_FILE, "w", encoding="utf-8") as f:
+            json.dump(stats, f, default=str)
+        logger.info(f"✓ Portfolio stats cached to {_CACHE_FILE.name}")
+    except Exception as exc:
+        logger.warning(f"Cache write failed (non-fatal): {exc}")
+
+
 def get_portfolio_stats_from_file(force_reload: bool = False) -> dict:
     """
     Return pre-aggregated portfolio statistics.
-    Results are cached in memory after first load.
+
+    Cache hierarchy (fastest → slowest):
+      1. In-memory _CACHED_STATS               — instant (same process)
+      2. portfolio_cache.json  (< 24h old)     — file read (~1ms)
+      3. Internal_Bank_Dataset.xlsx            — full pandas load (~3-5s)
+      4. _DEFAULT_STATS                        — fallback (no dataset)
 
     Called by:
       - backend/mock_apis/portfolio.py  (GET /mock/bank/portfolio-summary)
@@ -222,9 +265,19 @@ def get_portfolio_stats_from_file(force_reload: bool = False) -> dict:
       - portfolio_agent/test_agent.py   (--seed / --test)
     """
     global _CACHED_STATS
+
+    # 1. In-memory cache (same process, fastest)
     if _CACHED_STATS is not None and not force_reload:
         return _CACHED_STATS
 
+    # 2. Persistent JSON file cache (survives restarts, < 24h TTL)
+    if not force_reload and _is_cache_valid():
+        cached = _read_cache()
+        if cached is not None:
+            _CACHED_STATS = cached
+            return _CACHED_STATS
+
+    # 3. Load from Excel (slow path — only on first run or forced reload)
     excel_path = _find_dataset_path()
     if excel_path is None:
         logger.warning("Internal_Bank_Dataset.xlsx not found — using default portfolio stats")
@@ -232,11 +285,30 @@ def get_portfolio_stats_from_file(force_reload: bool = False) -> dict:
     else:
         try:
             _CACHED_STATS = _build_stats_from_excel(excel_path)
+            _write_cache(_CACHED_STATS)   # persist so next restart is fast
         except Exception as exc:
             logger.warning(f"Failed to build stats from {excel_path}: {exc} — using defaults")
             _CACHED_STATS = _DEFAULT_STATS.copy()
 
     return _CACHED_STATS
+
+
+def get_portfolio_stats_cached() -> dict:
+    """
+    Alias for get_portfolio_stats_from_file() — used by mock API.
+    Name emphasises that this is the cache-aware version.
+    """
+    return get_portfolio_stats_from_file()
+
+
+def invalidate_cache() -> None:
+    """Delete the JSON cache file and clear in-memory cache. Forces full reload on next call."""
+    global _CACHED_STATS
+    _CACHED_STATS = None
+    if _CACHE_FILE.exists():
+        _CACHE_FILE.unlink()
+        logger.info(f"Cache invalidated: {_CACHE_FILE.name} deleted")
+
 
 
 # ── Optional PostgreSQL seeding (uses SQLAlchemy) ────────────────────────────
