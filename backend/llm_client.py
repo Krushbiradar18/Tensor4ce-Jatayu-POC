@@ -13,9 +13,10 @@ Config (.env):
   LLM_BACKEND=vertex      # Vertex AI via LiteLLM
   LLM_MODEL=gemini-2.0-flash     # model name (default)
 """
-from __future__ import annotations
 import os
 import logging
+import threading
+import time
 
 try:
     from dotenv import load_dotenv
@@ -23,25 +24,36 @@ try:
 except ImportError:
     pass
 
+try:
+    import litellm
+    from litellm.caching import Cache
+    litellm.cache = Cache() # Local in-memory cache
+except ImportError:
+    litellm = None
+
 logger = logging.getLogger(__name__)
 
 LLM_BACKEND: str = os.getenv("LLM_BACKEND", "gemini")
-LLM_MODEL: str = os.getenv("LLM_MODEL", "gemini-2.0-flash")
+LLM_MODEL: str = os.getenv("GEMINI_MODEL") or os.getenv("LLM_MODEL", "gemini-1.5-flash")
+
+# Global semaphore to strictly serialize LLM calls across all agents/threads
+# This is the most robust way to prevent 429s on restricted free-tier quotas.
+_LLM_SEMAPHORE = threading.Semaphore(1)
 
 
 def get_llm_response(prompt: str, max_tokens: int = 1000) -> str:
     """
     Single entry point for all LLM calls across all agents.
-
-    Set LLM_BACKEND=vertex in .env to use Vertex AI via LiteLLM.
-    Set LLM_BACKEND=gemini to use direct google.genai SDK (default).
-
-    Returns the LLM response string, or raises on failure.
+    Uses a global semaphore to ensure only one call is active at a time.
     """
-    if LLM_BACKEND == "vertex":
-        return _call_vertex(prompt, max_tokens)
-    else:
-        return _call_gemini(prompt, max_tokens)
+    with _LLM_SEMAPHORE:
+        # Add a tiny buffer between calls to respect burst limits
+        time.sleep(0.5)
+        
+        if LLM_BACKEND == "vertex":
+            return _call_vertex(prompt, max_tokens)
+        else:
+            return _call_gemini(prompt, max_tokens)
 
 
 def _call_gemini(prompt: str, max_tokens: int) -> str:
@@ -92,9 +104,7 @@ def _call_vertex(prompt: str, max_tokens: int) -> str:
     Requires: gcloud auth application-default login
     Requires: VERTEX_PROJECT (or GOOGLE_CLOUD_PROJECT) set in .env
     """
-    try:
-        import litellm
-    except ImportError:
+    if litellm is None:
         raise ImportError(
             "litellm not installed. Run: pip install litellm"
         )
@@ -122,5 +132,6 @@ def _call_vertex(prompt: str, max_tokens: int) -> str:
         model=vertex_model,
         messages=[{"role": "user", "content": prompt}],
         max_tokens=max_tokens,
+        num_retries=5,
     )
     return response.choices[0].message.content.strip()

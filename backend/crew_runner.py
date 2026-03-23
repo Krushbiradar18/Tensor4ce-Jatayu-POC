@@ -190,6 +190,7 @@ def build_final_decision(app_id: str) -> dict:
         "compliance":            comp,
         "portfolio":             port,
         "officer_summary":       "\n".join(lines),
+        "context":               ctx,
         "decided_at":            datetime.utcnow().isoformat(),
     }
     return result

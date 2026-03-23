@@ -534,3 +534,41 @@ def call_compliance_agent(ctx: Any, credit_output: dict, fraud_output: dict) -> 
         result["llm_status"] = "not_called"
         result["llm_provider_error"] = ""
         return result
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PORTFOLIO INTELLIGENCE AGENT ADAPTER
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def call_portfolio_agent(ctx: Any, credit_output: dict) -> dict:
+    """
+    Call the proper Portfolio Intelligence LangGraph agent via A2A HTTP protocol.
+
+    Input: ApplicationContext + outputs from credit agent
+    Output: Dict matching PortfolioOutput schema
+    """
+    try:
+        from orchestration.a2a_client import call_agent
+        logger.info(f"[Portfolio Agent] Invoking A2A HTTP call for {ctx.application_id}")
+        
+        # Payload includes credit risk output for EL calculation
+        result = call_agent(
+            agent_name="portfolio",
+            application_id=ctx.application_id,
+            payload={"credit_risk_output": credit_output}
+        )
+        return result
+
+    except Exception as e:
+        logger.exception(f"[Portfolio Agent] A2A call failed: {e}")
+        # Fallback to direct bridge if HTTP call fails
+        try:
+            from graphs import run_portfolio_graph
+            return run_portfolio_graph(ctx.application_id, credit_output)
+        except Exception:
+            return {
+                "application_id": ctx.application_id,
+                "portfolio_recommendation": "ACCEPT",
+                "error": str(e),
+                "agent_execution_mode": "fallback_bridge"
+            }

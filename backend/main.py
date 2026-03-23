@@ -1,11 +1,30 @@
 """
-main.py — FastAPI Application
+main.py — FastAPI Application (Refactored v3.1)
+=================================================
+5-Layer Architecture per Tensor4ce Stage 2 Solutioning v3.1:
+
+  Layer 1: Frontend (React) — served as static files
+  Layer 2: API Gateway — this file (FastAPI, JWT auth stub, background tasks)
+  Layer 3: Verification & Profile — wired via orchestration/crew.py → dil.py
+  Layer 4: Agentic Orchestration — CrewAI crew + 4 LangGraph A2A sub-apps
+  Layer 5: Data Persistence — db.py (SQLite for PoC, PostgreSQL in prod)
+
+A2A Agent mounts:
+  /agents/credit-risk/...   ← CreditRisk LangGraph FastAPI sub-app
+  /agents/fraud/...         ← Fraud LangGraph FastAPI sub-app
+  /agents/compliance/...    ← Compliance LangGraph FastAPI sub-app
+  /agents/portfolio/...     ← Portfolio LangGraph FastAPI sub-app
+
 Run: uvicorn main:app --reload --port 8000
 """
 from __future__ import annotations
-import os, json, asyncio, logging
+import os
+import json
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
+
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -15,11 +34,12 @@ from schemas import SubmitRequest, OfficerAction
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-BACKEND_DIR = Path(__file__).resolve().parent
+BACKEND_DIR  = Path(__file__).resolve().parent
 
+
+# ── Environment loading ────────────────────────────────────────────────────────
 
 def _load_local_env() -> None:
-    """Load key=value pairs from backend/.env if present."""
     env_path = Path(__file__).with_name(".env")
     if not env_path.exists():
         return
@@ -28,7 +48,7 @@ def _load_local_env() -> None:
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, value = line.split("=", 1)
-        key = key.strip()
+        key   = key.strip()
         value = value.strip().strip('"').strip("'")
         if key and key not in os.environ:
             os.environ[key] = value
@@ -39,58 +59,49 @@ _load_local_env()
 import db
 
 
+# ── Utilities ──────────────────────────────────────────────────────────────────
+
 def _resolve_config_path(raw_path: str, default_base: Path) -> str:
     path = Path(raw_path)
     if path.is_absolute():
         return str(path)
-
-    candidates = [
+    for candidate in [
         (default_base / path).resolve(),
         (BACKEND_DIR / path).resolve(),
         (PROJECT_ROOT / path).resolve(),
-    ]
-    for candidate in candidates:
+    ]:
         if candidate.exists():
             return str(candidate)
     return str((default_base / path).resolve())
 
 
 def _runtime_mode() -> str:
-    llm_mode = os.environ.get("LLM_USAGE_MODE", "FULL").upper()
+    llm_mode  = os.environ.get("LLM_USAGE_MODE", "FULL").upper()
     has_gemini = bool(os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
-    if llm_mode == "FALLBACK" or not has_gemini:
-        return "Direct Real LangGraph Agents"
-    return "CrewAI + Real LangGraph Agents"
-
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s"
-)
-logger = logging.getLogger(__name__)
+    crewai_enabled = os.environ.get("ENABLE_CREWAI_MANAGER", "false").strip().lower() in {"1", "true", "yes", "on"}
+    if llm_mode == "FALLBACK" or not has_gemini or not crewai_enabled:
+        return "Direct A2A Pipeline (LangGraph agents)"
+    return "CrewAI Hierarchical + LangGraph A2A Agents"
 
 
 def _derive_processing_stage(status: str, audit_log: list[dict]) -> str:
-    """Return a human-readable current pipeline stage for officer dashboard use."""
     if status.startswith("OFFICER_"):
         return "Final decision completed"
     if status == "DECIDED_PENDING_OFFICER":
         return "Awaiting officer action"
     if status == "DIL_PROCESSING":
-        return "DIL verification in progress"
+        return "DIL / document verification in progress"
     if status == "PENDING":
         return "Queued for processing"
     if status == "ERROR":
         return "Processing error"
-
-    # For AGENTS_RUNNING, infer the latest active specialist from audit logs.
     if status == "AGENTS_RUNNING":
         agent_map = {
             "credit_risk_graph": "Credit Risk Agent",
-            "fraud_graph": "Fraud Agent",
-            "compliance_graph": "Compliance Agent",
-            "portfolio_graph": "Portfolio Agent",
-            "orchestrator": "Orchestrator",
+            "fraud_graph":       "Fraud Agent",
+            "compliance_graph":  "Compliance Agent",
+            "portfolio_graph":   "Portfolio Agent",
+            "orchestrator":      "Orchestrator",
         }
         for event in reversed(audit_log):
             agent_name = str(event.get("agent_name", "") or "")
@@ -104,13 +115,19 @@ def _derive_processing_stage(status: str, audit_log: list[dict]) -> str:
                 except Exception:
                     payload = {}
             node = payload.get("node") if isinstance(payload, dict) else None
-            if node:
-                return f"{stage_name} ({node})"
-            return stage_name
+            return f"{stage_name} ({node})" if node else stage_name
         return "Specialist agents running"
-
     return "In progress"
 
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+
+# ── Lifespan (startup/shutdown) ────────────────────────────────────────────────
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -120,12 +137,10 @@ async def lifespan(app: FastAPI):
     from agents_base import load_compliance_rules, load_portfolio
     from dataset_loader import load_datasets, get_dataset_stats
 
-    # Load static configs
     load_static_data(data_dir)
     load_compliance_rules(f"{data_dir}/compliance_rules.yaml")
     load_portfolio(f"{data_dir}/portfolio_loans.csv")
 
-    # Load Excel datasets (CIBIL + Bank data) if preloading is enabled.
     preload_datasets = os.environ.get("PRELOAD_DATASETS", "true").strip().lower() in {"1", "true", "yes", "on"}
     dataset_dir = _resolve_config_path(os.environ.get("DATASET_DIR", "dataset"), PROJECT_ROOT)
     os.environ["DATASET_DIR"] = dataset_dir
@@ -136,34 +151,75 @@ async def lifespan(app: FastAPI):
         stats = get_dataset_stats()
         logger.info(f"✓ Datasets loaded: CIBIL={stats['cibil_records']}, Bank={stats['bank_records']}, Merged={stats['merged_records']}")
     else:
-        logger.info("Skipping dataset preload at startup (PRELOAD_DATASETS=false). Datasets will load on first access.")
+        logger.info("Skipping dataset preload (PRELOAD_DATASETS=false)")
 
     mode = _runtime_mode()
-    logger.info(f"✓ System ready  |  Mode: {mode}")
-    logger.info(f"✓ Using ML models: Credit Risk (RandomForest), Fraud Detection (IsolationForest)")
+    logger.info(f"✓ System ready | Mode: {mode}")
     yield
 
 
-app = FastAPI(title="Tensor4ce Credit AI", version="3.0.0", lifespan=lifespan)
+# ── App & Middleware ───────────────────────────────────────────────────────────
 
+app = FastAPI(title="Tensor4ce Credit AI", version="3.1.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-# Mount portfolio mock API router (GET /mock/bank/portfolio-summary)
+
+# ── Mount A2A Agent Sub-Apps (Layer 4) ────────────────────────────────────────
+# Each LangGraph specialist agent is a FastAPI sub-app with:
+#   GET  /.well-known/agent.json   → Agent Card
+#   POST /a2a/tasks/send           → Execute agent pipeline
+
 try:
-    from mock_apis.portfolio import router as portfolio_router
-    app.include_router(portfolio_router)
-    logger.info("✓ Portfolio mock API router mounted at /mock/bank/portfolio-summary")
-except Exception as _portfolio_router_err:
-    logger.warning(f"Portfolio mock API router not mounted: {_portfolio_router_err}")
+    from agents.credit_risk.app import app as credit_risk_app
+    app.mount("/agents/credit-risk", credit_risk_app)
+    logger.info("✓ Credit Risk Agent mounted at /agents/credit-risk")
+except Exception as e:
+    logger.warning(f"Credit Risk Agent not mounted: {e}")
+
+try:
+    from agents.fraud.app import app as fraud_app
+    app.mount("/agents/fraud", fraud_app)
+    logger.info("✓ Fraud Agent mounted at /agents/fraud")
+except Exception as e:
+    logger.warning(f"Fraud Agent not mounted: {e}")
+
+try:
+    from agents.compliance.app import app as compliance_app
+    app.mount("/agents/compliance", compliance_app)
+    logger.info("✓ Compliance Agent mounted at /agents/compliance")
+except Exception as e:
+    logger.warning(f"Compliance Agent not mounted: {e}")
+
+try:
+    from agents.portfolio.app import app as portfolio_app
+    app.mount("/agents/portfolio", portfolio_app)
+    logger.info("✓ Portfolio Agent mounted at /agents/portfolio")
+except Exception as e:
+    logger.warning(f"Portfolio Agent not mounted: {e}")
+
+
+# ── Mount Mock APIs ────────────────────────────────────────────────────────────
+
+try:
+    from mock_apis.portfolio import router as portfolio_mock_router
+    app.include_router(portfolio_mock_router)
+    logger.info("✓ Portfolio mock API mounted at /mock/bank/portfolio-summary")
+except Exception as e:
+    logger.warning(f"Portfolio mock API not mounted: {e}")
+
+
+# ── Serve Frontend ─────────────────────────────────────────────────────────────
 
 frontend_dir = Path(__file__).parent.parent / "frontend"
 if frontend_dir.exists():
     app.mount("/static", StaticFiles(directory=str(frontend_dir)), name="static")
 
-    @app.get("/")
+    @app.get("/", include_in_schema=False)
     async def root():
         return FileResponse(str(frontend_dir / "index.html"))
 
+
+# ── API Endpoints ──────────────────────────────────────────────────────────────
 
 @app.post("/api/apply")
 async def submit_application(req: SubmitRequest, background_tasks: BackgroundTasks):
@@ -172,15 +228,19 @@ async def submit_application(req: SubmitRequest, background_tasks: BackgroundTas
     req.form_data["application_id"] = app_id
     db.save_application(app_id, req.form_data, req.ip_metadata)
     background_tasks.add_task(_run_bg, app_id, req.form_data, req.ip_metadata)
-    return {"application_id": app_id, "status": "PENDING",
-            "message": "Application received. Processing started."}
+    return {
+        "application_id": app_id,
+        "status": "PENDING",
+        "message": "Application received. Processing started.",
+    }
 
 
 async def _run_bg(app_id: str, form_data: dict, ip_meta: dict):
     try:
-        from orchestrator import run_pipeline
+        # Use the new CrewAI orchestration layer
+        from orchestration.crew import run_crew_pipeline
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, run_pipeline, app_id, form_data, ip_meta)
+        await loop.run_in_executor(None, run_crew_pipeline, app_id, form_data, ip_meta)
     except Exception as e:
         logger.exception(f"Pipeline error for {app_id}: {e}")
         db.update_status(app_id, "ERROR")
@@ -194,12 +254,13 @@ async def get_status(app_id: str):
         raise HTTPException(404, "Application not found")
     status = row["status"]
     messages = {
-        "PENDING": "Application received. We will review it shortly.",
-        "DIL_PROCESSING": "We are processing your submitted information.",
-        "AGENTS_RUNNING": "Your application is under review by our credit team.",
+        "PENDING":                "Application received. We will review it shortly.",
+        "DIL_PROCESSING":         "We are verifying your submitted documents. This usually takes a few minutes.",
+        "AGENTS_RUNNING":         "Your application is being assessed by our credit team. This typically takes 2–4 hours.",
         "DECIDED_PENDING_OFFICER": "Your assessment is complete. A loan officer will review shortly.",
-        "OFFICER_ESCALATED": "Your application requires additional specialist review. We will contact you within 24 hours.",
-        "ERROR": "We encountered an issue. Please contact support.",
+        "OFFICER_ESCALATED":      "Your application requires additional specialist review. We will update you within 24 hours.",
+        "VERIFICATION_FAILED":    "We were unable to verify your identity documents. Please contact our helpline.",
+        "ERROR":                  "We encountered an issue. Please contact support.",
     }
     result = {"application_id": app_id, "status": status}
     if status.startswith("OFFICER_"):
@@ -246,7 +307,7 @@ async def officer_action(app_id: str, action: OfficerAction):
     row = db.get_application(app_id)
     if not row:
         raise HTTPException(404, "Application not found")
-    valid = {"APPROVED","REJECTED","CONDITIONAL","ESCALATED"}
+    valid = {"APPROVED", "REJECTED", "CONDITIONAL", "ESCALATED"}
     if action.decision.upper() not in valid:
         raise HTTPException(400, f"Decision must be one of {valid}")
     db.save_officer_action(app_id, action.officer_id, action.decision.upper(), action.reason)
@@ -262,26 +323,26 @@ async def health():
     from dataset_loader import get_dataset_stats
     from llm_config import get_llm_stats, get_llm_usage_mode
 
+    # Skip synchronous self-calls in health check to avoid deadlocks on single-worker uvicorn
+    agent_cards = {"credit_risk": "mounted", "fraud": "mounted", "compliance": "mounted", "portfolio": "mounted"}
+
     response = {
-        "status": "ok",
-        "mode": _runtime_mode(),
-        "blacklist_pans": len(_BLACKLIST),
-        "portfolio_loans": len(_PORTFOLIO),
-        "compliance_rules": len(_RULES),
+        "status":            "ok",
+        "mode":              _runtime_mode(),
+        "blacklist_pans":    len(_BLACKLIST),
+        "portfolio_loans":   len(_PORTFOLIO),
+        "compliance_rules":  len(_RULES),
+        "a2a_agents":        agent_cards,
     }
 
-    # Add dataset stats
     try:
-        dataset_stats = get_dataset_stats()
-        response["datasets"] = dataset_stats
-    except:
+        response["datasets"] = get_dataset_stats()
+    except Exception:
         response["datasets"] = {"error": "Dataset loader not initialized"}
 
-    # Add LLM usage stats
     try:
-        llm_stats = get_llm_stats()
-        response["llm_usage"] = llm_stats
-    except:
-        response["llm_usage"] = {"mode": get_llm_usage_mode(), "tracking": "not initialized"}
+        response["llm_usage"] = get_llm_stats()
+    except Exception:
+        response["llm_usage"] = {"mode": get_llm_usage_mode()}
 
     return response

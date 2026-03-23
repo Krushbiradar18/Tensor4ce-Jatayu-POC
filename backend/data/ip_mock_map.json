@@ -1,0 +1,8 @@
+{
+  "patterns": [
+    {"prefix": "192.168", "region": "Maharashtra", "country": "IN", "ip_risk_score": 0.1},
+    {"prefix": "10.0", "region": "Delhi", "country": "IN", "ip_risk_score": 0.2},
+    {"prefix": "11.11", "region": "Unknown", "country": "CN", "ip_risk_score": 0.9},
+    {"prefix": "", "region": "Unknown", "country": "IN", "ip_risk_score": 0.5}
+  ]
+}

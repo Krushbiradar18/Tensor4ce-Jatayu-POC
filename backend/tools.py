@@ -276,95 +276,19 @@ def _run_compliance_rules(features: dict, form_data: dict) -> dict:
             "overall_status": status, "kyc_complete": features.get("kyc_pan_present") and features.get("kyc_aadhaar_present"),
             "aml_review_required": aml_required, "audit_hash": audit_hash}
 
-def _vertex_stream_url(model_name: str, api_key: str) -> str:
-    return (
-        "https://aiplatform.googleapis.com/v1/"
-        f"publishers/google/models/{model_name}:streamGenerateContent?key={api_key}"
-    )
-
-
-def _extract_text_from_vertex_stream(raw_text: str) -> str:
-    text = (raw_text or "").strip()
-    if not text:
-        return ""
-
-    def _collect(obj: dict) -> list[str]:
-        out: list[str] = []
-        for candidate in obj.get("candidates") or []:
-            parts = ((candidate.get("content") or {}).get("parts") or [])
-            for part in parts:
-                piece = part.get("text")
-                if piece:
-                    out.append(piece)
-        return out
-
-    try:
-        parsed = json.loads(text)
-        if isinstance(parsed, dict):
-            return "\n".join(_collect(parsed)).strip()
-        if isinstance(parsed, list):
-            chunks: list[str] = []
-            for item in parsed:
-                if isinstance(item, dict):
-                    chunks.extend(_collect(item))
-            return "\n".join(chunks).strip()
-    except json.JSONDecodeError:
-        pass
-
-    chunks = []
-    for line in text.splitlines():
-        line = line.strip()
-        if not line.startswith("data:"):
-            continue
-        payload = line[5:].strip()
-        if payload == "[DONE]":
-            continue
-        try:
-            obj = json.loads(payload)
-            if isinstance(obj, dict):
-                chunks.extend(_collect(obj))
-        except json.JSONDecodeError:
-            continue
-    return "\n".join(chunks).strip()
-
-
 def _call_gemini(prompt: str, fallback: str) -> str:
-    """Call Vertex AI Gemini endpoint. Returns fallback string if unavailable."""
-    if os.environ.get("LLM_USAGE_MODE", "FULL").upper() == "FALLBACK":
+    """Call centralized LLM client. Returns fallback string if unavailable."""
+    from llm_client import get_llm_response
+    from llm_config import get_llm_usage_mode
+    
+    if get_llm_usage_mode() == "FALLBACK":
         return fallback
-
-    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or ""
-    if not api_key:
-        return fallback
-
-    model = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash-exp")
-    payload = json.dumps(
-        {
-            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-            "generationConfig": {"maxOutputTokens": 300},
-        }
-    ).encode("utf-8")
-
-    req = urllib.request.Request(
-        _vertex_stream_url(model, api_key),
-        data=payload,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
 
     try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            raw = resp.read().decode("utf-8", errors="ignore")
-        text = _extract_text_from_vertex_stream(raw)
-        if not text or _looks_incomplete_llm_text(text):
-            return fallback
-        return text
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode("utf-8", errors="ignore")
-        logger.warning(f"Vertex AI call failed (HTTP {e.code}): {error_body[:200]}")
-        return fallback
+        # get_llm_response will handle retries via LiteLLM
+        return get_llm_response(prompt, max_tokens=300)
     except Exception as e:
-        logger.warning(f"Vertex AI call failed: {e}")
+        logger.warning(f"LLM call via get_llm_response failed: {e}")
         return fallback
 
 def _log_event(app_id: str, agent: str, event_type: str, payload: dict):
@@ -533,10 +457,12 @@ def run_portfolio_analysis(application_id: str) -> str:
     geo concentrations, el_impact_inr, concentration_flags, cot_reasoning.
     """
     try:
-        from graphs import run_portfolio_graph
+        from agent_adapters import call_portfolio_agent
+        from dil import get_context
+        ctx = get_context(application_id)
         # A2A: read credit output for actual PD
         credit_out = get_agent_output(application_id, "credit") or {}
-        result = run_portfolio_graph(application_id, credit_out)
+        result = call_portfolio_agent(ctx, credit_out)
         set_agent_output(application_id, "portfolio", result)
         return json.dumps(result)
     except Exception as e:

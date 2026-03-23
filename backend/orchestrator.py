@@ -184,8 +184,9 @@ def run_direct_pipeline(app_id: str) -> dict:
     - Portfolio: Keep existing graph (unchanged)
     """
     from tools import _log_event, set_agent_output, get_agent_output
-    from graphs import run_portfolio_graph  # Only portfolio uses the old graph
-    from agent_adapters import call_credit_agent, call_fraud_agent, call_compliance_agent
+    from agent_adapters import (
+        call_credit_agent, call_fraud_agent, call_compliance_agent, call_portfolio_agent
+    )
     from crew_runner import build_final_decision
     from dil import get_context
 
@@ -244,10 +245,10 @@ def run_direct_pipeline(app_id: str) -> dict:
         }
         set_agent_output(app_id, "compliance", comp_out)
 
-    # ── 4. Portfolio Agent (Keep Existing Graph) ──────────────────────────────
-    logger.info(f"[{app_id}] Running Portfolio Agent (A2A: using credit PD)...")
+    # ── 4. Portfolio Agent (Proper A2A call) ──────────────────────────────
+    logger.info(f"[{app_id}] Running Portfolio Agent via A2A adapter...")
     try:
-        port_out = run_portfolio_graph(app_id, credit_out)   # A2A: passes credit PD
+        port_out = call_portfolio_agent(ctx, credit_out)
         set_agent_output(app_id, "portfolio", port_out)
         logger.info(f"[{app_id}] ✓ Portfolio: {port_out.get('portfolio_recommendation')}")
     except Exception as e:

@@ -25,6 +25,9 @@ export interface OfficerQueueItem {
   ip_metadata: string;
   created_at: string;
   updated_at: string;
+  applicant_name?: string;
+  loan_purpose?: string;
+  loan_amount?: number;
   ai_recommendation?: string;
   processing_ms?: number;
   processing_stage?: string;

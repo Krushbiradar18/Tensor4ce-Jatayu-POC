@@ -4,6 +4,7 @@ import { Building2, LayoutDashboard, FileText, BarChart3, Settings, User, LogOut
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 
 const navItems = [
   { to: "/officer/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -15,6 +16,7 @@ const navItems = [
 export default function OfficerLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const auth = JSON.parse(localStorage.getItem("officer_auth") || "{}");
@@ -22,10 +24,18 @@ export default function OfficerLayout() {
   const handleLogout = () => {
     localStorage.removeItem("officer_auth");
     navigate("/officer/login");
+    toast({ title: "Logged Out", description: "You have been successfully logged out." });
   };
 
   const handleSearch = () => {
-    if (searchQuery.trim()) navigate(`/officer/applications/${searchQuery.trim()}`);
+    const query = searchQuery.trim();
+    if (query) {
+      // Always go to the list page with the search filter
+      // This ensures we show a list of matches for IDs, names, emails, etc.
+      navigate(`/officer/applications?search=${encodeURIComponent(query)}`);
+      setSearchQuery("");
+      setSidebarOpen(false);
+    }
   };
 
   const isActive = (path: string) => {
@@ -70,22 +80,35 @@ export default function OfficerLayout() {
           <button className="lg:hidden text-foreground" onClick={() => setSidebarOpen(true)}><Menu className="h-5 w-5" /></button>
           <div className="flex-1 flex items-center max-w-md">
             <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                placeholder="Search by ID, name, email..." className="pl-9" />
+              <button 
+                className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-primary transition-colors focus:outline-none"
+                onClick={handleSearch}
+                aria-label="Search"
+              >
+                <Search className="h-4 w-4" />
+              </button>
+              <Input 
+                value={searchQuery} 
+                onChange={(e) => setSearchQuery(e.target.value)} 
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                placeholder="Search ID, name, or email..." 
+                className="pl-9 h-10 shadow-sm focus-visible:ring-1" 
+              />
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button className="relative text-muted-foreground hover:text-foreground">
-              <Bell className="h-5 w-5" />
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-destructive-foreground text-[10px] rounded-full flex items-center justify-center">3</span>
-            </button>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-                <User className="h-4 w-4 text-primary-foreground" />
+            <button 
+              className="flex items-center gap-2 pr-2 leading-none hover:bg-muted/50 rounded-full transition-all group"
+              onClick={() => navigate("/officer/profile")}
+            >
+              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 group-hover:border-primary/40">
+                <User className="h-5 w-5 text-primary" />
               </div>
-              <span className="text-sm font-medium text-foreground hidden sm:block">{auth.name || "Officer"}</span>
-            </div>
+              <div className="text-left hidden sm:block">
+                <p className="text-sm font-semibold text-foreground">{auth.name || "Officer"}</p>
+                <p className="text-[10px] text-muted-foreground">{auth.role || "Loan Officer"}</p>
+              </div>
+            </button>
           </div>
         </header>
         <main className="flex-1 p-4 md:p-6 overflow-auto">

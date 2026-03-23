@@ -1,11 +1,11 @@
-import { useMemo, useEffect, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, Clock, CheckCircle, XCircle, TrendingUp, TrendingDown, Eye } from "lucide-react";
+import { FileText, Clock, CheckCircle, XCircle, TrendingUp, TrendingDown, Eye, RefreshCw } from "lucide-react";
 import { getOfficerQueue } from "@/lib/api";
-import { ApplicationStatus } from "@/lib/types";
+import { useQuery } from "@tanstack/react-query";
 
 const statusColors: Record<string, string> = {
   "PENDING": "bg-info/15 text-info border border-info/20",
@@ -20,20 +20,11 @@ const statusColors: Record<string, string> = {
 };
 
 export default function OfficerDashboardPage() {
-  const [apps, setApps] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    getOfficerQueue()
-      .then((data) => {
-        setApps(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Failed to fetch officer queue:", err);
-        setLoading(false);
-      });
-  }, []);
+  const { data: apps = [], isLoading, isFetching, refetch } = useQuery({
+    queryKey: ["officerQueue"],
+    queryFn: getOfficerQueue,
+    refetchInterval: 15000, // Background poll every 15s
+  });
 
   const total = apps.length;
   const pending = apps.filter((a) => a.status === "PENDING" || a.status === "DIL_PROCESSING" || a.status === "AGENTS_RUNNING" || a.status === "DECIDED_PENDING_OFFICER").length;
@@ -50,18 +41,36 @@ export default function OfficerDashboardPage() {
 
   const recent = apps.slice(0, 8);
 
-  if (loading) {
+  const safeParse = (str: any) => {
+    if (!str) return {};
+    if (typeof str === 'object') return str;
+    try { return JSON.parse(str); } catch (e) { return {}; }
+  };
+
+  if (isLoading) {
     return (
-      <div className="space-y-6 animate-fade-in">
-        <h1 className="text-2xl font-bold font-display text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground">Loading...</p>
+      <div className="space-y-6 animate-fade-in p-6">
+        <div className="h-8 w-48 bg-muted rounded animate-pulse mb-6" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[1,2,3,4].map(i => <div key={i} className="h-32 bg-muted rounded animate-pulse" />)}
+        </div>
+        <div className="h-64 bg-muted rounded animate-pulse" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <h1 className="text-2xl font-bold font-display text-foreground">Dashboard</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold font-display text-foreground">Dashboard</h1>
+        <div className="flex items-center gap-2">
+          {isFetching && <RefreshCw className="h-4 w-4 animate-spin text-primary" />}
+          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((s) => (
@@ -81,47 +90,45 @@ export default function OfficerDashboardPage() {
         ))}
       </div>
 
-      <Card className="shadow-card">
-        <CardHeader className="flex flex-row items-center justify-between">
+      <Card className="shadow-card overflow-hidden">
+        <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/30">
           <CardTitle className="font-display">Recent Applications</CardTitle>
-          <Button asChild variant="outline" size="sm"><Link to="/officer/applications">View All</Link></Button>
+          <Button asChild variant="ghost" size="sm" className="hover:bg-primary/10 hover:text-primary"><Link to="/officer/applications">View All</Link></Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="bg-muted/50">
                 <tr className="border-b border-border text-left">
-                  <th className="pb-3 font-semibold text-muted-foreground">ID</th>
-                  <th className="pb-3 font-semibold text-muted-foreground">Applicant</th>
-                  <th className="pb-3 font-semibold text-muted-foreground hidden sm:table-cell">Status</th>
-                  <th className="pb-3 font-semibold text-muted-foreground hidden md:table-cell">AI</th>
-                  <th className="pb-3 font-semibold text-muted-foreground hidden lg:table-cell">Stage</th>
-                  <th className="pb-3 font-semibold text-muted-foreground hidden lg:table-cell">Date</th>
-                  <th className="pb-3 font-semibold text-muted-foreground">Action</th>
+                  <th className="p-3 font-semibold text-muted-foreground">ID</th>
+                  <th className="p-3 font-semibold text-muted-foreground">Applicant</th>
+                  <th className="p-3 font-semibold text-muted-foreground hidden sm:table-cell">Status</th>
+                  <th className="p-3 font-semibold text-muted-foreground hidden md:table-cell">AI Recommendation</th>
+                  <th className="p-3 font-semibold text-muted-foreground hidden lg:table-cell">Current Stage</th>
+                  <th className="p-3 font-semibold text-muted-foreground">Action</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-border">
                 {recent.map((a) => {
-                  const payload = JSON.parse(a.raw_payload || "{}");
+                  const payload = safeParse(a.raw_payload);
                   const applicantName = payload.applicant_name || "N/A";
                   return (
-                    <tr key={a.application_id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                      <td className="py-3 font-mono text-primary font-medium">{a.application_id}</td>
-                      <td className="py-3 text-foreground">{applicantName}</td>
-                      <td className="py-3 hidden sm:table-cell"><Badge className={statusColors[a.status] || "bg-muted"}>{a.status}</Badge></td>
-                      <td className="py-3 hidden md:table-cell">
-                        <Badge className={
-                          a.ai_recommendation === "APPROVE" ? "bg-success/15 text-success" :
-                          a.ai_recommendation === "REJECT" ? "bg-destructive/15 text-destructive" :
-                          "bg-warning/15 text-warning-foreground"
+                    <tr key={a.application_id} className="hover:bg-muted/30 transition-colors group">
+                      <td className="p-3 font-mono text-primary font-bold">{a.application_id}</td>
+                      <td className="p-3 text-foreground font-medium">{applicantName}</td>
+                      <td className="p-3 hidden sm:table-cell"><Badge className={statusColors[a.status] || "bg-muted"}>{a.status}</Badge></td>
+                      <td className="p-3 hidden md:table-cell">
+                        <Badge variant="outline" className={
+                          a.ai_recommendation === "APPROVE" ? "border-success text-success bg-success/5" :
+                          a.ai_recommendation === "REJECT" ? "border-destructive text-destructive bg-destructive/5" :
+                          "border-warning text-warning bg-warning/5"
                         }>
                           {a.ai_recommendation || "N/A"}
                         </Badge>
                       </td>
-                      <td className="py-3 hidden lg:table-cell text-muted-foreground">{a.processing_stage || "Pending"}</td>
-                      <td className="py-3 hidden lg:table-cell text-muted-foreground">{new Date(a.created_at).toLocaleDateString("en-IN")}</td>
-                      <td className="py-3">
-                        <Button asChild variant="ghost" size="sm"><Link to={`/officer/applications/${a.application_id}`}><Eye className="h-4 w-4" /></Link></Button>
+                      <td className="p-3 hidden lg:table-cell text-muted-foreground">{a.processing_stage || "Queued"}</td>
+                      <td className="p-3">
+                        <Button asChild variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity"><Link to={`/officer/applications/${a.application_id}`}><Eye className="h-4 w-4 mr-2" /> View</Link></Button>
                       </td>
                     </tr>
                   );

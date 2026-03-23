@@ -1,18 +1,25 @@
-"""db.py — Shared PostgreSQL persistence layer for the backend and specialist agents."""
 import json
 import os
 import logging
-
+from pathlib import Path
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine.url import make_url
 
-
 logger = logging.getLogger(__name__)
 
+BACKEND_DIR = Path(__file__).resolve().parent
+load_dotenv(BACKEND_DIR / ".env")
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql+psycopg2://postgres:postgres@localhost:5432/jatayu",
+PG_USER = os.environ.get("PG_USER", "postgres")
+PG_PASS = os.environ.get("PG_PASSWORD", "123456")
+PG_HOST = os.environ.get("PG_HOST", "localhost")
+PG_PORT = os.environ.get("PG_PORT", "5432")
+PG_DB   = os.environ.get("PG_DB", "jatayu")
+
+DATABASE_URL = os.environ.get(
+    "DATABASE_URL", 
+    f"postgresql+psycopg2://{PG_USER}:{PG_PASS}@{PG_HOST}:{PG_PORT}/{PG_DB}"
 )
 
 
