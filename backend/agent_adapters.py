@@ -28,12 +28,13 @@ def _load_fraud_agent_module():
     if _FRAUD_AGENT_MODULE is not None:
         return _FRAUD_AGENT_MODULE
 
-    fraud_dir = ROOT / "Fraud-Agent"
-    fraud_file = fraud_dir / "fraud_agent.py"
+    fraud_dir = ROOT / "backend" / "agents" / "fraud"
+    fraud_file = fraud_dir / "agent.py"
     if str(fraud_dir) not in sys.path:
         sys.path.insert(0, str(fraud_dir))
 
-    spec = importlib.util.spec_from_file_location("copilot_fraud_agent", fraud_file)
+    # The module name and file path for the fraud specialist
+    spec = importlib.util.spec_from_file_location("agents.fraud.agent", fraud_file)
     if spec is None or spec.loader is None:
         raise ImportError(f"Could not load fraud agent module from {fraud_file}")
 
@@ -188,7 +189,8 @@ def call_credit_agent(ctx: Any) -> dict:
     Output: Dict matching CreditRiskOutput schema
     """
     try:
-        from credit_backend.credit_risk_agent import credit_risk_graph
+        from agents.credit_risk.agent import get_graph
+        credit_risk_graph = get_graph()
         from dataset_loader import get_merged_customer_profile
 
         # Build input for credit agent
@@ -206,25 +208,20 @@ def call_credit_agent(ctx: Any) -> dict:
         else:
             logger.warning(f"[Credit Agent] PAN {pan} not in dataset, synthesizing profile from DIL features")
 
-        agent_input = {
-            "pan_number": pan,
-            "loan_amount": loan_amount,
-            "loan_type": loan_type,
-            "loan_tenure_months": tenure,
-            "declared_monthly_income": monthly_income,
-            "user_profile": _build_credit_agent_profile(ctx, profile),
-        }
+        # Build input for credit agent
+        # The specialist agent's run_credit_risk_graph only needs application_id
+        # but we can also use the get_graph().invoke(initial) pattern if needed.
+        from agents.credit_risk.agent import run_credit_risk_graph
+        
+        logger.info(f"[Credit Agent] Invoking Specialist LangGraph for {ctx.application_id}")
+        result_out = run_credit_risk_graph(ctx.application_id)
 
-        # Call the agent's LangGraph
-        logger.info(f"[Credit Agent] Invoking LangGraph for {ctx.application_id}")
-        result = credit_risk_graph.invoke(agent_input)
+        # The specialist returns the 'output' dict directly from run_credit_risk_graph
+        final_result = result_out
 
-        # Transform output to match orchestrator schema
-        final_result = result.get("final_result", {})
-
-        if "error" in final_result or "validation_errors" in final_result:
+        if not final_result or "error" in final_result:
             # Fallback: use DIL-computed PD if agent fails
-            logger.warning("[Credit Agent] Agent returned error, using DIL fallback")
+            logger.warning("[Credit Agent] Agent returned error or empty, using DIL fallback")
             from tools import _compute_pd, _get_features, _get_macro_config
             features = _get_features(ctx.application_id)
             macro = _get_macro_config()
@@ -232,59 +229,30 @@ def call_credit_agent(ctx: Any) -> dict:
             return _fallback_credit_output(ctx.application_id, features, score_result)
 
         # Map agent output to orchestrator schema
-        risk_score = float(final_result.get("risk_score", 5.0))
-        risk_category = final_result.get("risk_category", "MEDIUM")
-        risk_band = _credit_risk_band_from_category(risk_category)
-        ml_pd_proxy = round(max(0.0, min(1.0, risk_score / 100.0)), 6)
-
-        # Extract both risk-increasing and risk-reducing factors for a balanced view.
-        top_factors = []
-        for factor in final_result.get("top_risk_factors", [])[:6]:
-            contribution = float(factor.get("contribution", 0) or 0)
-            top_factors.append({
-                "feature": factor.get("feature", "unknown"),
-                "value": factor.get("value", 0),
-                "shap_value": contribution,
-                "human_label": factor.get("human_name", factor.get("feature", "")),
-                "direction": "NEGATIVE" if contribution > 0 else "POSITIVE",
-            })
-
-        for factor in final_result.get("top_positive_factors", [])[:4]:
-            contribution = float(factor.get("contribution", 0) or 0)
-            top_factors.append({
-                "feature": factor.get("feature", "unknown"),
-                "value": factor.get("value", 0),
-                "shap_value": contribution,
-                "human_label": factor.get("human_name", factor.get("feature", "")),
-                "direction": "POSITIVE" if contribution < 0 else "NEGATIVE",
-            })
-
-        top_factors = sorted(top_factors, key=lambda f: abs(float(f.get("shap_value", 0) or 0)), reverse=True)[:8]
+        risk_score = float(final_result.get("model_risk_score", 0.0) or (final_result.get("credit_score", 0.05) * 100))
+        risk_band = final_result.get("risk_band", "MEDIUM")
+        ml_pd_proxy = float(final_result.get("credit_score", 0.05))
 
         output = {
             "application_id": ctx.application_id,
             "credit_score": ml_pd_proxy,
             "model_risk_score": round(risk_score, 2),
-            "model_risk_category": risk_category,
-            "model_confidence": final_result.get("confidence", 0.0),
-            "model_class_probabilities": final_result.get("class_probabilities", {}),
+            "model_risk_category": final_result.get("model_risk_category", risk_band),
+            "model_confidence": final_result.get("model_confidence", 0.8),
             "risk_band": risk_band,
-            "foir": ctx.features.foir,
-            "dti_ratio": ctx.features.dti_ratio,
-            "ltv_ratio": ctx.features.ltv_ratio,
-            "net_monthly_surplus": ctx.features.net_monthly_surplus,
-            "proposed_emi": ctx.features.proposed_emi,
-            "macro_adjusted": False,  # ML model doesn't use macro overlay
-            "stress_scenario": ctx.macro_config.get("stress_scenario", "NORMAL"),
-            "alternative_score_used": False,  # ML model is the primary scorer
-            "top_factors": top_factors,
-            "officer_narrative": final_result.get("llm_explanation", "ML-based credit risk assessment completed."),
-            "customer_narrative": final_result.get("recommendation", "Your application has been assessed."),
-            "agent_execution_mode": "langgraph_agent",
-            "prediction_source": "trained_ml_model",
-            "data_source": "dataset_profile" if profile else "dil_adapted_profile",
-            "llm_status": final_result.get("llm_status", "unknown"),
-            "llm_provider_error": final_result.get("llm_provider_error", ""),
+            "foir": final_result.get("foir", ctx.features.foir),
+            "dti_ratio": final_result.get("dti_ratio", ctx.features.dti_ratio),
+            "ltv_ratio": final_result.get("ltv_ratio", ctx.features.ltv_ratio),
+            "net_monthly_surplus": final_result.get("net_monthly_surplus", ctx.features.net_monthly_surplus),
+            "proposed_emi": final_result.get("proposed_emi", ctx.features.proposed_emi),
+            "macro_adjusted": final_result.get("macro_adjusted", False),
+            "stress_scenario": final_result.get("stress_scenario", "NORMAL"),
+            "alternative_score_used": final_result.get("alternative_score_used", False),
+            "top_factors": final_result.get("top_factors", []),
+            "officer_narrative": final_result.get("officer_narrative", "Assessment completed."),
+            "customer_narrative": final_result.get("customer_narrative", ""),
+            "agent_execution_mode": "langgraph_specialist",
+            "prediction_source": "trained_model",
         }
 
         logger.info(f"[Credit Agent] ✓ Completed for {ctx.application_id}: {risk_band} (score={risk_score:.4f})")
@@ -362,9 +330,12 @@ def call_fraud_agent(ctx: Any) -> dict:
             },
         }
 
-        # Call the agent
+        # Call the agent (the specialist's run_fraud_graph or run_fraud_agent)
         logger.info(f"[Fraud Agent] Invoking LangGraph for {ctx.application_id}")
-        fraud_output = fraud_agent_module.run_fraud_agent(application)
+        if hasattr(fraud_agent_module, "run_fraud_agent"):
+            fraud_output = fraud_agent_module.run_fraud_agent(application)
+        else:
+            fraud_output = fraud_agent_module.run_fraud_graph(ctx.application_id)
 
         # Map agent output to orchestrator schema
         fraud_level_map = {
@@ -424,99 +395,37 @@ def call_compliance_agent(ctx: Any, credit_output: dict, fraud_output: dict) -> 
     Output: Dict matching ComplianceOutput schema
     """
     try:
-        from compliance_agent.agent import run_compliance_agent
-        from compliance_agent.schemas import (
-            ApplicationFormData, CreditAgentOutput, FraudAgentOutput,
-            BankStatementData, MacroConfigData
-        )
-        from dataset_loader import get_bank_data
-
         # Build input schemas for compliance agent
-        application = ApplicationFormData(
-            pan_number=ctx.form.pan_number,
-            date_of_birth=ctx.form.date_of_birth,
-            employment_type=ctx.form.employment_type.value,
-            annual_income=ctx.form.annual_income,
-            loan_amount_requested=ctx.form.loan_amount_requested,
-            loan_tenure_months=ctx.form.loan_tenure_months,
-            loan_purpose=ctx.form.loan_purpose.value,
-            existing_emi_monthly=ctx.form.existing_emi_monthly,
-            uploaded_docs=["pan_card", "form_16", "salary_slip"],
-            employer_name=ctx.form.employer_name,
-            gender=ctx.form.gender,
-            marital_status="SINGLE",
-        )
-
-        risk_score = credit_output.get("model_risk_score")
-        if risk_score is None:
-            risk_score = _safe_float(credit_output.get("credit_score"), 0.05) * 100
-
-        credit_agent_output = CreditAgentOutput(
-            risk_score=_safe_float(risk_score, 5.0),
-            risk_band=credit_output.get("risk_band", "MEDIUM"),
-            foir=credit_output.get("foir", 0),
-            dti_ratio=credit_output.get("dti_ratio", 0),
-            macro_adjusted=credit_output.get("macro_adjusted", False),
-        )
-
-        fraud_agent_output = FraudAgentOutput(
-            fraud_level=fraud_output.get("fraud_level", "CLEAN"),
-            fraud_probability=fraud_output.get("fraud_probability", 0.0),
-            kyc_verified=fraud_output.get("kyc_verified", True),
-            triggered_rules=fraud_output.get("fired_hard_rules", []) + fraud_output.get("fired_soft_signals", []),
-        )
-
-        # Get bank statement data from dataset or DIL
-        bank_dict = get_bank_data(ctx.form.pan_number) or {}
-        bank_statement = BankStatementData(
-            avg_monthly_credit=bank_dict.get("avg_monthly_credit", ctx.features.avg_monthly_credit),
-            emi_bounce_count=bank_dict.get("emi_bounce_count", ctx.features.emi_bounce_count),
-            salary_credit_regularity=bank_dict.get("salary_credit_regularity", ctx.features.salary_regularity),
-        )
-
-        macro_data = MacroConfigData(
-            stress_scenario=ctx.macro_config.get("stress_scenario", "NORMAL"),
-            rbi_repo_rate=ctx.macro_config.get("rbi_repo_rate", 6.5),
-            sector_npa_rates=ctx.macro_config.get("sector_npa_rates", {}),
-        )
-
-        # Call the agent
-        logger.info(f"[Compliance Agent] Invoking LangGraph for {ctx.application_id}")
-        compliance_result = run_compliance_agent(
-            application, credit_agent_output, fraud_agent_output,
-            bank_statement, macro_data
-        )
+        # The specialist agent's run_compliance_graph only needs application_id
+        # and it handles its own data fetching from the feature store.
+        from agents.compliance.agent import run_compliance_graph
+        
+        logger.info(f"[Compliance Agent] Invoking Specialist LangGraph for {ctx.application_id}")
+        compliance_result = run_compliance_graph(ctx.application_id)
 
         # Transform output
         status_map = {
             "PASS": "PASS",
-            "ESCALATE": "PASS_WITH_WARNINGS",
-            "FAIL": "BLOCK_FAIL",
+            "PASS_WITH_WARNINGS": "PASS_WITH_WARNINGS",
+            "BLOCK_FAIL": "BLOCK_FAIL",
         }
+        
+        # The specialist returns the 'output' dict directly from run_compliance_graph
+        res = compliance_result
 
         output = {
             "application_id": ctx.application_id,
-            "overall_status": status_map.get(compliance_result.compliance_status, "PASS_WITH_WARNINGS"),
-            "rbi_compliant": compliance_result.rbi_compliant,
-            "kyc_complete": compliance_result.kyc_complete,
-            "foir_check": "PASS" if compliance_result.foir_within_limit else "FAIL",
-            "aml_review_required": compliance_result.aml_check_required,
-            "block_flags": [
-                {"rule_id": "C_FAIL", "description": flag, "severity": "BLOCK"}
-                for flag in compliance_result.compliance_flags
-                if any(x in flag for x in ['ineligible', 'exceeds', 'block'])
-            ],
-            "warn_flags": [
-                {"rule_id": "C_WARN", "description": flag, "severity": "WARN"}
-                for flag in compliance_result.compliance_flags
-                if not any(x in flag for x in ['ineligible', 'exceeds', 'block'])
-            ],
-            "cot_reasoning": compliance_result.audit_narrative[:500],
-            "narrative": compliance_result.narrative,
-            "agent_execution_mode": "langgraph_agent",
-            "prediction_source": "compliance_agent_logic",
-            "llm_status": compliance_result.llm_status,
-            "llm_provider_error": compliance_result.llm_provider_error,
+            "overall_status": status_map.get(res.get("overall_status"), "PASS_WITH_WARNINGS"),
+            "rbi_compliant": res.get("all_blocks_passed", True),
+            "kyc_complete": res.get("kyc_complete", True),
+            "foir_check": "PASS" if res.get("all_blocks_passed", True) else "FAIL",
+            "aml_review_required": res.get("aml_review_required", False),
+            "block_flags": res.get("block_flags", []),
+            "warn_flags": res.get("warn_flags", []),
+            "cot_reasoning": res.get("cot_reasoning", ""),
+            "narrative": res.get("cot_reasoning", ""),
+            "agent_execution_mode": "langgraph_specialist",
+            "prediction_source": "compliance_logic",
         }
 
         logger.info(f"[Compliance Agent] ✓ Completed for {ctx.application_id}: {compliance_result.compliance_status}")

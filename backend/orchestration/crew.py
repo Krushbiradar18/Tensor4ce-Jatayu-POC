@@ -182,9 +182,8 @@ def run_via_crewai(app_id: str) -> dict:
         ),
         backstory=(
             "You are the Chief Credit Underwriting AI at a leading Indian bank. "
-            "You coordinate four specialist AI agents and call them via A2A tools. "
-            "You are methodical, fair, and fully RBI-compliant. Your reasoning is recorded "
-            "and audited. Never override hard compliance or fraud blocks."
+            "You have access to specialist agents and tools. You coordinate the process, "
+            "making sure everything is done in order. You are methodical, fair, and fully RBI-compliant."
         ),
         llm=llm,
         tools=ALL_MCP_TOOLS,
@@ -228,54 +227,56 @@ def run_via_crewai(app_id: str) -> dict:
 
     # ── Tasks ────────────────────────────────────────────────────────────────
     credit_task = Task(
-        description=f"Run Credit Risk assessment for application {app_id} via A2A. "
-                    f"Call the run_credit_model MCP tool. Return CreditRiskOutput JSON.",
-        expected_output="JSON with risk_band, credit_score (PD), foir, top_factors, officer_narrative.",
+        description=f"You MUST call the 'run_credit_model' MCP tool for application {app_id} exactly ONCE. "
+                    f"Once you receive the JSON, provide it as your final answer and finish immediately.",
+        expected_output="Valid JSON with risk_band, credit_score, and officer_narrative.",
         agent=credit_agent,
     )
     fraud_task = Task(
-        description=f"Run Fraud Detection for application {app_id} via A2A. "
-                    f"Call the run_fraud_model MCP tool. Return FraudOutput JSON.",
-        expected_output="JSON with fraud_level, fraud_probability, fired_hard_rules, explanation.",
+        description=f"You MUST call the 'run_fraud_model' MCP tool for application {app_id} exactly ONCE. "
+                    f"Once you receive the JSON, provide it as your final answer and finish immediately.",
+        expected_output="Valid JSON with fraud_level, fraud_probability, and explanation.",
         agent=fraud_agent,
     )
     compliance_task = Task(
-        description=f"Run all 12 RBI Compliance checks for application {app_id} via A2A. "
-                    f"Call check_rbi_rules MCP tool. Return ComplianceOutput JSON.",
-        expected_output="JSON with all_blocks_passed, block_flags, warn_flags, overall_status.",
+        description=f"You MUST call the 'check_rbi_rules' MCP tool for application {app_id} exactly ONCE. "
+                    f"Once you receive the JSON, provide it as your final answer and finish immediately.",
+        expected_output="JSON with all_blocks_passed, block_flags, and overall_status.",
         agent=compliance_agent,
-        context=[credit_task],   # Compliance gets credit context
+        context=[credit_task],
     )
     portfolio_task = Task(
-        description=f"Run Portfolio Intelligence analysis for application {app_id} via A2A. "
-                    f"Call get_portfolio_exposure and query_similar_cases MCP tools. "
-                    f"Use the Credit Risk output for EL computation. Return PortfolioOutput JSON.",
-        expected_output="JSON with portfolio_recommendation, el_impact_inr, concentration_flags, cot_reasoning.",
+        description=f"You MUST call the 'run_portfolio_model' MCP tool for application {app_id} exactly ONCE. "
+                    f"Once you receive the JSON, provide it as your final answer and finish immediately.",
+        expected_output="JSON with portfolio_recommendation and el_impact_inr.",
         agent=portfolio_agent,
-        context=[credit_task, compliance_task],  # Portfolio runs last, needs credit output
+        context=[credit_task, compliance_task],
     )
 
     # ── Crew kickoff ─────────────────────────────────────────────────────────
     crew = Crew(
-        agents=[credit_agent, fraud_agent, compliance_agent, portfolio_agent],
+        agents=[manager, credit_agent, fraud_agent, compliance_agent, portfolio_agent],
         tasks=[credit_task, fraud_task, compliance_task, portfolio_task],
-        manager_agent=manager,
-        process=Process.hierarchical,
+        process=Process.sequential,
         memory=False,   # Disabled: requires OpenAI key; we use Vertex AI
         verbose=True,
-        max_rpm=1,      # Maximum throttling to avoid Vertex AI 429 rate limits
+        max_rpm=10,      # Slightly increased RPM for better throughput
     )
 
     raw_result = crew.kickoff(inputs={"application_id": app_id})
     _log_event(app_id, "orchestrator", "CREWAI_COMPLETE", {})
 
     # ── After CrewAI runs, invoke each agent via A2A to get typed outputs ──
-    # (CrewAI text output is supplementary; real typed outputs come from A2A)
-    credit_out = _safe_call_agent("credit_risk", app_id)
-    fraud_out  = _safe_call_agent("fraud", app_id)
-    comp_out   = _safe_call_agent("compliance", app_id)
-    port_out   = _safe_call_agent("portfolio", app_id, payload={"credit_risk_output": credit_out})
-
+    # (CrewAI text output is supplementary; real typed outputs come from tool calls during kickoff)
+    from tools import get_agent_output, set_agent_output
+    
+    credit_out = get_agent_output(app_id, "credit") or _safe_call_agent("credit_risk", app_id)
+    fraud_out  = get_agent_output(app_id, "fraud") or _safe_call_agent("fraud", app_id)
+    comp_out   = get_agent_output(app_id, "compliance") or _safe_call_agent("compliance", app_id)
+    port_out   = get_agent_output(app_id, "portfolio") or _safe_call_agent("portfolio", app_id, 
+                                                                           payload={"credit_risk_output": credit_out})
+    
+    # Ensure they are saved (in case they came from _safe_call_agent fallback)
     set_agent_output(app_id, "credit", credit_out)
     set_agent_output(app_id, "fraud",  fraud_out)
     set_agent_output(app_id, "compliance", comp_out)

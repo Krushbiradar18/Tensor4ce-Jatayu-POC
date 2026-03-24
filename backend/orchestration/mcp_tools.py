@@ -84,7 +84,7 @@ def get_bank_summary(application_id: str) -> dict:
 
 # ── Tool 4: Macro Config ──────────────────────────────────────────────────────
 
-@tool("get_macro_config")
+@tool("get_macro_config_tool")
 def get_macro_config_tool() -> dict:
     """
     Fetch the current macro-economic configuration (repo rate, stress scenario, NPA rates).
@@ -154,16 +154,17 @@ def query_similar_cases(application_id: str, k: int = 5) -> list:
 @tool("run_credit_model")
 def run_credit_model(application_id: str) -> dict:
     """
-    Run the XGBoost credit risk model and return PD + SHAP values.
-    Model loaded from MLflow Production stage.
+    Run the specialist Credit Risk assessment agent (LangGraph).
+    Computes Probability of Default (PD), risk band, and generates narratives.
     """
-    from tools import _get_features, _compute_pd, _get_macro_config
+    from orchestration.a2a_client import call_agent
+    from tools import set_agent_output
     try:
-        features = _get_features(application_id)
-        macro    = _get_macro_config()
-        result   = _compute_pd(features, macro)
-        return result
+        res = call_agent("credit_risk", application_id)
+        set_agent_output(application_id, "credit", res)
+        return res
     except Exception as e:
+        logger.error(f"run_credit_model failed: {e}")
         return {"error": str(e), "pd": 0.1, "risk_band": "HIGH"}
 
 
@@ -172,15 +173,17 @@ def run_credit_model(application_id: str) -> dict:
 @tool("run_fraud_model")
 def run_fraud_model(application_id: str) -> dict:
     """
-    Run the Isolation Forest fraud detection model.
-    Returns fraud_probability and fraud_level.
+    Run the specialist Fraud Detection agent (LangGraph).
+    Evaluates fraud signals using hard rules, soft indicators, and Isolation Forest.
     """
-    from tools import _get_features, _run_fraud_checks
+    from orchestration.a2a_client import call_agent
+    from tools import set_agent_output
     try:
-        features = _get_features(application_id)
-        result   = _run_fraud_checks(features)
-        return result
+        res = call_agent("fraud", application_id)
+        set_agent_output(application_id, "fraud", res)
+        return res
     except Exception as e:
+        logger.error(f"run_fraud_model failed: {e}")
         return {"error": str(e), "fraud_level": "CLEAN", "fraud_probability": 0.0}
 
 
@@ -189,21 +192,41 @@ def run_fraud_model(application_id: str) -> dict:
 @tool("check_rbi_rules")
 def check_rbi_rules(application_id: str) -> dict:
     """
-    Evaluate all 12 RBI compliance rules + fraud_blacklist check (C007).
-    Pure deterministic Python — no LLM involved in rule evaluation.
+    Run the specialist Compliance Verification agent (LangGraph).
+    Evaluates all 12 RBI eligibility rules and generates compliance narratives.
     """
-    from tools import _get_features, _get_context_dict, _run_compliance_rules
+    from orchestration.a2a_client import call_agent
+    from tools import set_agent_output
     try:
-        ctx      = _get_context_dict(application_id)
-        features = ctx.get("features", {})
-        form     = {k: v for k, v in ctx.get("form", {}).items()}
-        result   = _run_compliance_rules(features, form)
-        return result
+        res = call_agent("compliance", application_id)
+        set_agent_output(application_id, "compliance", res)
+        return res
     except Exception as e:
+        logger.error(f"check_rbi_rules failed: {e}")
         return {"error": str(e), "all_blocks_passed": True, "overall_status": "PASS"}
 
 
-# ── Tool 11: Flag for Human Review ────────────────────────────────────────────
+# ── Tool 11: Run Portfolio Model ──────────────────────────────────────────────
+
+@tool("run_portfolio_model")
+def run_portfolio_model(application_id: str) -> dict:
+    """
+    Run the specialist Portfolio Intelligence agent (LangGraph).
+    Computes Expected Loss (EL) impact, concentration metrics, and geo-risk analysis.
+    """
+    from orchestration.a2a_client import call_agent
+    from tools import set_agent_output
+    try:
+        # Portfolio specialist often needs credit risk context; the sub-app handles fetching it.
+        res = call_agent("portfolio", application_id)
+        set_agent_output(application_id, "portfolio", res)
+        return res
+    except Exception as e:
+        logger.error(f"run_portfolio_model failed: {e}")
+        return {"error": str(e), "portfolio_recommendation": "ACCEPT"}
+
+
+# ── Tool 12: Flag for Human Review ────────────────────────────────────────────
 
 @tool("flag_for_human_review")
 def flag_for_human_review(application_id: str, reason: str) -> dict:
@@ -243,6 +266,7 @@ ALL_MCP_TOOLS = [
     run_credit_model,
     run_fraud_model,
     check_rbi_rules,
+    run_portfolio_model,
     flag_for_human_review,
     log_agent_action,
 ]

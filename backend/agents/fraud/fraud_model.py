@@ -119,12 +119,12 @@ def extract_features(app: dict) -> dict:
         "emi_bounce_count": emi_bounce,
         "salary_regularity": salary_reg,
         "income_stability_score": income_stab,
-        "ip_risk_score": ip_info["ip_risk_score"],
+        "ip_risk_score": 0.0, # TEMPORARY: disabled per user request
         "ip_country_mismatch": 1 if ip_info["country"] != "IN" else 0,
         "application_velocity": app_velocity,
         "device_fingerprint_new": dev_fp_new,
         "form_fill_time_seconds": form_fill,
-        "address_pincode_mismatch": pincode_mismatch,
+        "address_pincode_mismatch": 0, # TEMPORARY: disabled per user request
         "income_loan_ratio_outlier": outlier,
         "enquiry_spike_flag": enquiry_spike,
     }

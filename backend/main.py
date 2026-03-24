@@ -284,6 +284,149 @@ async def submit_application(req: SubmitRequest, background_tasks: BackgroundTas
     }
 
 
+@app.post("/api/test/sample")
+async def submit_sample_application(background_tasks: BackgroundTasks):
+    """
+    Submits a sample high-quality application for testing.
+    Uses a known-good PAN (RRKDN2234M) to ensure system flow results in Approval/Clearance.
+    """
+    import uuid
+    
+    app_id = f"APP-TEST-{uuid.uuid4().hex[:6].upper()}"
+    
+    # High quality sample data from the dataset
+    form_data = {
+        "applicant_name": "Aditya Sharma",
+        "pan_number": "RRKDN2234M", # Good record in dataset (700+ cibil, low DPD)
+        "aadhaar_last4": "5566",
+        "date_of_birth": "1990-05-15",
+        "gender": "MALE",
+        "employment_type": "SALARIED",
+        "employer_name": "TCS Ltd",
+        "annual_income": 1800000.0,
+        "employment_tenure_years": 5.0,
+        "loan_amount_requested": 500000.0,
+        "loan_tenure_months": 36,
+        "loan_purpose": "PERSONAL",
+        "existing_emi_monthly": 10000.0,
+        "residential_assets_value": 2500000.0,
+        "address": {
+            "line1": "Flat 402, Sunshine Apts",
+            "city": "Mumbai",
+            "state": "Maharashtra",
+            "pincode": "400001"
+        }
+    }
+    
+    ip_metadata = {
+        "ip_address": "122.161.10.45",
+        "form_fill_seconds": 450.0,
+        "device_fingerprint": "dev-test-browser",
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Test/1.0"
+    }
+    
+    db.save_application(app_id, form_data, ip_metadata)
+    db.log_event(app_id, "system", "TEST_SAMPLE_SUBMITTED", {"is_test": True})
+    
+    background_tasks.add_task(_run_bg, app_id, form_data, ip_metadata)
+    
+    return {
+        "success": True,
+        "application_id": app_id,
+        "status": "PENDING",
+        "message": "Sample application (designed for Approval) was submitted successfully.",
+        "instructions": f"Check status at /api/status/{app_id} or refresh the Officer Queue."
+    }
+
+
+@app.post("/api/test/rejected")
+async def submit_rejected_sample_application(background_tasks: BackgroundTasks):
+    """
+    Submits a sample application designed to be REJECTED.
+    Uses a blacklisted PAN defined in dil.py.
+    """
+    import uuid
+    from datetime import datetime
+    from verification.verifier import run_preliminary_identity_precheck
+    
+    app_id = f"APP-TEST-REJECT-{uuid.uuid4().hex[:6].upper()}"
+    
+    # Fraudulent sample data
+    form_data = {
+        "applicant_name": "Fraudulent Applicant",
+        "pan_number": "ABCDE1234F", # Not in mock bureau records -> will fail pre-check
+        "aadhaar_last4": "0000",
+        "date_of_birth": "1995-10-10",
+        "gender": "MALE",
+        "employment_type": "SELF_EMPLOYED",
+        "employer_name": "Ghost Comp",
+        "annual_income": 300000.0,
+        "employment_tenure_years": 0.5,
+        "loan_amount_requested": 2000000.0,
+        "loan_tenure_months": 12,
+        "loan_purpose": "AUTO",
+        "existing_emi_monthly": 50000.0,
+        "residential_assets_value": 0.0,
+        "address": {
+            "line1": "Fake St 123",
+            "city": "Unknown",
+            "state": "Unknown",
+            "pincode": "000000"
+        }
+    }
+    
+    ip_meta = {
+        "ip_address": "1.1.1.1",
+        "form_fill_seconds": 10.0,
+        "device_fingerprint": "bot-test",
+    }
+    
+    db.save_application(app_id, form_data, ip_meta)
+    db.log_event(app_id, "system", "TEST_REJECTED_SUBMITTED", {"is_test": True})
+
+    # Trigger preliminary identity gate:
+    passed, reason, mismatch_flags = run_preliminary_identity_precheck(form_data)
+    if not passed:
+        db.save_officer_action(app_id, "system_precheck", "REJECTED", reason)
+        db.log_event(app_id, "system", "PRECHECK_REJECTED", {"reason": reason, "mismatch_flags": mismatch_flags})
+        
+        precheck_decision = {
+            "decision_id": f"DEC-{uuid.uuid4().hex[:10].upper()}",
+            "application_id": app_id,
+            "ai_recommendation": "REJECT",
+            "decision_matrix_row": "R0_PRECHECK_IDENTITY_MISMATCH",
+            "conditions": [],
+            "max_approvable_amount": None,
+            "credit_risk": {},
+            "fraud": {},
+            "compliance": {},
+            "portfolio": {},
+            "officer_summary": reason,
+            "processing_time_ms": 0,
+            "decided_at": datetime.utcnow().isoformat(),
+        }
+        db.save_decision(precheck_decision["decision_id"], app_id, precheck_decision)
+        
+        return {
+            "success": True,
+            "application_id": app_id,
+            "status": "REJECTED",
+            "message": f"Sample REJECTED: {reason}",
+            "reason": reason,
+            "mismatch_flags": mismatch_flags,
+        }
+    
+    # Fallback in case it somehow passes (e.g. if the PAN was added to mock bureau)
+    background_tasks.add_task(_run_bg, app_id, form_data, ip_meta)
+    
+    return {
+        "success": True,
+        "application_id": app_id,
+        "status": "PENDING",
+        "message": "Sample application submitted. Processing started.",
+    }
+
+
 async def _run_bg(app_id: str, form_data: dict, ip_meta: dict):
     try:
         # Use the new CrewAI orchestration layer
