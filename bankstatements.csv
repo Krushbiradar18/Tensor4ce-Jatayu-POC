@@ -1,0 +1,461 @@
+date,Debit/Credit,amount,balance,mode,name,Day,Month,Year,Tday,Tid
+1/1/24,Credit,55000,55000,NEFT,Company Payroll,1,1,2024,Mon,TXN1001
+1/2/24,Debit,18000,37000,Bank Transfer,House Rent,2,1,2024,Tue,TXN1002
+1/3/24,Debit,1450,35550,UPI,Reliance Smart Grocery,3,1,2024,Wed,TXN1003
+1/5/24,Debit,950,34600,Card,Indian Oil Fuel,5,1,2024,Fri,TXN1004
+1/7/24,Debit,2500,32100,Auto-Debit,SBI Credit Card Bill,7,1,2024,Sun,TXN1005
+1/9/24,Debit,700,31400,UPI,Local Grocery Store,9,1,2024,Tue,TXN1006
+1/10/24,Debit,1500,29900,UPI,Electricity Bill MSEB,10,1,2024,Wed,TXN1007
+1/12/24,Debit,5000,24900,Auto-Debit,Groww SIP Investment,12,1,2024,Fri,TXN1008
+1/14/24,Debit,400,24500,UPI,Cafe Coffee Day,14,1,2024,Sun,TXN1009
+1/16/24,Debit,1200,23300,Card,Bharat Petroleum Fuel,16,1,2024,Tue,TXN1010
+1/18/24,Debit,850,22450,UPI,BigBasket Grocery,18,1,2024,Thu,TXN1011
+1/20/24,Debit,350,22100,UPI,Mobile Recharge Airtel,20,1,2024,Sat,TXN1012
+1/22/24,Debit,300,21800,UPI,Water Bill PMC,22,1,2024,Mon,TXN1013
+1/24/24,Debit,600,21200,UPI,Swiggy Food Order,24,1,2024,Wed,TXN1014
+1/26/24,Debit,750,20450,Card,HP Fuel Pump,26,1,2024,Fri,TXN1015
+1/27/24,Debit,450,20000,UPI,Medical Store Purchase,27,1,2024,Sat,TXN1016
+1/29/24,Debit,900,19100,UPI,Dmart Grocery,29,1,2024,Mon,TXN1017
+1/31/24,Debit,1200,17900,UPI,Amazon Shopping,31,1,2024,Wed,TXN1018
+2/1/24,Credit,55000,72900,NEFT,Company Payroll,1,2,2024,Thu,TXN2001
+2/2/24,Debit,18000,54900,Bank Transfer,House Rent,2,2,2024,Fri,TXN2002
+2/3/24,Debit,1350,53550,UPI,Reliance Smart Grocery,3,2,2024,Sat,TXN2003
+2/5/24,Debit,900,52650,Card,Indian Oil Fuel,5,2,2024,Mon,TXN2004
+2/6/24,Debit,2600,50050,Auto-Debit,SBI Credit Card Bill,6,2,2024,Tue,TXN2005
+2/8/24,Debit,750,49300,UPI,Local Grocery Store,8,2,2024,Thu,TXN2006
+2/10/24,Debit,1400,47900,UPI,Electricity Bill MSEB,10,2,2024,Sat,TXN2007
+2/12/24,Debit,5000,42900,Auto-Debit,Groww SIP Investment,12,2,2024,Mon,TXN2008
+2/14/24,Debit,350,42550,UPI,Cafe Coffee Day,14,2,2024,Wed,TXN2009
+2/16/24,Debit,1100,41450,Card,Bharat Petroleum Fuel,16,2,2024,Fri,TXN2010
+2/17/24,Debit,950,40500,UPI,BigBasket Grocery,17,2,2024,Sat,TXN2011
+2/19/24,Debit,350,40150,UPI,Mobile Recharge Airtel,19,2,2024,Mon,TXN2012
+2/21/24,Debit,300,39850,UPI,Water Bill PMC,21,2,2024,Wed,TXN2013
+2/23/24,Debit,650,39200,UPI,Swiggy Food Order,23,2,2024,Fri,TXN2014
+2/25/24,Debit,800,38400,Card,HP Fuel Pump,25,2,2024,Sun,TXN2015
+2/26/24,Debit,420,37980,UPI,Medical Store Purchase,26,2,2024,Mon,TXN2016
+2/27/24,Debit,1000,36980,UPI,Dmart Grocery,27,2,2024,Tue,TXN2017
+2/29/24,Debit,1500,35480,UPI,Amazon Shopping,29,2,2024,Thu,TXN2018
+3/1/24,Credit,55000,90480,NEFT,Company Payroll,1,3,2024,Fri,TXN3001
+3/2/24,Debit,18000,72480,Bank Transfer,House Rent,2,3,2024,Sat,TXN3002
+3/3/24,Debit,1400,71080,UPI,Reliance Smart Grocery,3,3,2024,Sun,TXN3003
+3/5/24,Debit,1000,70080,Card,Indian Oil Fuel,5,3,2024,Tue,TXN3004
+3/6/24,Debit,2700,67380,Auto-Debit,SBI Credit Card Bill,6,3,2024,Wed,TXN3005
+3/8/24,Debit,800,66580,UPI,Local Grocery Store,8,3,2024,Fri,TXN3006
+3/10/24,Debit,1500,65080,UPI,Electricity Bill MSEB,10,3,2024,Sun,TXN3007
+3/12/24,Debit,5000,60080,Auto-Debit,Groww SIP Investment,12,3,2024,Tue,TXN3008
+3/14/24,Debit,450,59630,UPI,Cafe Coffee Day,14,3,2024,Thu,TXN3009
+3/16/24,Debit,1200,58430,Card,Bharat Petroleum Fuel,16,3,2024,Sat,TXN3010
+3/18/24,Debit,900,57530,UPI,BigBasket Grocery,18,3,2024,Mon,TXN3011
+3/20/24,Debit,350,57180,UPI,Mobile Recharge Airtel,20,3,2024,Wed,TXN3012
+3/22/24,Debit,300,56880,UPI,Water Bill PMC,22,3,2024,Fri,TXN3013
+3/24/24,Debit,650,56230,UPI,Swiggy Food Order,24,3,2024,Sun,TXN3014
+3/26/24,Debit,850,55380,Card,HP Fuel Pump,26,3,2024,Tue,TXN3015
+3/27/24,Debit,500,54880,UPI,Medical Store Purchase,27,3,2024,Wed,TXN3016
+3/29/24,Debit,1100,53780,UPI,Dmart Grocery,29,3,2024,Fri,TXN3017
+3/31/24,Debit,1800,51980,UPI,Amazon Shopping,31,3,2024,Sun,TXN3018
+4/1/24,Credit,55000,106980,NEFT,Company Payroll,1,4,2024,Mon,TXN4001
+4/2/24,Debit,18000,88980,Bank Transfer,House Rent,2,4,2024,Tue,TXN4002
+4/3/24,Debit,1450,87530,UPI,Reliance Smart Grocery,3,4,2024,Wed,TXN4003
+4/5/24,Debit,950,86580,Card,Indian Oil Fuel,5,4,2024,Fri,TXN4004
+4/6/24,Debit,2600,83980,Auto-Debit,SBI Credit Card Bill,6,4,2024,Sat,TXN4005
+4/8/24,Debit,780,83200,UPI,Local Grocery Store,8,4,2024,Mon,TXN4006
+4/10/24,Debit,1500,81700,UPI,Electricity Bill MSEB,10,4,2024,Wed,TXN4007
+4/12/24,Debit,5000,76700,Auto-Debit,Groww SIP Investment,12,4,2024,Fri,TXN4008
+4/14/24,Debit,400,76300,UPI,Cafe Coffee Day,14,4,2024,Sun,TXN4009
+4/16/24,Debit,1100,75200,Card,Bharat Petroleum Fuel,16,4,2024,Tue,TXN4010
+4/18/24,Debit,900,74300,UPI,BigBasket Grocery,18,4,2024,Thu,TXN4011
+4/20/24,Debit,350,73950,UPI,Mobile Recharge Airtel,20,4,2024,Sat,TXN4012
+4/22/24,Debit,300,73650,UPI,Water Bill PMC,22,4,2024,Mon,TXN4013
+4/24/24,Debit,650,73000,UPI,Swiggy Food Order,24,4,2024,Wed,TXN4014
+4/26/24,Debit,850,72150,Card,HP Fuel Pump,26,4,2024,Fri,TXN4015
+4/27/24,Debit,500,71650,UPI,Medical Store Purchase,27,4,2024,Sat,TXN4016
+4/29/24,Debit,1000,70650,UPI,Dmart Grocery,29,4,2024,Mon,TXN4017
+4/30/24,Debit,1600,69050,UPI,Amazon Shopping,30,4,2024,Tue,TXN4018
+5/1/24,Credit,55000,124050,NEFT,Company Payroll,1,5,2024,Wed,TXN5001
+5/2/24,Debit,18000,106050,Bank Transfer,House Rent,2,5,2024,Thu,TXN5002
+5/3/24,Debit,1500,104550,UPI,Reliance Smart Grocery,3,5,2024,Fri,TXN5003
+5/5/24,Debit,1000,103550,Card,Indian Oil Fuel,5,5,2024,Sun,TXN5004
+5/6/24,Debit,2700,100850,Auto-Debit,SBI Credit Card Bill,6,5,2024,Mon,TXN5005
+5/8/24,Debit,820,100030,UPI,Local Grocery Store,8,5,2024,Wed,TXN5006
+5/10/24,Debit,1550,98480,UPI,Electricity Bill MSEB,10,5,2024,Fri,TXN5007
+5/12/24,Debit,5000,93480,Auto-Debit,Groww SIP Investment,12,5,2024,Sun,TXN5008
+5/14/24,Debit,420,93060,UPI,Cafe Coffee Day,14,5,2024,Tue,TXN5009
+5/16/24,Debit,1150,91910,Card,Bharat Petroleum Fuel,16,5,2024,Thu,TXN5010
+5/18/24,Debit,950,90960,UPI,BigBasket Grocery,18,5,2024,Sat,TXN5011
+5/20/24,Debit,350,90610,UPI,Mobile Recharge Airtel,20,5,2024,Mon,TXN5012
+5/22/24,Debit,300,90310,UPI,Water Bill PMC,22,5,2024,Wed,TXN5013
+5/24/24,Debit,700,89610,UPI,Swiggy Food Order,24,5,2024,Fri,TXN5014
+5/26/24,Debit,900,88710,Card,HP Fuel Pump,26,5,2024,Sun,TXN5015
+5/27/24,Debit,480,88230,UPI,Medical Store Purchase,27,5,2024,Mon,TXN5016
+5/29/24,Debit,1050,87180,UPI,Dmart Grocery,29,5,2024,Wed,TXN5017
+5/31/24,Debit,1800,85380,UPI,Amazon Shopping,31,5,2024,Fri,TXN5018
+6/1/24,Credit,55000,140380,NEFT,Company Payroll,1,6,2024,Sat,TXN6001
+6/2/24,Debit,18000,122380,Bank Transfer,House Rent,2,6,2024,Sun,TXN6002
+6/3/24,Debit,1500,120880,UPI,Reliance Smart Grocery,3,6,2024,Mon,TXN6003
+6/5/24,Debit,950,119930,Card,Indian Oil Fuel,5,6,2024,Wed,TXN6004
+6/6/24,Debit,2800,117130,Auto-Debit,SBI Credit Card Bill,6,6,2024,Thu,TXN6005
+6/8/24,Debit,850,116280,UPI,Local Grocery Store,8,6,2024,Sat,TXN6006
+6/10/24,Debit,1600,114680,UPI,Electricity Bill MSEB,10,6,2024,Mon,TXN6007
+6/12/24,Debit,5000,109680,Auto-Debit,Groww SIP Investment,12,6,2024,Wed,TXN6008
+6/14/24,Debit,450,109230,UPI,Cafe Coffee Day,14,6,2024,Fri,TXN6009
+6/16/24,Debit,1200,108030,Card,Bharat Petroleum Fuel,16,6,2024,Sun,TXN6010
+6/18/24,Debit,900,107130,UPI,BigBasket Grocery,18,6,2024,Tue,TXN6011
+6/20/24,Debit,350,106780,UPI,Mobile Recharge Airtel,20,6,2024,Thu,TXN6012
+6/22/24,Debit,300,106480,UPI,Water Bill PMC,22,6,2024,Sat,TXN6013
+6/24/24,Debit,650,105830,UPI,Swiggy Food Order,24,6,2024,Mon,TXN6014
+6/26/24,Debit,900,104930,Card,HP Fuel Pump,26,6,2024,Wed,TXN6015
+6/27/24,Debit,500,104430,UPI,Medical Store Purchase,27,6,2024,Thu,TXN6016
+6/29/24,Debit,1100,103330,UPI,Dmart Grocery,29,6,2024,Sat,TXN6017
+6/30/24,Debit,2000,101330,UPI,Amazon Shopping,30,6,2024,Sun,TXN6018
+7/1/24,Credit,55000,156330,NEFT,Company Payroll,1,7,2024,Mon,TXN7001
+7/2/24,Debit,18000,138330,Bank Transfer,House Rent,2,7,2024,Tue,TXN7002
+7/3/24,Debit,1500,136830,UPI,Reliance Smart Grocery,3,7,2024,Wed,TXN7003
+7/5/24,Debit,950,135880,Card,Indian Oil Fuel,5,7,2024,Fri,TXN7004
+7/6/24,Debit,2800,133080,Auto-Debit,SBI Credit Card Bill,6,7,2024,Sat,TXN7005
+7/8/24,Debit,850,132230,UPI,Local Grocery Store,8,7,2024,Mon,TXN7006
+7/10/24,Debit,1600,130630,UPI,Electricity Bill MSEB,10,7,2024,Wed,TXN7007
+7/12/24,Debit,5000,125630,Auto-Debit,Groww SIP Investment,12,7,2024,Fri,TXN7008
+7/14/24,Debit,450,125180,UPI,Cafe Coffee Day,14,7,2024,Sun,TXN7009
+7/16/24,Debit,1200,123980,Card,Bharat Petroleum Fuel,16,7,2024,Tue,TXN7010
+7/18/24,Debit,900,123080,UPI,BigBasket Grocery,18,7,2024,Thu,TXN7011
+7/20/24,Debit,350,122730,UPI,Mobile Recharge Airtel,20,7,2024,Sat,TXN7012
+7/22/24,Debit,300,122430,UPI,Water Bill PMC,22,7,2024,Mon,TXN7013
+7/24/24,Debit,650,121780,UPI,Swiggy Food Order,24,7,2024,Wed,TXN7014
+7/26/24,Debit,900,120880,Card,HP Fuel Pump,26,7,2024,Fri,TXN7015
+7/27/24,Debit,500,120380,UPI,Medical Store Purchase,27,7,2024,Sat,TXN7016
+7/29/24,Debit,1100,119280,UPI,Dmart Grocery,29,7,2024,Mon,TXN7017
+7/30/24,Debit,2000,117280,UPI,Amazon Shopping,30,7,2024,Tue,TXN7018
+8/1/24,Credit,55000,172280,NEFT,Company Payroll,1,8,2024,Thu,TXN8001
+8/2/24,Debit,18000,154280,Bank Transfer,House Rent,2,8,2024,Fri,TXN8002
+8/3/24,Debit,1600,152680,UPI,Reliance Smart Grocery,3,8,2024,Sat,TXN8003
+8/5/24,Debit,1000,151680,Card,Indian Oil Fuel,5,8,2024,Mon,TXN8004
+8/6/24,Debit,2800,148880,Auto-Debit,SBI Credit Card Bill,6,8,2024,Tue,TXN8005
+8/8/24,Debit,900,147980,UPI,Local Grocery Store,8,8,2024,Thu,TXN8006
+8/10/24,Debit,1700,146280,UPI,Electricity Bill MSEB,10,8,2024,Sat,TXN8007
+8/12/24,Debit,5000,141280,Auto-Debit,Groww SIP Investment,12,8,2024,Mon,TXN8008
+8/14/24,Debit,500,140780,UPI,Cafe Coffee Day,14,8,2024,Wed,TXN8009
+8/16/24,Debit,1200,139580,Card,Bharat Petroleum Fuel,16,8,2024,Fri,TXN8010
+8/18/24,Debit,950,138630,UPI,BigBasket Grocery,18,8,2024,Sun,TXN8011
+8/20/24,Debit,350,138280,UPI,Mobile Recharge Airtel,20,8,2024,Tue,TXN8012
+8/22/24,Debit,300,137980,UPI,Water Bill PMC,22,8,2024,Thu,TXN8013
+8/24/24,Debit,700,137280,UPI,Swiggy Food Order,24,8,2024,Sat,TXN8014
+8/26/24,Debit,950,136330,Card,HP Fuel Pump,26,8,2024,Mon,TXN8015
+8/27/24,Debit,600,135730,UPI,Medical Store Purchase,27,8,2024,Tue,TXN8016
+8/29/24,Debit,1200,134530,UPI,Dmart Grocery,29,8,2024,Thu,TXN8017
+8/30/24,Debit,2200,132330,UPI,Amazon Shopping,30,8,2024,Fri,TXN8018
+9/1/24,Credit,55000,187330,NEFT,Company Payroll,1,9,2024,Sun,TXN9001
+9/2/24,Debit,18000,169330,Bank Transfer,House Rent,2,9,2024,Mon,TXN9002
+9/3/24,Debit,1500,167830,UPI,Reliance Smart Grocery,3,9,2024,Tue,TXN9003
+9/5/24,Debit,950,166880,Card,Indian Oil Fuel,5,9,2024,Thu,TXN9004
+9/6/24,Debit,2800,164080,Auto-Debit,SBI Credit Card Bill,6,9,2024,Fri,TXN9005
+9/8/24,Debit,900,163180,UPI,Local Grocery Store,8,9,2024,Sun,TXN9006
+9/10/24,Debit,1600,161580,UPI,Electricity Bill MSEB,10,9,2024,Tue,TXN9007
+9/12/24,Debit,5000,156580,Auto-Debit,Groww SIP Investment,12,9,2024,Thu,TXN9008
+9/14/24,Debit,450,156130,UPI,Cafe Coffee Day,14,9,2024,Sat,TXN9009
+9/16/24,Debit,1200,154930,Card,Bharat Petroleum Fuel,16,9,2024,Mon,TXN9010
+9/18/24,Debit,900,154030,UPI,BigBasket Grocery,18,9,2024,Wed,TXN9011
+9/20/24,Debit,350,153680,UPI,Mobile Recharge Airtel,20,9,2024,Fri,TXN9012
+9/22/24,Debit,300,153380,UPI,Water Bill PMC,22,9,2024,Sun,TXN9013
+9/24/24,Debit,650,152730,UPI,Swiggy Food Order,24,9,2024,Tue,TXN9014
+9/26/24,Debit,900,151830,Card,HP Fuel Pump,26,9,2024,Thu,TXN9015
+9/27/24,Debit,500,151330,UPI,Medical Store Purchase,27,9,2024,Fri,TXN9016
+9/29/24,Debit,1100,150230,UPI,Dmart Grocery,29,9,2024,Sun,TXN9017
+9/30/24,Debit,17900,132330,UPI,Transfer to Savings / Investment,30,9,2024,Mon,TXN9018
+10/1/24,Credit,55000,187330,NEFT,Company Payroll,1,10,2024,Tue,TXN10001
+10/2/24,Debit,18000,169330,Bank Transfer,House Rent,2,10,2024,Wed,TXN10002
+10/3/24,Debit,2000,167330,UPI,Reliance Smart Grocery,3,10,2024,Thu,TXN10003
+10/5/24,Debit,1500,165830,Card,Indian Oil Fuel,5,10,2024,Sat,TXN10004
+10/6/24,Debit,2800,163030,Auto-Debit,SBI Credit Card Bill,6,10,2024,Sun,TXN10005
+10/8/24,Debit,1200,161830,UPI,Local Grocery Store,8,10,2024,Tue,TXN10006
+10/10/24,Debit,1600,160230,UPI,Electricity Bill MSEB,10,10,2024,Thu,TXN10007
+10/12/24,Debit,5000,155230,Auto-Debit,Groww SIP Investment,12,10,2024,Sat,TXN10008
+10/14/24,Debit,8500,146730,UPI,Navratri Clothing Purchase,14,10,2024,Mon,TXN10009
+10/16/24,Debit,3200,143530,Card,Bharat Petroleum Fuel,16,10,2024,Wed,TXN10010
+10/18/24,Debit,4200,139330,UPI,BigBasket Festival Grocery,18,10,2024,Fri,TXN10011
+10/20/24,Debit,350,138980,UPI,Mobile Recharge Airtel,20,10,2024,Sun,TXN10012
+10/22/24,Debit,300,138680,UPI,Water Bill PMC,22,10,2024,Tue,TXN10013
+10/24/24,Debit,2800,135880,UPI,Swiggy Family Dinner,24,10,2024,Thu,TXN10014
+10/26/24,Debit,6500,129380,Card,Diwali Decoration Shopping,26,10,2024,Sat,TXN10015
+10/27/24,Debit,2100,127280,UPI,Medical Store Purchase,27,10,2024,Sun,TXN10016
+10/28/24,Debit,9800,117480,UPI,Amazon Great Indian Festival Shopping,28,10,2024,Mon,TXN10017
+10/30/24,Debit,5934,UPI,Diwali Gifts & Sweets Purchase,30,10,2024,Wed,TXN10018,
+10/30/24,Debit,5934,111546,UPI,Extra Festival Expenses,30,10,2024,Wed,TXN10019
+11/1/24,Credit,55000,166546,NEFT,Company Payroll,1,11,2024,Fri,TXN11001
+11/2/24,Debit,18000,148546,Bank Transfer,House Rent,2,11,2024,Sat,TXN11002
+11/3/24,Debit,1400,147146,UPI,Reliance Smart Grocery,3,11,2024,Sun,TXN11003
+11/5/24,Debit,1000,146146,Card,Indian Oil Fuel,5,11,2024,Tue,TXN11004
+11/6/24,Debit,2800,143346,Auto-Debit,SBI Credit Card Bill,6,11,2024,Wed,TXN11005
+11/8/24,Debit,850,142496,UPI,Local Grocery Store,8,11,2024,Fri,TXN11006
+11/10/24,Debit,1600,140896,UPI,Electricity Bill MSEB,10,11,2024,Sun,TXN11007
+11/12/24,Debit,5000,135896,Auto-Debit,Groww SIP Investment,12,11,2024,Tue,TXN11008
+11/14/24,Debit,450,135446,UPI,Cafe Coffee Day,14,11,2024,Thu,TXN11009
+11/16/24,Debit,1200,134246,Card,Bharat Petroleum Fuel,16,11,2024,Sat,TXN11010
+11/18/24,Debit,900,133346,UPI,BigBasket Grocery,18,11,2024,Mon,TXN11011
+11/20/24,Debit,350,132996,UPI,Mobile Recharge Airtel,20,11,2024,Wed,TXN11012
+11/22/24,Debit,300,132696,UPI,Water Bill PMC,22,11,2024,Fri,TXN11013
+11/24/24,Debit,650,132046,UPI,Swiggy Food Order,24,11,2024,Sun,TXN11014
+11/26/24,Debit,900,131146,Card,HP Fuel Pump,26,11,2024,Tue,TXN11015
+11/27/24,Debit,500,130646,UPI,Medical Store Purchase,27,11,2024,Wed,TXN11016
+11/29/24,Debit,1100,129546,UPI,Dmart Grocery,29,11,2024,Fri,TXN11017
+11/30/24,Debit,2000,127546,UPI,Amazon Shopping,30,11,2024,Sat,TXN11018
+12/1/24,Credit,55000,182546,NEFT,Company Payroll,1,12,2024,Sun,TXN12001
+12/2/24,Debit,18000,164546,Bank Transfer,House Rent,2,12,2024,Mon,TXN12002
+12/3/24,Debit,1500,163046,UPI,Reliance Smart Grocery,3,12,2024,Tue,TXN12003
+12/4/24,Debit,80000,83046,UPI,Trip Fund Transfer / Travel Budget,4,12,2024,Wed,TXN12004
+12/5/24,Debit,3500,79546,Card,Flight Booking Charges,5,12,2024,Thu,TXN12005
+12/7/24,Debit,4200,75346,UPI,Hotel Booking Payment,7,12,2024,Sat,TXN12006
+12/9/24,Debit,1000,74346,Card,Indian Oil Fuel,9,12,2024,Mon,TXN12007
+12/10/24,Debit,1600,72746,UPI,Electricity Bill MSEB,10,12,2024,Tue,TXN12008
+12/12/24,Debit,5000,67746,Auto-Debit,Groww SIP Investment,12,12,2024,Thu,TXN12009
+12/14/24,Debit,3200,64546,UPI,Restaurant Expense During Trip,14,12,2024,Sat,TXN12010
+12/16/24,Debit,2100,62446,Card,Bharat Petroleum Fuel,16,12,2024,Mon,TXN12011
+12/18/24,Debit,1400,61046,UPI,Local Shopping During Trip,18,12,2024,Wed,TXN12012
+12/20/24,Debit,350,60696,UPI,Mobile Recharge Airtel,20,12,2024,Fri,TXN12013
+12/22/24,Debit,300,60396,UPI,Water Bill PMC,22,12,2024,Sun,TXN12014
+12/24/24,Debit,6500,53896,UPI,Christmas Gifts Shopping,24,12,2024,Tue,TXN12015
+12/25/24,Debit,4500,49396,Card,Christmas Dinner Celebration,25,12,2024,Wed,TXN12016
+12/27/24,Debit,1100,48296,UPI,Dmart Grocery,27,12,2024,Fri,TXN12017
+12/29/24,Debit,7200,41096,UPI,New Year Party Booking,29,12,2024,Sun,TXN12018
+12/31/24,Debit,3000,38096,UPI,New Year Celebration Expenses,31,12,2024,Tue,TXN12019
+1/1/25,Credit,55000,93096,NEFT,Company Payroll,1,1,2025,Wed,TXN01001
+1/2/25,Debit,18000,75096,Bank Transfer,House Rent,2,1,2025,Thu,TXN01002
+1/3/25,Debit,1400,73696,UPI,Reliance Smart Grocery,3,1,2025,Fri,TXN01003
+1/5/25,Debit,1000,72696,Card,Indian Oil Fuel,5,1,2025,Sun,TXN01004
+1/6/25,Debit,2800,69896,Auto-Debit,SBI Credit Card Bill,6,1,2025,Mon,TXN01005
+1/8/25,Debit,850,69046,UPI,Local Grocery Store,8,1,2025,Wed,TXN01006
+1/10/25,Debit,1600,67446,UPI,Electricity Bill MSEB,10,1,2025,Fri,TXN01007
+1/12/25,Debit,5000,62446,Auto-Debit,Groww SIP Investment,12,1,2025,Sun,TXN01008
+1/14/25,Debit,450,61996,UPI,Cafe Coffee Day,14,1,2025,Tue,TXN01009
+1/16/25,Debit,1200,60796,Card,Bharat Petroleum Fuel,16,1,2025,Thu,TXN01010
+1/18/25,Debit,900,59896,UPI,BigBasket Grocery,18,1,2025,Sat,TXN01011
+1/20/25,Debit,350,59546,UPI,Mobile Recharge Airtel,20,1,2025,Mon,TXN01012
+1/22/25,Debit,300,59246,UPI,Water Bill PMC,22,1,2025,Wed,TXN01013
+1/24/25,Debit,650,58596,UPI,Swiggy Food Order,24,1,2025,Fri,TXN01014
+1/26/25,Debit,900,57696,Card,HP Fuel Pump,26,1,2025,Sun,TXN01015
+1/27/25,Debit,500,57196,UPI,Medical Store Purchase,27,1,2025,Mon,TXN01016
+1/29/25,Debit,1100,56096,UPI,Dmart Grocery,29,1,2025,Wed,TXN01017
+1/30/25,Debit,2000,54096,UPI,Amazon Shopping,30,1,2025,Thu,TXN01018
+2/1/25,Credit,55000,109096,NEFT,Company Payroll,1,2,2025,Sat,TXN02001
+2/2/25,Debit,18000,91096,Bank Transfer,House Rent,2,2,2025,Sun,TXN02002
+2/3/25,Debit,1400,89696,UPI,Reliance Smart Grocery,3,2,2025,Mon,TXN02003
+2/5/25,Debit,1000,88696,Card,Indian Oil Fuel,5,2,2025,Wed,TXN02004
+2/6/25,Debit,2800,85896,Auto-Debit,SBI Credit Card Bill,6,2,2025,Thu,TXN02005
+2/8/25,Debit,850,85046,UPI,Local Grocery Store,8,2,2025,Sat,TXN02006
+2/10/25,Debit,1600,83446,UPI,Electricity Bill MSEB,10,2,2025,Mon,TXN02007
+2/12/25,Debit,5000,78446,Auto-Debit,Groww SIP Investment,12,2,2025,Wed,TXN02008
+2/14/25,Debit,900,77546,UPI,Cafe Coffee Day,14,2,2025,Fri,TXN02009
+2/16/25,Debit,1200,76346,Card,Bharat Petroleum Fuel,16,2,2025,Sun,TXN02010
+2/18/25,Debit,900,75446,UPI,BigBasket Grocery,18,2,2025,Tue,TXN02011
+2/20/25,Debit,350,75096,UPI,Mobile Recharge Airtel,20,2,2025,Thu,TXN02012
+2/22/25,Debit,300,74796,UPI,Water Bill PMC,22,2,2025,Sat,TXN02013
+2/24/25,Debit,650,74146,UPI,Swiggy Food Order,24,2,2025,Mon,TXN02014
+2/26/25,Debit,900,73246,Card,HP Fuel Pump,26,2,2025,Wed,TXN02015
+2/27/25,Debit,500,72746,UPI,Medical Store Purchase,27,2,2025,Thu,TXN02016
+2/28/25,Debit,1200,71546,UPI,Dmart Grocery,28,2,2025,Fri,TXN02017
+3/1/25,Credit,55000,126546,NEFT,Company Payroll,1,3,2025,Sat,TXN03001
+3/2/25,Debit,18000,108546,Bank Transfer,House Rent,2,3,2025,Sun,TXN03002
+3/3/25,Debit,1500,107046,UPI,Reliance Smart Grocery,3,3,2025,Mon,TXN03003
+3/5/25,Debit,1000,106046,Card,Indian Oil Fuel,5,3,2025,Wed,TXN03004
+3/6/25,Debit,2800,103246,Auto-Debit,SBI Credit Card Bill,6,3,2025,Thu,TXN03005
+3/8/25,Debit,900,102346,UPI,Local Grocery Store,8,3,2025,Sat,TXN03006
+3/10/25,Debit,1600,100746,UPI,Electricity Bill MSEB,10,3,2025,Mon,TXN03007
+3/12/25,Debit,5000,95746,Auto-Debit,Groww SIP Investment,12,3,2025,Wed,TXN03008
+3/14/25,Debit,450,95296,UPI,Cafe Coffee Day,14,3,2025,Fri,TXN03009
+3/16/25,Debit,1200,94096,Card,Bharat Petroleum Fuel,16,3,2025,Sun,TXN03010
+3/18/25,Debit,900,93196,UPI,BigBasket Grocery,18,3,2025,Tue,TXN03011
+3/20/25,Debit,350,92846,UPI,Mobile Recharge Airtel,20,3,2025,Thu,TXN03012
+3/22/25,Debit,300,92546,UPI,Water Bill PMC,22,3,2025,Sat,TXN03013
+3/24/25,Debit,650,91896,UPI,Swiggy Food Order,24,3,2025,Mon,TXN03014
+3/26/25,Debit,900,90996,Card,HP Fuel Pump,26,3,2025,Wed,TXN03015
+3/27/25,Debit,500,90496,UPI,Medical Store Purchase,27,3,2025,Thu,TXN03016
+3/29/25,Debit,1100,89396,UPI,Dmart Grocery,29,3,2025,Sat,TXN03017
+3/30/25,Debit,2000,87396,UPI,Amazon Shopping,30,3,2025,Sun,TXN03018
+4/1/25,Credit,55000,142396,NEFT,Company Payroll,1,4,2025,Tue,TXN04001
+4/2/25,Debit,18000,124396,Bank Transfer,House Rent,2,4,2025,Wed,TXN04002
+4/3/25,Debit,1500,122896,UPI,Reliance Smart Grocery,3,4,2025,Thu,TXN04003
+4/5/25,Debit,1000,121896,Card,Indian Oil Fuel,5,4,2025,Sat,TXN04004
+4/6/25,Debit,2800,119096,Auto-Debit,SBI Credit Card Bill,6,4,2025,Sun,TXN04005
+4/8/25,Debit,900,118196,UPI,Local Grocery Store,8,4,2025,Tue,TXN04006
+4/10/25,Debit,1600,116596,UPI,Electricity Bill MSEB,10,4,2025,Thu,TXN04007
+4/12/25,Debit,5000,111596,Auto-Debit,Groww SIP Investment,12,4,2025,Sat,TXN04008
+4/14/25,Debit,450,111146,UPI,Cafe Coffee Day,14,4,2025,Mon,TXN04009
+4/15/25,Debit,40000,71146,Bank Transfer,Hospital Treatment & Medical Bills,15,4,2025,Tue,TXN04010
+4/17/25,Debit,1200,69946,Card,Bharat Petroleum Fuel,17,4,2025,Thu,TXN04011
+4/19/25,Debit,900,69046,UPI,BigBasket Grocery,19,4,2025,Sat,TXN04012
+4/21/25,Debit,350,68696,UPI,Mobile Recharge Airtel,21,4,2025,Mon,TXN04013
+4/23/25,Debit,300,68396,UPI,Water Bill PMC,23,4,2025,Wed,TXN04014
+4/25/25,Debit,650,67746,UPI,Swiggy Food Order,25,4,2025,Fri,TXN04015
+4/27/25,Debit,900,66846,Card,HP Fuel Pump,27,4,2025,Sun,TXN04016
+4/28/25,Debit,500,66346,UPI,Medical Store Purchase,28,4,2025,Mon,TXN04017
+4/30/25,Debit,2000,64346,UPI,Amazon Shopping,30,4,2025,Wed,TXN04018
+5/1/25,Credit,55000,119346,NEFT,Company Payroll,1,5,2025,Thu,TXN05001
+5/2/25,Debit,18000,101346,Bank Transfer,House Rent,2,5,2025,Fri,TXN05002
+5/3/25,Debit,1500,99846,UPI,Reliance Smart Grocery,3,5,2025,Sat,TXN05003
+5/5/25,Debit,1000,98846,Card,Indian Oil Fuel,5,5,2025,Mon,TXN05004
+5/6/25,Debit,2800,96046,Auto-Debit,SBI Credit Card Bill,6,5,2025,Tue,TXN05005
+5/8/25,Debit,900,95146,UPI,Local Grocery Store,8,5,2025,Thu,TXN05006
+5/10/25,Debit,1600,93546,UPI,Electricity Bill MSEB,10,5,2025,Sat,TXN05007
+5/12/25,Debit,5000,88546,Auto-Debit,Groww SIP Investment,12,5,2025,Mon,TXN05008
+5/14/25,Debit,450,88096,UPI,Cafe Coffee Day,14,5,2025,Wed,TXN05009
+5/16/25,Debit,1200,86896,Card,Bharat Petroleum Fuel,16,5,2025,Fri,TXN05010
+5/18/25,Debit,900,85996,UPI,BigBasket Grocery,18,5,2025,Sun,TXN05011
+5/20/25,Debit,350,85646,UPI,Mobile Recharge Airtel,20,5,2025,Tue,TXN05012
+5/21/25,Debit,40000,45646,UPI,Summer Vacation Trip Expense,21,5,2025,Wed,TXN05013
+5/23/25,Debit,300,45346,UPI,Water Bill PMC,23,5,2025,Fri,TXN05014
+5/25/25,Debit,650,44696,UPI,Swiggy Food Order,25,5,2025,Sun,TXN05015
+5/27/25,Debit,900,43796,Card,HP Fuel Pump,27,5,2025,Tue,TXN05016
+5/28/25,Debit,500,43296,UPI,Medical Store Purchase,28,5,2025,Wed,TXN05017
+5/30/25,Debit,2000,41296,UPI,Amazon Shopping,30,5,2025,Fri,TXN05018
+6/1/25,Credit,55000,96296,NEFT,Company Payroll,1,6,2025,Sun,TXN06001
+6/2/25,Debit,18000,78296,Bank Transfer,House Rent,2,6,2025,Mon,TXN06002
+6/3/25,Debit,1500,76796,UPI,Reliance Smart Grocery,3,6,2025,Tue,TXN06003
+6/5/25,Debit,1000,75796,Card,Indian Oil Fuel,5,6,2025,Thu,TXN06004
+6/6/25,Debit,2800,72996,Auto-Debit,SBI Credit Card Bill,6,6,2025,Fri,TXN06005
+6/8/25,Debit,900,72096,UPI,Local Grocery Store,8,6,2025,Sun,TXN06006
+6/10/25,Debit,1600,70496,UPI,Electricity Bill MSEB,10,6,2025,Tue,TXN06007
+6/12/25,Debit,5000,65496,Auto-Debit,Groww SIP Investment,12,6,2025,Thu,TXN06008
+6/14/25,Debit,450,65046,UPI,Cafe Coffee Day,14,6,2025,Sat,TXN06009
+6/16/25,Debit,1200,63846,Card,Bharat Petroleum Fuel,16,6,2025,Mon,TXN06010
+6/18/25,Debit,900,62946,UPI,BigBasket Grocery,18,6,2025,Wed,TXN06011
+6/20/25,Debit,350,62596,UPI,Mobile Recharge Airtel,20,6,2025,Fri,TXN06012
+6/22/25,Debit,300,62296,UPI,Water Bill PMC,22,6,2025,Sun,TXN06013
+6/24/25,Debit,650,61646,UPI,Swiggy Food Order,24,6,2025,Tue,TXN06014
+6/26/25,Debit,900,60746,Card,HP Fuel Pump,26,6,2025,Thu,TXN06015
+6/27/25,Debit,500,60246,UPI,Medical Store Purchase,27,6,2025,Fri,TXN06016
+6/29/25,Debit,1100,59146,UPI,Dmart Grocery,29,6,2025,Sun,TXN06017
+6/30/25,Debit,2000,57146,UPI,Amazon Shopping,30,6,2025,Mon,TXN06018
+7/1/25,Credit,55000,112146,NEFT,Company Payroll,1,7,2025,Tue,TXN07001
+7/2/25,Debit,18000,94146,Bank Transfer,House Rent,2,7,2025,Wed,TXN07002
+7/3/25,Debit,1500,92646,UPI,Reliance Smart Grocery,3,7,2025,Thu,TXN07003
+7/5/25,Debit,1000,91646,Card,Indian Oil Fuel,5,7,2025,Sat,TXN07004
+7/6/25,Debit,2800,88846,Auto-Debit,SBI Credit Card Bill,6,7,2025,Sun,TXN07005
+7/8/25,Debit,900,87946,UPI,Local Grocery Store,8,7,2025,Tue,TXN07006
+7/10/25,Debit,1600,86346,UPI,Electricity Bill MSEB,10,7,2025,Thu,TXN07007
+7/12/25,Debit,5000,81346,Auto-Debit,Groww SIP Investment,12,7,2025,Sat,TXN07008
+7/14/25,Debit,450,80896,UPI,Cafe Coffee Day,14,7,2025,Mon,TXN07009
+7/16/25,Debit,1200,79696,Card,Bharat Petroleum Fuel,16,7,2025,Wed,TXN07010
+7/18/25,Debit,900,78796,UPI,BigBasket Grocery,18,7,2025,Fri,TXN07011
+7/20/25,Debit,350,78446,UPI,Mobile Recharge Airtel,20,7,2025,Sun,TXN07012
+7/22/25,Debit,300,78146,UPI,Water Bill PMC,22,7,2025,Tue,TXN07013
+7/24/25,Debit,650,77496,UPI,Swiggy Food Order,24,7,2025,Thu,TXN07014
+7/26/25,Debit,900,76596,Card,HP Fuel Pump,26,7,2025,Sat,TXN07015
+7/27/25,Debit,500,76096,UPI,Medical Store Purchase,27,7,2025,Sun,TXN07016
+7/29/25,Debit,1100,74996,UPI,Dmart Grocery,29,7,2025,Tue,TXN07017
+7/30/25,Debit,2000,72996,UPI,Amazon Shopping,30,7,2025,Wed,TXN07018
+8/1/25,Credit,55000,127996,NEFT,Company Payroll,1,8,2025,Fri,TXN08001
+8/2/25,Debit,18000,109996,Bank Transfer,House Rent,2,8,2025,Sat,TXN08002
+8/3/25,Debit,1500,108496,UPI,Reliance Smart Grocery,3,8,2025,Sun,TXN08003
+8/5/25,Debit,1000,107496,Card,Indian Oil Fuel,5,8,2025,Tue,TXN08004
+8/6/25,Debit,2800,104696,Auto-Debit,SBI Credit Card Bill,6,8,2025,Wed,TXN08005
+8/8/25,Debit,900,103796,UPI,Local Grocery Store,8,8,2025,Fri,TXN08006
+8/10/25,Debit,1600,102196,UPI,Electricity Bill MSEB,10,8,2025,Sun,TXN08007
+8/12/25,Debit,5000,97196,Auto-Debit,Groww SIP Investment,12,8,2025,Tue,TXN08008
+8/14/25,Debit,450,96746,UPI,Cafe Coffee Day,14,8,2025,Thu,TXN08009
+8/16/25,Debit,1200,95546,Card,Bharat Petroleum Fuel,16,8,2025,Sat,TXN08010
+8/18/25,Debit,900,94646,UPI,BigBasket Grocery,18,8,2025,Mon,TXN08011
+8/20/25,Debit,350,94296,UPI,Mobile Recharge Airtel,20,8,2025,Wed,TXN08012
+8/22/25,Debit,300,93996,UPI,Water Bill PMC,22,8,2025,Fri,TXN08013
+8/24/25,Debit,650,93346,UPI,Swiggy Food Order,24,8,2025,Sun,TXN08014
+8/26/25,Debit,900,92446,Card,HP Fuel Pump,26,8,2025,Tue,TXN08015
+8/27/25,Debit,500,91946,UPI,Medical Store Purchase,27,8,2025,Wed,TXN08016
+8/29/25,Debit,1100,90846,UPI,Dmart Grocery,29,8,2025,Fri,TXN08017
+8/30/25,Debit,2000,88846,UPI,Amazon Shopping,30,8,2025,Sat,TXN08018
+9/1/25,Credit,55000,143846,NEFT,Company Payroll,1,9,2025,Mon,TXN09001
+9/2/25,Debit,18000,125846,Bank Transfer,House Rent,2,9,2025,Tue,TXN09002
+9/3/25,Debit,1500,124346,UPI,Reliance Smart Grocery,3,9,2025,Wed,TXN09003
+9/5/25,Debit,1000,123346,Card,Indian Oil Fuel,5,9,2025,Fri,TXN09004
+9/6/25,Debit,2800,120546,Auto-Debit,SBI Credit Card Bill,6,9,2025,Sat,TXN09005
+9/8/25,Debit,900,119646,UPI,Local Grocery Store,8,9,2025,Mon,TXN09006
+9/10/25,Debit,1600,118046,UPI,Electricity Bill MSEB,10,9,2025,Wed,TXN09007
+9/12/25,Debit,5000,113046,Auto-Debit,Groww SIP Investment,12,9,2025,Fri,TXN09008
+9/14/25,Debit,450,112596,UPI,Cafe Coffee Day,14,9,2025,Sun,TXN09009
+9/16/25,Debit,1200,111396,Card,Bharat Petroleum Fuel,16,9,2025,Tue,TXN09010
+9/18/25,Debit,900,110496,UPI,BigBasket Grocery,18,9,2025,Thu,TXN09011
+9/20/25,Debit,350,110146,UPI,Mobile Recharge Airtel,20,9,2025,Sat,TXN09012
+9/22/25,Debit,300,109846,UPI,Water Bill PMC,22,9,2025,Mon,TXN09013
+9/24/25,Debit,650,109196,UPI,Swiggy Food Order,24,9,2025,Wed,TXN09014
+9/26/25,Debit,900,108296,Card,HP Fuel Pump,26,9,2025,Fri,TXN09015
+9/27/25,Debit,500,107796,UPI,Medical Store Purchase,27,9,2025,Sat,TXN09016
+9/29/25,Debit,1100,106696,UPI,Dmart Grocery,29,9,2025,Mon,TXN09017
+9/30/25,Debit,2000,104696,UPI,Amazon Shopping,30,9,2025,Tue,TXN09018
+10/1/25,Credit,55000,159696,NEFT,Company Payroll,1,10,2025,Wed,TXN10001
+10/2/25,Debit,18000,141696,Bank Transfer,House Rent,2,10,2025,Thu,TXN10002
+10/3/25,Debit,1800,139896,UPI,Reliance Smart Grocery,3,10,2025,Fri,TXN10003
+10/5/25,Debit,1200,138696,Card,Indian Oil Fuel,5,10,2025,Sun,TXN10004
+10/6/25,Debit,2800,135896,Auto-Debit,SBI Credit Card Bill,6,10,2025,Mon,TXN10005
+10/8/25,Debit,1000,134896,UPI,Local Grocery Store,8,10,2025,Wed,TXN10006
+10/10/25,Debit,1600,133296,UPI,Electricity Bill MSEB,10,10,2025,Fri,TXN10007
+10/12/25,Debit,5000,128296,Auto-Debit,Groww SIP Investment,12,10,2025,Sun,TXN10008
+10/14/25,Debit,9000,119296,UPI,Navratri Clothing & Accessories,14,10,2025,Tue,TXN10009
+10/16/25,Debit,1500,117796,Card,Bharat Petroleum Fuel,16,10,2025,Thu,TXN10010
+10/18/25,Debit,4200,113596,UPI,Festival Grocery & Sweets,18,10,2025,Sat,TXN10011
+10/20/25,Debit,350,113246,UPI,Mobile Recharge Airtel,20,10,2025,Mon,TXN10012
+10/22/25,Debit,300,112946,UPI,Water Bill PMC,22,10,2025,Wed,TXN10013
+10/24/25,Debit,8000,104946,UPI,Diwali Decorations & Lights,24,10,2025,Fri,TXN10014
+10/26/25,Debit,950,103996,Card,HP Fuel Pump,26,10,2025,Sun,TXN10015
+10/27/25,Debit,6500,97496,UPI,Diwali Gifts Purchase,27,10,2025,Mon,TXN10016
+10/29/25,Debit,1100,96396,UPI,Dmart Grocery,29,10,2025,Wed,TXN10017
+10/30/25,Debit,2000,94396,UPI,Amazon Festive Shopping,30,10,2025,Thu,TXN10018
+11/1/25,Credit,55000,149396,NEFT,Company Payroll,1,11,2025,Sat,TXN11001
+11/2/25,Debit,18000,131396,Bank Transfer,House Rent,2,11,2025,Sun,TXN11002
+11/3/25,Debit,1700,129696,UPI,Reliance Smart Grocery,3,11,2025,Mon,TXN11003
+11/5/25,Debit,1200,128496,Card,Indian Oil Fuel,5,11,2025,Wed,TXN11004
+11/6/25,Debit,2800,125696,Auto-Debit,SBI Credit Card Bill,6,11,2025,Thu,TXN11005
+11/8/25,Debit,900,124796,UPI,Local Grocery Store,8,11,2025,Sat,TXN11006
+11/10/25,Debit,1600,123196,UPI,Electricity Bill MSEB,10,11,2025,Mon,TXN11007
+11/12/25,Debit,5000,118196,Auto-Debit,Groww SIP Investment,12,11,2025,Wed,TXN11008
+11/14/25,Debit,1500,116696,Card,Bharat Petroleum Fuel,14,11,2025,Fri,TXN11009
+11/16/25,Debit,1200,115496,UPI,Restaurant Dinner,16,11,2025,Sun,TXN11010
+11/18/25,Debit,2200,113296,UPI,BigBasket Grocery,18,11,2025,Tue,TXN11011
+11/20/25,Debit,350,112946,UPI,Mobile Recharge Airtel,20,11,2025,Thu,TXN11012
+11/22/25,Debit,300,112646,UPI,Water Bill PMC,22,11,2025,Sat,TXN11013
+11/24/25,Debit,950,111696,Card,HP Fuel Pump,24,11,2025,Mon,TXN11014
+11/26/25,Debit,800,110896,UPI,Pharmacy Purchase,26,11,2025,Wed,TXN11015
+11/28/25,Debit,1100,109796,UPI,Dmart Grocery,28,11,2025,Fri,TXN11016
+11/30/25,Debit,2000,107796,UPI,Amazon Household Items,30,11,2025,Sun,TXN11017
+12/1/25,Credit,55000,162796,NEFT,Company Payroll,1,12,2025,Mon,TXN12001
+12/2/25,Debit,18000,144796,Bank Transfer,House Rent,2,12,2025,Tue,TXN12002
+12/3/25,Debit,1800,142996,UPI,Reliance Smart Grocery,3,12,2025,Wed,TXN12003
+12/5/25,Debit,1200,141796,Card,Indian Oil Fuel,5,12,2025,Fri,TXN12004
+12/7/25,Debit,1600,140196,UPI,Electricity Bill,7,12,2025,Sun,TXN12005
+12/9/25,Debit,5000,135196,Auto-Debit,Groww SIP Investment,9,12,2025,Tue,TXN12006
+12/11/25,Debit,2500,132696,UPI,BigBasket Grocery,11,12,2025,Thu,TXN12007
+12/13/25,Debit,1500,131196,Card,Bharat Petroleum Fuel,13,12,2025,Sat,TXN12008
+12/15/25,Debit,50000,81196,Card,Winter Vacation Trip,15,12,2025,Mon,TXN12009
+12/18/25,Debit,800,80396,UPI,Airtel Mobile Recharge,18,12,2025,Thu,TXN12010
+12/20/25,Debit,3000,77396,UPI,Restaurant Dinner,20,12,2025,Sat,TXN12011
+12/22/25,Debit,8000,69396,Card,Christmas Gifts & Shopping,22,12,2025,Mon,TXN12012
+12/24/25,Debit,2200,67196,UPI,Dmart Grocery,24,12,2025,Wed,TXN12013
+12/26/25,Debit,1200,65996,Card,HP Fuel Pump,26,12,2025,Fri,TXN12014
+12/29/25,Debit,6000,59996,UPI,New Year Party & Celebration,29,12,2025,Mon,TXN12015
+12/31/25,Debit,2000,57996,UPI,Miscellaneous Expenses,31,12,2025,Wed,TXN12016
+1/1/26,Credit,55000,112996,NEFT,Company Payroll,1,1,2026,Thu,TXN01001
+1/2/26,Debit,18000,94996,Bank Transfer,House Rent,2,1,2026,Fri,TXN01002
+1/3/26,Debit,1700,93296,UPI,Reliance Smart Grocery,3,1,2026,Sat,TXN01003
+1/5/26,Debit,1200,92096,Card,Indian Oil Fuel,5,1,2026,Mon,TXN01004
+1/7/26,Debit,1600,90496,UPI,Electricity Bill,7,1,2026,Wed,TXN01005
+1/9/26,Debit,5000,85496,Auto-Debit,Groww SIP Investment,9,1,2026,Fri,TXN01006
+1/11/26,Debit,2200,83296,UPI,BigBasket Grocery,11,1,2026,Sun,TXN01007
+1/13/26,Debit,1500,81796,Card,Bharat Petroleum Fuel,13,1,2026,Tue,TXN01008
+1/15/26,Debit,900,80896,UPI,Airtel Mobile Recharge,15,1,2026,Thu,TXN01009
+1/18/26,Debit,1400,79496,UPI,Restaurant Dinner,18,1,2026,Sun,TXN01010
+1/20/26,Debit,2500,76996,UPI,Dmart Grocery,20,1,2026,Tue,TXN01011
+1/23/26,Debit,300,76696,UPI,Water Bill,23,1,2026,Fri,TXN01012
+1/26/26,Debit,1200,75496,Card,HP Fuel Pump,26,1,2026,Mon,TXN01013
+1/28/26,Debit,800,74696,UPI,Pharmacy Purchase,28,1,2026,Wed,TXN01014
+1/30/26,Debit,2000,72696,UPI,Amazon Household Items,30,1,2026,Fri,TXN01015
+2/1/26,Credit,55000,127696,NEFT,Company Payroll,1,2,2026,Sun,TXN02001
+2/2/26,Debit,18000,109696,Bank Transfer,House Rent,2,2,2026,Mon,TXN02002
+2/3/26,Debit,1600,108096,UPI,Reliance Smart Grocery,3,2,2026,Tue,TXN02003
+2/5/26,Debit,1200,106896,Card,Indian Oil Fuel,5,2,2026,Thu,TXN02004
+2/7/26,Debit,1500,105396,UPI,Electricity Bill,7,2,2026,Sat,TXN02005
+2/9/26,Debit,5000,100396,Auto-Debit,Groww SIP Investment,9,2,2026,Mon,TXN02006
+2/11/26,Debit,2100,98296,UPI,BigBasket Grocery,11,2,2026,Wed,TXN02007
+2/14/26,Debit,2500,95796,Card,Valentine Dinner,14,2,2026,Sat,TXN02008
+2/16/26,Debit,1400,94396,Card,Bharat Petroleum Fuel,16,2,2026,Mon,TXN02009
+2/18/26,Debit,800,93596,UPI,Airtel Mobile Recharge,18,2,2026,Wed,TXN02010
+2/20/26,Debit,2300,91296,UPI,Dmart Grocery,20,2,2026,Fri,TXN02011
+2/22/26,Debit,300,90996,UPI,Water Bill,22,2,2026,Sun,TXN02012
+2/24/26,Debit,1200,89796,Card,HP Fuel Pump,24,2,2026,Tue,TXN02013
+2/26/26,Debit,700,89096,UPI,Pharmacy Purchase,26,2,2026,Thu,TXN02014
+2/28/26,Debit,2000,87096,UPI,Amazon Household Items,28,2,2026,Sat,TXN02015

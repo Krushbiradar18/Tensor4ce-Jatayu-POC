@@ -79,6 +79,84 @@ def _apply_hard_guardrails(decision: str, comp_out: dict, fraud_out: dict) -> st
     return decision
 
 
+def _agent_fallback_output(agent_name: str, app_id: str, error_msg: str) -> dict:
+    """Conservative fallback payloads used when an agent call fails."""
+    err = f"AGENT_{agent_name.upper()}_UNAVAILABLE: {error_msg}"
+
+    if agent_name == "credit_risk":
+        return {
+            "application_id": app_id,
+            "credit_score": 0.45,
+            "risk_band": "HIGH",
+            "foir": 0.0,
+            "ltv": 0.0,
+            "model_risk_score": None,
+            "top_factors": [],
+            "officer_narrative": "Credit model output unavailable; escalated for manual review.",
+            "error": err,
+        }
+
+    if agent_name == "fraud":
+        return {
+            "application_id": app_id,
+            "fraud_level": "SUSPICIOUS",
+            "fraud_probability": 0.5,
+            "fired_hard_rules": ["FALLBACK_AGENT_TIMEOUT"],
+            "fired_soft_signals": [],
+            "ip_risk_score": 0.0,
+            "recommend_kyc_recheck": True,
+            "explanation": "Fraud engine response timed out; escalated for manual fraud review.",
+            "error": err,
+        }
+
+    if agent_name == "compliance":
+        return {
+            "application_id": app_id,
+            "all_blocks_passed": True,
+            "block_flags": [],
+            "warn_flags": [{
+                "rule_id": "SYS_FALLBACK",
+                "severity": "WARN",
+                "description": "Compliance engine unavailable",
+                "regulation": "SYSTEM",
+                "message": "Compliance response unavailable; manual compliance review required.",
+            }],
+            "overall_status": "PASS_WITH_WARNINGS",
+            "kyc_complete": False,
+            "aml_review_required": True,
+            "cot_reasoning": "Compliance service timeout; fallback warnings applied.",
+            "error": err,
+        }
+
+    if agent_name == "portfolio":
+        return {
+            "application_id": app_id,
+            "portfolio_recommendation": "CAUTION",
+            "sector_concentration_current": 0.0,
+            "sector_concentration_new": 0.0,
+            "geo_concentration_current": 0.0,
+            "geo_concentration_new": 0.0,
+            "risk_band_distribution": {},
+            "el_impact_inr": 0.0,
+            "concentration_flags": ["FALLBACK_AGENT_TIMEOUT"],
+            "cot_reasoning": "Portfolio service timeout; manual portfolio check recommended.",
+            "error": err,
+        }
+
+    return {"application_id": app_id, "error": err}
+
+
+def _safe_call_agent(agent_name: str, app_id: str, payload: dict | None = None) -> dict:
+    """Call agent via A2A and return fallback output on failure."""
+    from orchestration.a2a_client import call_agent
+
+    try:
+        return call_agent(agent_name, app_id, payload=payload)
+    except Exception as e:
+        logger.exception(f"[{app_id}] {agent_name} A2A failed, using fallback output: {e}")
+        return _agent_fallback_output(agent_name, app_id, str(e))
+
+
 # ── CrewAI Orchestration ──────────────────────────────────────────────────────
 
 def run_via_crewai(app_id: str) -> dict:
@@ -89,7 +167,6 @@ def run_via_crewai(app_id: str) -> dict:
     """
     from crewai import Agent, Task, Crew, Process
     from orchestration.mcp_tools import ALL_MCP_TOOLS
-    from orchestration.a2a_client import call_agent
     from tools import _log_event, set_agent_output, AGENT_OUTPUTS
 
     llm = _build_llm()
@@ -194,10 +271,10 @@ def run_via_crewai(app_id: str) -> dict:
 
     # ── After CrewAI runs, invoke each agent via A2A to get typed outputs ──
     # (CrewAI text output is supplementary; real typed outputs come from A2A)
-    credit_out = call_agent("credit_risk", app_id)
-    fraud_out  = call_agent("fraud", app_id)
-    comp_out   = call_agent("compliance", app_id)
-    port_out   = call_agent("portfolio", app_id, payload={"credit_risk_output": credit_out})
+    credit_out = _safe_call_agent("credit_risk", app_id)
+    fraud_out  = _safe_call_agent("fraud", app_id)
+    comp_out   = _safe_call_agent("compliance", app_id)
+    port_out   = _safe_call_agent("portfolio", app_id, payload={"credit_risk_output": credit_out})
 
     set_agent_output(app_id, "credit", credit_out)
     set_agent_output(app_id, "fraud",  fraud_out)
@@ -216,28 +293,27 @@ def run_direct_pipeline(app_id: str) -> dict:
     Order: Credit Risk → Fraud (parallel-capable) → Compliance → Portfolio
     Falls back to this when GEMINI_API_KEY is not set or ENABLE_CREWAI_MANAGER=false.
     """
-    from orchestration.a2a_client import call_agent
     from tools import _log_event, set_agent_output
 
     _log_event(app_id, "orchestrator", "DIRECT_START", {"mode": "direct_a2a"})
 
     logger.info(f"[{app_id}] Running Credit Risk Agent via A2A...")
-    credit_out = call_agent("credit_risk", app_id)
+    credit_out = _safe_call_agent("credit_risk", app_id)
     set_agent_output(app_id, "credit", credit_out)
     logger.info(f"[{app_id}] ✓ Credit: {credit_out.get('risk_band')} | PD={credit_out.get('credit_score', 0):.4f}")
 
     logger.info(f"[{app_id}] Running Fraud Detection Agent via A2A...")
-    fraud_out = call_agent("fraud", app_id)
+    fraud_out = _safe_call_agent("fraud", app_id)
     set_agent_output(app_id, "fraud", fraud_out)
     logger.info(f"[{app_id}] ✓ Fraud: {fraud_out.get('fraud_level')} | Prob={fraud_out.get('fraud_probability', 0):.4f}")
 
     logger.info(f"[{app_id}] Running Compliance Agent via A2A...")
-    comp_out = call_agent("compliance", app_id)
+    comp_out = _safe_call_agent("compliance", app_id)
     set_agent_output(app_id, "compliance", comp_out)
     logger.info(f"[{app_id}] ✓ Compliance: {comp_out.get('overall_status')}")
 
     logger.info(f"[{app_id}] Running Portfolio Agent via A2A (with credit context)...")
-    port_out = call_agent("portfolio", app_id, payload={"credit_risk_output": credit_out})
+    port_out = _safe_call_agent("portfolio", app_id, payload={"credit_risk_output": credit_out})
     set_agent_output(app_id, "portfolio", port_out)
     logger.info(f"[{app_id}] ✓ Portfolio: {port_out.get('portfolio_recommendation')}")
 
@@ -271,6 +347,24 @@ def _build_final_decision(
 
     # ── Apply hard Python guardrails AFTER matrix ─────────────────────────
     decision = _apply_hard_guardrails(decision, comp_out, fraud_out)
+
+    # Any fallback/error output forces manual escalation.
+    output_errors = [
+        credit_out.get("error"),
+        fraud_out.get("error"),
+        comp_out.get("error"),
+        port_out.get("error"),
+    ]
+    has_output_error = any(bool(e) for e in output_errors)
+    if has_output_error:
+        decision = "ESCALATE"
+        row = "R0_SYSTEM_DEGRADED_ESCALATE"
+        conditions = list(conditions or [])
+        conditions.append({
+            "condition_type": "MANUAL_REVIEW",
+            "description": "One or more agent services timed out/unavailable. Manual underwriting review required.",
+            "required_by_days": 1,
+        })
 
     # ── Officer summary ───────────────────────────────────────────────────────
     lines = [
@@ -309,6 +403,7 @@ def _build_final_decision(
         "compliance":            comp_out,
         "portfolio":             port_out,
         "officer_summary":       "\n".join(lines),
+        "context":               ctx,
         "decided_at":            datetime.utcnow().isoformat(),
     }
 
@@ -344,16 +439,24 @@ def run_crew_pipeline(app_id: str, form_data: dict, ip_meta: dict) -> dict:
     # ── Step 2: Agentic Orchestration ─────────────────────────────────────────
     db.update_status(app_id, "AGENTS_RUNNING")
 
-    if _has_gemini():
-        logger.info(f"[{app_id}] Mode: CrewAI hierarchical (Gemini manager)")
-        try:
-            result = run_via_crewai(app_id)
-        except Exception as e:
-            logger.error(f"[{app_id}] CrewAI failed ({e}), falling back to direct A2A pipeline")
+    try:
+        if _has_gemini():
+            logger.info(f"[{app_id}] Mode: CrewAI hierarchical (Gemini manager)")
+            try:
+                result = run_via_crewai(app_id)
+            except Exception as e:
+                logger.error(f"[{app_id}] CrewAI failed ({e}), falling back to direct A2A pipeline")
+                result = run_direct_pipeline(app_id)
+        else:
+            logger.info(f"[{app_id}] Mode: Direct A2A pipeline (set ENABLE_CREWAI_MANAGER=true + GEMINI_API_KEY for full agentic mode)")
             result = run_direct_pipeline(app_id)
-    else:
-        logger.info(f"[{app_id}] Mode: Direct A2A pipeline (set ENABLE_CREWAI_MANAGER=true + GEMINI_API_KEY for full agentic mode)")
-        result = run_direct_pipeline(app_id)
+    except Exception as e:
+        logger.exception(f"[{app_id}] Orchestration failed hard; persisting degraded decision: {e}")
+        credit_out = _agent_fallback_output("credit_risk", app_id, str(e))
+        fraud_out = _agent_fallback_output("fraud", app_id, str(e))
+        comp_out = _agent_fallback_output("compliance", app_id, str(e))
+        port_out = _agent_fallback_output("portfolio", app_id, str(e))
+        result = _build_final_decision(app_id, credit_out, fraud_out, comp_out, port_out)
 
     # ── Step 3: Persist ────────────────────────────────────────────────────────
     result["processing_time_ms"] = round((time.time() - t0) * 1000, 1)

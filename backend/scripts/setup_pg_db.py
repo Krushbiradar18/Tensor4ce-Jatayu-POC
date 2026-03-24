@@ -10,16 +10,27 @@ from sqlalchemy import create_engine
 from pathlib import Path
 from dotenv import load_dotenv
 
-ROOT = Path(__file__).resolve().parent.parent
 BACKEND_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(BACKEND_DIR / ".env")
+PROJECT_ROOT = BACKEND_DIR.parent
+ROOT = BACKEND_DIR
+
+# Load environment from project root first, then backend as fallback.
+env_loaded = False
+for env_path in (PROJECT_ROOT / ".env", BACKEND_DIR / ".env"):
+    if env_path.exists():
+        load_dotenv(env_path)
+        env_loaded = True
+        break
+
+if not env_loaded:
+    print("Warning: .env not found in project root or backend directory. Using defaults.")
 
 # DB Connection Config
 PG_USER = os.environ.get("PG_USER", "postgres")
 PG_PASS = os.environ.get("PG_PASSWORD", "postgres")
 PG_HOST = os.environ.get("PG_HOST", "localhost")
 PG_PORT = os.environ.get("PG_PORT", "5432")
-PG_DB   = os.environ.get("PG_DB", "postgres")
+PG_DB   = os.environ.get("PG_DB", "jatayu")
 DB_URI = f"postgresql://{PG_USER}:{PG_PASS}@{PG_HOST}:{PG_PORT}/{PG_DB}"
 
 def run():

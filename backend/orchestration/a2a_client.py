@@ -13,6 +13,7 @@ The base URL defaults to localhost:8000 and can be overridden via A2A_BASE_URL e
 from __future__ import annotations
 import os
 import uuid
+import time
 import logging
 import httpx
 
@@ -29,11 +30,28 @@ AGENT_PATHS = {
 }
 
 
+def _resolve_timeout(agent_name: str, timeout: int | None) -> int:
+    if timeout is not None:
+        return int(timeout)
+    agent_key = f"A2A_TIMEOUT_{agent_name.upper()}"
+    # Fraud can be slower due to optional LLM explanation path.
+    default_map = {
+        "fraud": 180,
+    }
+    default_timeout = default_map.get(agent_name, 120)
+    return int(os.environ.get(agent_key, os.environ.get("A2A_DEFAULT_TIMEOUT_SECONDS", str(default_timeout))))
+
+
+def _resolve_retries() -> int:
+    # Total attempts = 1 + retries. Defaults to 1 retry.
+    return max(0, int(os.environ.get("A2A_RETRY_COUNT", "1")))
+
+
 def call_agent(
     agent_name: str,
     application_id: str,
     payload: dict | None = None,
-    timeout: int = 120,
+    timeout: int | None = None,
 ) -> dict:
     """
     Send an A2A task request to a specialist LangGraph agent.
@@ -54,27 +72,57 @@ def call_agent(
     task_id  = f"TASK-{uuid.uuid4().hex[:10].upper()}"
     endpoint = f"{A2A_BASE_URL}{base_path}/a2a/tasks/send"
 
+    resolved_timeout = _resolve_timeout(agent_name, timeout)
     body = {
         "task_id":          task_id,
         "application_id":   application_id,
         "payload":          payload or {},
-        "timeout_seconds":  timeout,
+        "timeout_seconds":  resolved_timeout,
     }
 
-    logger.info(f"[A2A] → {agent_name} | task={task_id} | app={application_id}")
-    try:
-        with httpx.Client(timeout=timeout) as client:
-            resp = client.post(endpoint, json=body)
-            resp.raise_for_status()
-            data = resp.json()
-            logger.info(f"[A2A] ← {agent_name} | status={data.get('status')} | {data.get('processing_time_ms', 0):.0f}ms")
-            return data.get("output", {})
-    except httpx.HTTPStatusError as e:
-        logger.error(f"[A2A] {agent_name} HTTP error: {e.response.status_code} — {e.response.text[:200]}")
-        raise
-    except Exception as e:
-        logger.error(f"[A2A] {agent_name} connection error: {e}")
-        raise
+    retries = _resolve_retries()
+    attempts = 1 + retries
+    logger.info(
+        f"[A2A] → {agent_name} | task={task_id} | app={application_id} | timeout={resolved_timeout}s | attempts={attempts}"
+    )
+
+    last_exc: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        try:
+            req_timeout = httpx.Timeout(
+                connect=min(10, resolved_timeout),
+                read=resolved_timeout,
+                write=30,
+                pool=10,
+            )
+            with httpx.Client(timeout=req_timeout) as client:
+                resp = client.post(endpoint, json=body)
+                resp.raise_for_status()
+                data = resp.json()
+                logger.info(
+                    f"[A2A] ← {agent_name} | status={data.get('status')} | {data.get('processing_time_ms', 0):.0f}ms"
+                )
+                return data.get("output", {})
+        except httpx.HTTPStatusError as e:
+            logger.error(f"[A2A] {agent_name} HTTP error: {e.response.status_code} — {e.response.text[:200]}")
+            raise
+        except (httpx.ReadTimeout, httpx.ConnectTimeout, httpx.TimeoutException, httpx.NetworkError) as e:
+            last_exc = e
+            if attempt >= attempts:
+                logger.error(f"[A2A] {agent_name} timeout/network error after {attempt} attempts: {e}")
+                raise
+            backoff = min(2 ** (attempt - 1), 5)
+            logger.warning(
+                f"[A2A] {agent_name} transient timeout/network error (attempt {attempt}/{attempts}): {e}; retrying in {backoff}s"
+            )
+            time.sleep(backoff)
+        except Exception as e:
+            logger.error(f"[A2A] {agent_name} connection error: {e}")
+            raise
+
+    if last_exc:
+        raise last_exc
+    raise RuntimeError(f"[A2A] Unexpected empty result for agent {agent_name}")
 
 
 def get_agent_card(agent_name: str) -> dict:
