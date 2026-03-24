@@ -224,9 +224,53 @@ if frontend_dir.exists():
 @app.post("/api/apply")
 async def submit_application(req: SubmitRequest, background_tasks: BackgroundTasks):
     import uuid
+    from datetime import datetime
+    from verification.verifier import run_preliminary_identity_precheck
+
     app_id = f"APP-{uuid.uuid4().hex[:8].upper()}"
     req.form_data["application_id"] = app_id
     db.save_application(app_id, req.form_data, req.ip_metadata)
+
+    # Preliminary identity gate before orchestration/agents:
+    # name (simple check) + PAN + Aadhaar against mock_bureau_records.
+    passed, reason, mismatch_flags = run_preliminary_identity_precheck(req.form_data)
+    if not passed:
+        db.save_officer_action(app_id, "system_precheck", "REJECTED", reason)
+        db.log_event(
+            app_id,
+            "system",
+            "PRECHECK_REJECTED",
+            {
+                "reason": reason,
+                "mismatch_flags": mismatch_flags,
+            },
+        )
+        precheck_decision = {
+            "decision_id": f"DEC-{uuid.uuid4().hex[:10].upper()}",
+            "application_id": app_id,
+            "ai_recommendation": "REJECT",
+            "decision_matrix_row": "R0_PRECHECK_IDENTITY_MISMATCH",
+            "conditions": [],
+            "max_approvable_amount": None,
+            "credit_risk": {},
+            "fraud": {},
+            "compliance": {},
+            "portfolio": {},
+            "officer_summary": reason,
+            "processing_time_ms": 0,
+            "precheck_mismatch_flags": mismatch_flags,
+            "decided_at": datetime.utcnow().isoformat(),
+        }
+        db.save_decision(precheck_decision["decision_id"], app_id, precheck_decision)
+        return {
+            "application_id": app_id,
+            "status": "REJECTED",
+            "message": reason,
+            "reason": reason,
+            "mismatch_flags": mismatch_flags,
+        }
+
+    db.log_event(app_id, "system", "PRECHECK_PASSED", {})
     background_tasks.add_task(_run_bg, app_id, req.form_data, req.ip_metadata)
     return {
         "application_id": app_id,

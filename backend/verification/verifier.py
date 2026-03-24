@@ -23,6 +23,82 @@ from schemas import ApplicationContext, ValidationFlag
 logger = logging.getLogger(__name__)
 
 
+def _normalize_name(text: str) -> str:
+    return " ".join((text or "").strip().lower().split())
+
+
+def _aadhaar_last4(value: object) -> str:
+    if isinstance(value, (int, float)):
+        try:
+            value = str(int(value))
+        except Exception:
+            value = str(value)
+    digits = "".join(ch for ch in str(value or "") if ch.isdigit())
+    return digits[-4:] if len(digits) >= 4 else ""
+
+
+def run_preliminary_identity_precheck(form_data: dict) -> tuple[bool, str, list[str]]:
+    """
+    Pre-orchestration hard check against mock_bureau_records.
+
+    Rules:
+      - PAN must exist in mock_bureau_records and match exactly.
+      - Aadhaar last-4 must match the table row.
+      - Name check is intentionally simple (relaxed): exact/contains/first-token match.
+
+    Returns:
+      (passed, reason, mismatches)
+    """
+    from dataset_loader import get_identity_record
+
+    user_pan = str(form_data.get("pan_number", "")).upper().strip()
+    user_name = _normalize_name(str(form_data.get("applicant_name", "")))
+    user_aadhaar_last4 = _aadhaar_last4(form_data.get("aadhaar_last4", ""))
+
+    mismatches: list[str] = []
+    if not user_pan:
+        mismatches.append("PAN_MISSING")
+    if not user_name:
+        mismatches.append("NAME_MISSING")
+    if not user_aadhaar_last4:
+        mismatches.append("AADHAAR_MISSING_OR_INVALID")
+
+    record = get_identity_record(user_pan) if user_pan else None
+    if not record:
+        mismatches.append("PAN_NOT_FOUND_IN_MOCK_BUREAU")
+        return False, "Inccorect and mismatch user data", mismatches
+
+    expected_pan = str(record.get("pan", "")).upper().strip()
+    expected_name = _normalize_name(str(record.get("name", "")))
+    expected_aadhaar_last4 = _aadhaar_last4(record.get("aadhaar", ""))
+
+    if user_pan != expected_pan:
+        mismatches.append("PAN_MISMATCH")
+
+    # Keep the name check simple and forgiving by design.
+    user_first = user_name.split(" ")[0] if user_name else ""
+    expected_first = expected_name.split(" ")[0] if expected_name else ""
+    name_match = (
+        bool(user_name and expected_name)
+        and (
+            user_name == expected_name
+            or user_name in expected_name
+            or expected_name in user_name
+            or (user_first and expected_first and user_first == expected_first)
+        )
+    )
+    if not name_match:
+        mismatches.append("NAME_MISMATCH")
+
+    if not expected_aadhaar_last4 or user_aadhaar_last4 != expected_aadhaar_last4:
+        mismatches.append("AADHAAR_MISMATCH")
+
+    if mismatches:
+        return False, "Inccorect and mismatch user data", mismatches
+
+    return True, "", []
+
+
 # ── Verification outcomes ──────────────────────────────────────────────────────
 
 class VerificationResult:

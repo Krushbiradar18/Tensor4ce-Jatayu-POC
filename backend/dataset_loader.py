@@ -18,14 +18,19 @@ from dotenv import load_dotenv
 logger = logging.getLogger(__name__)
 
 BACKEND_DIR = Path(__file__).resolve().parent
-load_dotenv(BACKEND_DIR / ".env")
+PROJECT_ROOT = BACKEND_DIR.parent
+
+for env_path in (PROJECT_ROOT / ".env", BACKEND_DIR / ".env"):
+    if env_path.exists():
+        load_dotenv(env_path)
+        break
 
 # DB Connection Setup
 _PG_USER = os.environ.get("PG_USER", "postgres")
 _PG_PASS = os.environ.get("PG_PASSWORD", "postgres")
 _PG_HOST = os.environ.get("PG_HOST", "localhost")
 _PG_PORT = os.environ.get("PG_PORT", "5432")
-_PG_DB   = os.environ.get("PG_DB", "postgres")
+_PG_DB   = os.environ.get("PG_DB", "jatayu")
 
 _DB_URI = f"postgresql://{_PG_USER}:{_PG_PASS}@{_PG_HOST}:{_PG_PORT}/{_PG_DB}"
 _ENGINE: Optional[Engine] = None
@@ -145,6 +150,18 @@ def get_merged_customer_profile(pan: str) -> Optional[dict]:
         "num_hard_enquiries_6m": int(row.get("enq_l6m", 0)),
         "dpd_30_count": int(row.get("num_times_30p_dpd", 0)),
         "dpd_90_count": int(row.get("num_times_60p_dpd", 0)),
+    }
+
+
+def get_identity_record(pan: str) -> Optional[dict]:
+    """Return core identity fields from mock_bureau_records for preliminary checks."""
+    row = _query_db_for_pan(pan)
+    if not row:
+        return None
+    return {
+        "pan": str(row.get("pan", "")).upper().strip(),
+        "name": str(row.get("name", "")).strip(),
+        "aadhaar": row.get("aadhaar"),
     }
 
 
