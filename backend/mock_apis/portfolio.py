@@ -1,7 +1,7 @@
 """backend/mock_apis/portfolio.py — Portfolio summary mock API endpoint.
 
 Provides GET /mock/bank/portfolio-summary which returns pre-aggregated
-portfolio statistics derived from Internal_Bank_Dataset.xlsx.
+portfolio statistics derived from runtime data sources.
 
 This router is mounted in backend/main.py:
   from mock_apis.portfolio import router as portfolio_router
@@ -21,24 +21,13 @@ router = APIRouter()
 
 def _get_portfolio_stats() -> dict:
     """
-    Load portfolio stats. Tries portfolio_agent package first.
-    Falls back to agents_base._PORTFOLIO CSV data if import fails.
+    Load portfolio stats from DB-backed runtime sources.
+    Optional file fallback is available only when ALLOW_RUNTIME_FILE_FALLBACK=true.
     """
-    # Add project root to path so portfolio_agent can be imported from backend context
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    if project_root not in sys.path:
-        sys.path.insert(0, project_root)
-
     try:
-        from portfolio_agent.portfolio_db import get_portfolio_stats_from_file
-        return get_portfolio_stats_from_file()
-    except Exception as exc:
-        logger.warning(f"portfolio_agent not available ({exc}) — using agent_base fallback")
-
-    # Fallback: use existing _PORTFOLIO data from agents_base
-    try:
-        from agents_base import _PORTFOLIO, LGD_MAP
-        if _PORTFOLIO:
+        from dataset_loader import get_portfolio_loans
+        rows = get_portfolio_loans()
+        if rows:
             from tools import _get_portfolio_data
             stats = _get_portfolio_data("PERSONAL", "Maharashtra", 0)
             return {
@@ -54,6 +43,18 @@ def _get_portfolio_stats() -> dict:
             }
     except Exception:
         pass
+
+    allow_file_fallback = os.environ.get("ALLOW_RUNTIME_FILE_FALLBACK", "false").strip().lower() in {"1", "true", "yes", "on"}
+    if allow_file_fallback:
+        # Add project root to path so optional legacy package can be imported from backend context
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        if project_root not in sys.path:
+            sys.path.insert(0, project_root)
+        try:
+            from portfolio_agent.portfolio_db import get_portfolio_stats_from_file
+            return get_portfolio_stats_from_file()
+        except Exception as exc:
+            logger.warning(f"portfolio_agent file fallback unavailable ({exc})")
 
     # Last resort defaults
     return {
@@ -81,8 +82,8 @@ async def get_portfolio_summary():
     Returns pre-aggregated portfolio statistics.
 
     Caller: CrewAI Orchestrator (DIL layer) — not individual agents.
-    Data source: Derived from Internal_Bank_Dataset.xlsx via portfolio_agent.portfolio_db.
-    Cache: Results are cached in memory after first load (see portfolio_db.py).
+    Data source: DB-backed portfolio_loans table by default.
+    Optional file fallback can be enabled via ALLOW_RUNTIME_FILE_FALLBACK=true.
     """
     await asyncio.sleep(0.2)   # latency simulation
     return _get_portfolio_stats()

@@ -90,7 +90,12 @@ def _get_macro_config() -> dict:
 def _get_portfolio_data(product: str, state: str, amount: float) -> dict:
     """Compute portfolio concentration impact for a new loan."""
     from agents_base import _PORTFOLIO, LGD_MAP
-    active = [r for r in _PORTFOLIO if r.get("status") in ("ACTIVE", "NPA")]
+    from dataset_loader import get_portfolio_loans
+
+    db_rows = get_portfolio_loans()
+    allow_file_fallback = os.environ.get("ALLOW_RUNTIME_FILE_FALLBACK", "false").strip().lower() in {"1", "true", "yes", "on"}
+    portfolio_source = db_rows if db_rows else (_PORTFOLIO if allow_file_fallback else [])
+    active = [r for r in portfolio_source if str(r.get("status", "")).upper() in ("ACTIVE", "NPA")]
     if not active:
         return {
             "sector_current": 0.25, "sector_new": 0.27,
@@ -102,15 +107,27 @@ def _get_portfolio_data(product: str, state: str, amount: float) -> dict:
         }
     total = sum(float(r.get("outstanding", 0)) for r in active)
     new_total = total + amount
-    sector_os = sum(float(r.get("outstanding", 0)) for r in active if r.get("loan_product") == product)
-    geo_os = sum(float(r.get("outstanding", 0)) for r in active if r.get("state_code", "").lower() == state.lower())
+    sector_os = sum(
+        float(r.get("outstanding", 0))
+        for r in active
+        if str(r.get("loan_product", "")).upper() == str(product).upper()
+    )
+    geo_os = sum(
+        float(r.get("outstanding", 0))
+        for r in active
+        if str(r.get("state_code", "")).lower() == str(state).lower()
+    )
     sector_cur = sector_os / max(total, 1)
     sector_new = (sector_os + amount) / max(new_total, 1)
     geo_cur = geo_os / max(total, 1)
     geo_new = (geo_os + amount) / max(new_total, 1)
     rb_dist = {}
     for rb in ("LOW", "MEDIUM", "HIGH", "VERY_HIGH"):
-        rb_os = sum(float(r.get("outstanding", 0)) for r in active if r.get("risk_band") == rb)
+        rb_os = sum(
+            float(r.get("outstanding", 0))
+            for r in active
+            if str(r.get("risk_band", "")).upper() == rb
+        )
         rb_dist[rb] = round(rb_os / max(total, 1), 4)
     npa_rate = sum(1 for r in active if r.get("status") == "NPA") / max(len(active), 1)
     flags = []

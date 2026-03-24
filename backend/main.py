@@ -139,7 +139,12 @@ async def lifespan(app: FastAPI):
 
     load_static_data(data_dir)
     load_compliance_rules(f"{data_dir}/compliance_rules.yaml")
-    load_portfolio(f"{data_dir}/portfolio_loans.csv")
+    allow_file_fallback = os.environ.get("ALLOW_RUNTIME_FILE_FALLBACK", "false").strip().lower() in {"1", "true", "yes", "on"}
+    if allow_file_fallback:
+        load_portfolio(f"{data_dir}/portfolio_loans.csv")
+        logger.info("Runtime file fallback enabled: loaded portfolio CSV")
+    else:
+        logger.info("Runtime file fallback disabled: portfolio lookups will use DB only")
 
     preload_datasets = os.environ.get("PRELOAD_DATASETS", "true").strip().lower() in {"1", "true", "yes", "on"}
     dataset_dir = _resolve_config_path(os.environ.get("DATASET_DIR", "dataset"), PROJECT_ROOT)

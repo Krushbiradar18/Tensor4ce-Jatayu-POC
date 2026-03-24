@@ -50,6 +50,17 @@ def run():
         df.columns = [str(c).lower() for c in df.columns] # lowercase columns for Postgres
         df.to_sql("mock_bureau_records", engine, if_exists="replace", index=False)
         print(f"✓ Successfully populated mock_bureau_records with {len(df)} rows!")
+
+        portfolio_file = ROOT / "data" / "portfolio_loans.csv"
+        if not portfolio_file.exists():
+            print(f"Warning: {portfolio_file} not found. Skipping portfolio table setup.")
+        else:
+            print(f"Loading {portfolio_file}...")
+            portfolio_df = pd.read_csv(portfolio_file)
+            portfolio_df.columns = [str(c).lower() for c in portfolio_df.columns]
+            print("Populating table 'portfolio_loans'...")
+            portfolio_df.to_sql("portfolio_loans", engine, if_exists="replace", index=False)
+            print(f"✓ Successfully populated portfolio_loans with {len(portfolio_df)} rows!")
         
         # In a real environment, you'd also load mock_bank_records here
         

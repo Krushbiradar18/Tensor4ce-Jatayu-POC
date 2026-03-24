@@ -165,6 +165,19 @@ def get_identity_record(pan: str) -> Optional[dict]:
     }
 
 
+def get_portfolio_loans() -> list[dict]:
+    """Fetch portfolio loan rows from PostgreSQL table portfolio_loans."""
+    try:
+        engine = _get_engine()
+        query = text("SELECT * FROM portfolio_loans")
+        with engine.connect() as conn:
+            rows = conn.execute(query).fetchall()
+            return [dict(r._mapping) for r in rows]
+    except Exception as e:
+        logger.warning(f"Failed to query portfolio_loans from Postgres: {e}")
+        return []
+
+
 def get_credit_ground_truth(pan: str) -> Optional[dict]:
     row = _query_db_for_pan(pan)
     if not row:

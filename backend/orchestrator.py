@@ -291,7 +291,9 @@ def run_pipeline(app_id: str, form_data: dict, ip_meta: dict) -> dict:
     data_dir = os.environ.get("DATA_DIR", "data")
     load_static_data(data_dir)
     load_compliance_rules(f"{data_dir}/compliance_rules.yaml")
-    load_portfolio(f"{data_dir}/portfolio_loans.csv")
+    allow_file_fallback = os.environ.get("ALLOW_RUNTIME_FILE_FALLBACK", "false").strip().lower() in {"1", "true", "yes", "on"}
+    if allow_file_fallback:
+        load_portfolio(f"{data_dir}/portfolio_loans.csv")
 
     # Step 1: Data Intelligence Layer
     db.update_status(app_id, "DIL_PROCESSING")
