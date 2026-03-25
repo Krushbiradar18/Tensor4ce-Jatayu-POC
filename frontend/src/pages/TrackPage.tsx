@@ -42,6 +42,10 @@ export default function TrackPage() {
     }
   };
 
+  const displayStatus = app 
+    ? (["DIL_PROCESSING", "AGENTS_RUNNING", "DECIDED_PENDING_OFFICER"].includes(app.status) ? "PENDING" : app.status)
+    : "";
+
   return (
     <PublicLayout>
       <div className="container mx-auto px-4 py-12 max-w-2xl">
@@ -65,13 +69,13 @@ export default function TrackPage() {
             <CardHeader>
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <CardTitle className="font-display">Application {app.application_id}</CardTitle>
-                <Badge className={statusColors[app.status] || "bg-muted"}>{app.status}</Badge>
+                <Badge className={statusColors[displayStatus] || "bg-muted"}>{displayStatus}</Badge>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                 <InfoRow label="Application ID" value={app.application_id} />
-                <InfoRow label="Status" value={app.status} />
+                <InfoRow label="Status" value={displayStatus} />
                 {app.message && <InfoRow label="Message" value={app.message} />}
                 {app.officer_decision && <InfoRow label="Officer Decision" value={app.officer_decision} />}
                 {app.officer_reason && <InfoRow label="Officer Reason" value={app.officer_reason} />}
