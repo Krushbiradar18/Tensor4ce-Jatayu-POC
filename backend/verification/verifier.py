@@ -99,6 +99,95 @@ def run_preliminary_identity_precheck(form_data: dict) -> tuple[bool, str, list[
     return True, "", []
 
 
+def run_document_identity_check(
+    form_data: dict,
+    document_data: dict,
+) -> tuple[bool, str, list[str]]:
+    """
+    Three-way identity check:
+      Step 1 — Document vs Form:  OCR-extracted fields must match what the
+               applicant typed into the application form.
+      Step 2 — Document vs Bureau: OCR-extracted fields must match the
+               mock bureau record for that PAN.
+
+    Parameters
+    ----------
+    form_data     : raw form dict (applicant_name, pan_number, aadhaar_last4)
+    document_data : output of extract_from_aadhaar_pdf / extract_from_pan_pdf
+                    (keys: name, aadhaar_number, pan_number)
+
+    Returns
+    -------
+    (passed, reason, mismatch_flags)
+    """
+    from dataset_loader import get_identity_record
+
+    mismatches: list[str] = []
+
+    doc_name         = _normalize_name(str(document_data.get("name") or ""))
+    doc_pan          = str(document_data.get("pan_number") or "").upper().strip()
+    doc_aadhaar_full = str(document_data.get("aadhaar_number") or "")
+    doc_aadhaar_last4 = _aadhaar_last4(doc_aadhaar_full)
+
+    form_name         = _normalize_name(str(form_data.get("applicant_name") or ""))
+    form_pan          = str(form_data.get("pan_number") or "").upper().strip()
+    form_aadhaar_last4 = _aadhaar_last4(form_data.get("aadhaar_last4", ""))
+
+    # ── Step 1: Document vs Form ─────────────────────────────────────────────
+    if doc_pan and form_pan and doc_pan != form_pan:
+        mismatches.append("DOC_PAN_FORM_MISMATCH")
+
+    if doc_aadhaar_last4 and form_aadhaar_last4 and doc_aadhaar_last4 != form_aadhaar_last4:
+        mismatches.append("DOC_AADHAAR_FORM_MISMATCH")
+
+    if doc_name and form_name:
+        form_first = form_name.split()[0] if form_name else ""
+        doc_first  = doc_name.split()[0] if doc_name else ""
+        name_ok = (
+            doc_name == form_name
+            or doc_name in form_name
+            or form_name in doc_name
+            or (form_first and doc_first and form_first == doc_first)
+        )
+        if not name_ok:
+            mismatches.append("DOC_NAME_FORM_MISMATCH")
+
+    # ── Step 2: Document vs Bureau ───────────────────────────────────────────
+    lookup_pan = doc_pan or form_pan
+    record = get_identity_record(lookup_pan) if lookup_pan else None
+
+    if record:
+        bur_pan           = str(record.get("pan") or "").upper().strip()
+        bur_name          = _normalize_name(str(record.get("name") or ""))
+        bur_aadhaar_last4 = _aadhaar_last4(record.get("aadhaar", ""))
+
+        if doc_pan and bur_pan and doc_pan != bur_pan:
+            mismatches.append("DOC_PAN_BUREAU_MISMATCH")
+
+        if doc_aadhaar_last4 and bur_aadhaar_last4 and doc_aadhaar_last4 != bur_aadhaar_last4:
+            mismatches.append("DOC_AADHAAR_BUREAU_MISMATCH")
+
+        if doc_name and bur_name:
+            bur_first = bur_name.split()[0] if bur_name else ""
+            doc_first = doc_name.split()[0] if doc_name else ""
+            name_ok = (
+                doc_name == bur_name
+                or doc_name in bur_name
+                or bur_name in doc_name
+                or (bur_first and doc_first and bur_first == doc_first)
+            )
+            if not name_ok:
+                mismatches.append("DOC_NAME_BUREAU_MISMATCH")
+    else:
+        # Bureau record not found — flag it (PAN precheck will catch it harder)
+        mismatches.append("DOC_PAN_NOT_FOUND_IN_BUREAU")
+
+    if mismatches:
+        return False, "Document identity verification failed", mismatches
+
+    return True, "", []
+
+
 # ── Verification outcomes ──────────────────────────────────────────────────────
 
 class VerificationResult:

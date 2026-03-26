@@ -25,7 +25,7 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -158,6 +158,17 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("Skipping dataset preload (PRELOAD_DATASETS=false)")
 
+    # Pre-warm PaddleOCR so the first /api/extract-documents request is fast.
+    # PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK skips the slow connectivity probe.
+    os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
+    try:
+        from document_extractor import _get_ocr
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, _get_ocr)
+        logger.info("✓ PaddleOCR warmed up")
+    except Exception as e:
+        logger.warning(f"PaddleOCR warm-up skipped: {e}")
+
     mode = _runtime_mode()
     logger.info(f"✓ System ready | Mode: {mode}")
     yield
@@ -235,6 +246,40 @@ async def submit_application(req: SubmitRequest, background_tasks: BackgroundTas
     app_id = f"APP-{uuid.uuid4().hex[:8].upper()}"
     req.form_data["application_id"] = app_id
     db.save_application(app_id, req.form_data, req.ip_metadata)
+
+    # ── Document identity check (when OCR data is provided) ──────────────────
+    if req.document_data:
+        from verification.verifier import run_document_identity_check
+        doc_passed, doc_reason, doc_flags = run_document_identity_check(
+            req.form_data, req.document_data
+        )
+        if not doc_passed:
+            db.log_event(app_id, "system", "DOCUMENT_CHECK_FAILED", {
+                "reason": doc_reason, "mismatch_flags": doc_flags,
+            })
+            doc_decision = {
+                "decision_id": f"DEC-{uuid.uuid4().hex[:10].upper()}",
+                "application_id": app_id,
+                "ai_recommendation": "REJECT",
+                "decision_matrix_row": "R0_DOCUMENT_IDENTITY_MISMATCH",
+                "conditions": [],
+                "max_approvable_amount": None,
+                "credit_risk": {}, "fraud": {}, "compliance": {}, "portfolio": {},
+                "officer_summary": doc_reason,
+                "processing_time_ms": 0,
+                "precheck_mismatch_flags": doc_flags,
+                "decided_at": datetime.utcnow().isoformat(),
+            }
+            db.save_decision(doc_decision["decision_id"], app_id, doc_decision)
+            db.save_officer_action(app_id, "system_document_check", "REJECTED", doc_reason)
+            return {
+                "application_id": app_id,
+                "status": "REJECTED",
+                "message": doc_reason,
+                "reason": doc_reason,
+                "mismatch_flags": doc_flags,
+            }
+        db.log_event(app_id, "system", "DOCUMENT_CHECK_PASSED", {})
 
     # Preliminary identity gate before orchestration/agents:
     # name (simple check) + PAN + Aadhaar against mock_bureau_records.
@@ -492,6 +537,76 @@ async def get_full_decision(app_id: str):
         "decision":    db.get_decision(app_id),
         "audit_log":   db.get_audit_log(app_id),
     }
+
+
+@app.post("/api/extract-documents")
+async def extract_documents(
+    aadhaar: UploadFile = File(None),
+    pan: UploadFile = File(None),
+):
+    """
+    Upload Aadhaar and/or PAN PDFs and extract name, Aadhaar number, and PAN number.
+    Accepts multipart/form-data with optional fields: aadhaar (PDF), pan (PDF).
+    """
+    import tempfile, os
+    from document_extractor import extract_from_aadhaar_pdf, extract_from_pan_pdf
+
+    result: dict = {"name": None, "aadhaar_number": None, "pan_number": None}
+    errors: list[str] = []
+
+    async def _save_upload(upload: UploadFile) -> str:
+        """Save an uploaded file to a temp file and return its path."""
+        suffix = Path(upload.filename).suffix if upload.filename else ".pdf"
+        fd, tmp_path = tempfile.mkstemp(suffix=suffix)
+        try:
+            os.close(fd)
+            content = await upload.read()
+            Path(tmp_path).write_bytes(content)
+        except Exception:
+            os.unlink(tmp_path)
+            raise
+        return tmp_path
+
+    if not aadhaar and not pan:
+        raise HTTPException(status_code=400, detail="Upload at least one file: aadhaar or pan")
+
+    loop = asyncio.get_event_loop()
+
+    # ── Process Aadhaar ───────────────────────────────────────────────────────
+    if aadhaar is not None:
+        tmp = None
+        try:
+            tmp = await _save_upload(aadhaar)
+            # Run blocking OCR in thread pool so event loop stays responsive
+            out = await loop.run_in_executor(None, extract_from_aadhaar_pdf, tmp)
+            result["aadhaar_number"] = out.get("aadhaar_number")
+            if out.get("name"):
+                result["name"] = out["name"]
+        except Exception as e:
+            logger.exception("Aadhaar extraction failed")
+            errors.append(f"aadhaar: {e}")
+        finally:
+            if tmp and Path(tmp).exists():
+                os.unlink(tmp)
+
+    # ── Process PAN ───────────────────────────────────────────────────────────
+    if pan is not None:
+        tmp = None
+        try:
+            tmp = await _save_upload(pan)
+            out = await loop.run_in_executor(None, extract_from_pan_pdf, tmp)
+            result["pan_number"] = out.get("pan_number")
+            # PAN name takes precedence (cleaner on most cards)
+            if out.get("name"):
+                result["name"] = out["name"]
+        except Exception as e:
+            logger.exception("PAN extraction failed")
+            errors.append(f"pan: {e}")
+        finally:
+            if tmp and Path(tmp).exists():
+                os.unlink(tmp)
+
+    return {**result, "errors": errors}
 
 
 @app.post("/api/officer/action/{app_id}")

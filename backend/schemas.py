@@ -70,6 +70,10 @@ class IPMetaIn(BaseModel):
 class SubmitRequest(BaseModel):
     form_data: dict
     ip_metadata: dict = Field(default_factory=dict)
+    # Optional: OCR-extracted fields from uploaded Aadhaar/PAN PDFs.
+    # When present, document_identity_check runs before orchestration.
+    # Keys: name, aadhaar_number (12-digit str), pan_number
+    document_data: dict = Field(default_factory=dict)
 
 
 class FeatureVector(BaseModel):

@@ -17,3 +17,6 @@ joblib
 httpx
 litellm[proxy]
 crewai
+paddleocr
+paddlepaddle
+pymupdf
