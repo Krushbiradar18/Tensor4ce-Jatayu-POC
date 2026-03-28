@@ -8,10 +8,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, Upload, X, ArrowLeft, ArrowRight, Save } from "lucide-react";
+import { Check, Upload, X, ArrowLeft, ArrowRight, Save, Cpu, Brain, Zap } from "lucide-react";
 import { submitApplication as submitApplicationAPI, extractDocuments } from "@/lib/api";
 import { PersonalInfo, EmploymentInfo, LoanInfo, LoanType, LoanTerm, UploadedDoc } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 
 const steps = ["Personal Info", "Employment", "Loan Details", "Review & Submit"];
@@ -174,8 +175,11 @@ export default function ApplyPage() {
 
   return (
     <PublicLayout>
-      <div className="container mx-auto px-4 py-10 max-w-3xl">
-        <h1 className="text-3xl font-bold font-display text-foreground mb-8 text-center">Loan Application</h1>
+      <div className="container mx-auto px-4 py-20 max-w-4xl">
+        <div className="text-center mb-16">
+          <h1 className="text-4xl md:text-5xl font-bold font-display text-foreground tracking-tight">Loan Application</h1>
+          <p className="text-muted-foreground mt-4 text-lg font-light">Simple 4-step process to get your loan approved fast.</p>
+        </div>
 
         {/* Progress */}
         <div className="flex items-center justify-between mb-10">
@@ -194,11 +198,12 @@ export default function ApplyPage() {
           ))}
         </div>
 
-        <Card className="shadow-elevated animate-fade-in">
-          <CardHeader>
-            <CardTitle className="font-display">{steps[step]}</CardTitle>
+        <Card className="shadow-2xl animate-fade-in border-primary/5 glass overflow-hidden">
+          <div className="h-2 bg-accent-gradient w-full" style={{ width: `${((step + 1) / steps.length) * 100}%`, transition: 'width 0.5s ease-in-out' }}></div>
+          <CardHeader className="pt-8 px-8">
+            <CardTitle className="font-display text-3xl font-bold tracking-tight">{steps[step]}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-5">
+          <CardContent className="space-y-8 px-8 pb-10">
             {step === 0 && (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -293,15 +298,18 @@ export default function ApplyPage() {
                     onClick={() => document.getElementById("file-input")?.click()}
                   >
                     {isProcessingOcr ? (
-                      <div className="flex flex-col items-center py-4">
-                        <Loader2 className="h-10 w-10 text-primary animate-spin mb-3" />
-                        <p className="text-muted-foreground text-sm">Processing documents with AI...</p>
+                      <div className="flex flex-col items-center py-6 animate-pulse">
+                        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                          <Loader2 className="h-10 w-10 text-primary animate-spin" />
+                        </div>
+                        <p className="text-primary font-bold text-lg">Processing Documents...</p>
+                        <p className="text-muted-foreground text-sm mt-1">Extracting information to save you time</p>
                       </div>
                     ) : (
                       <>
-                        <Upload className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                        <p className="text-muted-foreground text-sm">Drag & drop files here or click to browse</p>
-                        <p className="text-xs text-muted-foreground mt-1">ID Proof, Income Proof, Address Proof</p>
+                        <Upload className="h-12 w-12 text-primary/40 mx-auto mb-4 group-hover:scale-110 transition-transform" />
+                        <p className="text-foreground font-semibold text-lg">Secure Document Upload</p>
+                        <p className="text-muted-foreground text-sm mt-2 max-w-md mx-auto">Upload Aadhaar or PAN for instant form filling and faster processing.</p>
                       </>
                     )}
                     <input id="file-input" type="file" multiple className="hidden" onChange={handleFileSelect} />
@@ -320,7 +328,10 @@ export default function ApplyPage() {
 
                 {/* Summary */}
                 <div className="space-y-4">
-                  <h3 className="font-semibold text-foreground">Application Summary</h3>
+                  <h3 className="text-xl font-bold text-foreground font-display flex items-center gap-2">
+                    <Check className="h-5 w-5 text-primary" />
+                    Review Your Details
+                  </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <SummarySection title="Personal" items={[
                       ["Name", personal.fullName], ["DOB", personal.dateOfBirth], ["Gender", personal.gender],
@@ -343,8 +354,8 @@ export default function ApplyPage() {
 
                 <div className="flex items-start gap-2">
                   <Checkbox id="terms" checked={termsAccepted} onCheckedChange={(v) => setTermsAccepted(!!v)} />
-                  <label htmlFor="terms" className="text-sm text-muted-foreground leading-5">
-                    I accept the <span className="text-primary underline cursor-pointer">Terms and Conditions</span> and confirm that all information provided is accurate.
+                  <label htmlFor="terms" className="text-sm text-foreground/70 leading-relaxed cursor-pointer select-none">
+                    I authorize ARIA to verify my credentials and perform standard credit checks. I confirm that the information provided is true and accurate.
                   </label>
                 </div>
                 <FieldError field="terms" />
@@ -358,12 +369,14 @@ export default function ApplyPage() {
           <div className="flex gap-2">
             {step > 0 && <Button variant="outline" onClick={prev}><ArrowLeft className="mr-2 h-4 w-4" /> Previous</Button>}
           </div>
-          <div className="flex gap-2">
-            <Button variant="ghost" onClick={handleSave}><Save className="mr-2 h-4 w-4" /> Save</Button>
+          <div className="flex gap-4">
+            <Button variant="ghost" onClick={handleSave} className="hover:bg-primary/5 h-12 px-6"><Save className="mr-2 h-4 w-4" /> Save Progress</Button>
             {step < 3 ? (
-              <Button onClick={next}>Next <ArrowRight className="ml-2 h-4 w-4" /></Button>
+              <Button onClick={next} className="bg-primary hover:bg-primary/90 h-12 px-8 font-bold text-base shadow-lg">Continue to Next Step <ArrowRight className="ml-2 h-4 w-4" /></Button>
             ) : (
-              <Button onClick={handleSubmit} className="bg-success text-success-foreground hover:bg-success/90">Submit Application</Button>
+              <Button onClick={handleSubmit} className="bg-accent-gradient text-primary-foreground hover:scale-105 transition-transform h-12 px-10 font-bold text-base shadow-2xl">
+                Submit Application <Check className="ml-2 h-4 w-4" />
+              </Button>
             )}
           </div>
         </div>

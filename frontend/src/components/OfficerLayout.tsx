@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate, Outlet, Navigate } from "react-router-dom";
-import { Building2, LayoutDashboard, FileText, BarChart3, Settings, User, LogOut, Bell, Search, Menu, X } from "lucide-react";
+import { ShieldCheck, LayoutDashboard, FileText, BarChart3, Settings, User, LogOut, Bell, Search, Menu, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -63,10 +63,10 @@ export default function OfficerLayout() {
       {/* Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-sidebar border-r border-sidebar-border transform transition-transform lg:translate-x-0 lg:static lg:inset-auto ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="flex items-center gap-2 px-5 h-16 border-b border-sidebar-border">
-          <div className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center">
-            <Building2 className="h-4 w-4 text-sidebar-primary-foreground" />
+          <div className="w-9 h-9 rounded-lg bg-sidebar-primary flex items-center justify-center">
+            <ShieldCheck className="h-5 w-5 text-sidebar-primary-foreground" />
           </div>
-          <span className="text-lg font-bold font-display text-sidebar-foreground">BankEase</span>
+          <span className="text-xl font-bold font-display tracking-tight text-sidebar-foreground">ARIA</span>
           <button className="lg:hidden ml-auto text-sidebar-foreground" onClick={() => setSidebarOpen(false)}><X className="h-5 w-5" /></button>
         </div>
         <nav className="p-3 space-y-1">

@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Building2, Menu, X } from "lucide-react";
+import { ShieldCheck, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 
@@ -17,11 +17,11 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
     <div className="min-h-screen flex flex-col">
       <header className="bg-card border-b border-border sticky top-0 z-50">
         <div className="container mx-auto px-4 flex items-center justify-between h-16">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-lg bg-hero-gradient flex items-center justify-center">
-              <Building2 className="h-5 w-5 text-primary-foreground" />
+          <Link to="/" className="flex items-center gap-2 group">
+            <div className="w-10 h-10 rounded-xl bg-accent-gradient flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+              <ShieldCheck className="h-6 w-6 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold font-display text-foreground">BankEase</span>
+            <span className="text-2xl font-bold font-display tracking-tight text-foreground">ARIA</span>
           </Link>
           <nav className="hidden md:flex items-center gap-1">
             {navLinks.map((l) => (
@@ -35,8 +35,8 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
                 {l.label}
               </Link>
             ))}
-            <Button asChild size="sm" className="ml-3 bg-gold-gradient text-accent-foreground hover:opacity-90">
-              <Link to="/apply">Apply Now</Link>
+            <Button asChild size="sm" className="ml-3 bg-accent-gradient text-primary-foreground hover:opacity-90 shadow-md">
+              <Link to="/apply">Get Started</Link>
             </Button>
           </nav>
           <button className="md:hidden text-foreground" onClick={() => setMobileOpen(!mobileOpen)}>
@@ -51,8 +51,8 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
                 {l.label}
               </Link>
             ))}
-            <Button asChild size="sm" className="mt-2 w-full bg-gold-gradient text-accent-foreground">
-              <Link to="/apply" onClick={() => setMobileOpen(false)}>Apply Now</Link>
+            <Button asChild size="sm" className="mt-2 w-full bg-accent-gradient text-primary-foreground">
+              <Link to="/apply" onClick={() => setMobileOpen(false)}>Get Started</Link>
             </Button>
           </div>
         )}
@@ -61,12 +61,12 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
       <footer className="bg-primary text-primary-foreground py-10">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <Building2 className="h-5 w-5" />
-                <span className="text-lg font-bold font-display">BankEase</span>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-primary-foreground group">
+                <ShieldCheck className="h-8 w-8 group-hover:scale-110 transition-transform" />
+                <span className="text-2xl font-bold font-display tracking-tight uppercase">ARIA</span>
               </div>
-              <p className="text-primary-foreground/70 text-sm">Your trusted digital banking partner for all financial needs.</p>
+              <p className="text-primary-foreground/70 text-sm leading-relaxed">Advanced Risk Intelligence & Analytics.<br/>Modern financial solutions for a digital world.</p>
             </div>
             <div>
               <h4 className="font-semibold mb-3">Quick Links</h4>
@@ -77,11 +77,11 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
             </div>
             <div>
               <h4 className="font-semibold mb-3">Contact</h4>
-              <p className="text-sm text-primary-foreground/70">support@bankease.in<br />1800-123-4567<br />Mumbai, Maharashtra</p>
+              <p className="text-sm text-primary-foreground/70 leading-relaxed">intelligence@aria.ai<br />Global Risk Center<br />Tech Hub, Mumbai</p>
             </div>
           </div>
           <div className="border-t border-primary-foreground/20 mt-8 pt-6 text-center text-sm text-primary-foreground/50">
-            © {new Date().getFullYear()} BankEase. All rights reserved.
+            © {new Date().getFullYear()} ARIA. All rights reserved.
           </div>
         </div>
       </footer>

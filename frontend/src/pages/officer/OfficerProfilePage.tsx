@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
 
 export default function OfficerProfilePage() {
-  const auth = JSON.parse(localStorage.getItem("officer_auth") || '{"name":"Officer","email":"officer@bankease.in","role":"Senior Loan Officer","id":"OFF772"}');
+  const auth = JSON.parse(localStorage.getItem("officer_auth") || '{"name":"Officer","email":"officer@aria.ai","role":"Senior Risk Officer","id":"OFF772"}');
   const [name, setName] = useState(auth.name);
   const [email, setEmail] = useState(auth.email);
   const { toast } = useToast();

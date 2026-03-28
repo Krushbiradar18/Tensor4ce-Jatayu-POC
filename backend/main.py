@@ -187,7 +187,7 @@ async def lifespan(app: FastAPI):
 
 # ── App & Middleware ───────────────────────────────────────────────────────────
 
-app = FastAPI(title="Tensor4ce Credit AI", version="3.1.0", lifespan=lifespan)
+app = FastAPI(title="ARIA - Agentic Risk Intelligence & Analytics", version="2.4.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 
@@ -506,13 +506,13 @@ def get_status(app_id: str):
         raise HTTPException(404, "Application not found")
     status = row["status"]
     messages = {
-        "PENDING":                "Application received. We will review it shortly.",
-        "DIL_PROCESSING":         "We are verifying your submitted documents. This usually takes a few minutes.",
-        "AGENTS_RUNNING":         "Your application is being assessed by our credit team. This typically takes 2–4 hours.",
-        "DECIDED_PENDING_OFFICER": "Your assessment is complete. A loan officer will review shortly.",
-        "OFFICER_ESCALATED":      "Your application requires additional specialist review. We will update you within 24 hours.",
-        "VERIFICATION_FAILED":    "We were unable to verify your identity documents. Please contact our helpline.",
-        "ERROR":                  "We encountered an issue. Please contact support.",
+        "PENDING":                "Application received. We are initializing the verification process.",
+        "DIL_PROCESSING":         "Document verification is currently in progress.",
+        "AGENTS_RUNNING":         "Our team is performing a comprehensive credit assessment.",
+        "DECIDED_PENDING_OFFICER": "Assessment complete. Awaiting final authorization from a loan officer.",
+        "OFFICER_ESCALATED":      "Your application requires additional review by our senior underwriters.",
+        "VERIFICATION_FAILED":    "We were unable to verify your identity documents. Please contact support.",
+        "ERROR":                  "A transmission error occurred. Our team has been notified.",
     }
     result = {"application_id": app_id, "status": status}
     if status.startswith("OFFICER_"):

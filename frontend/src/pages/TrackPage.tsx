@@ -5,19 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search } from "lucide-react";
+import { Search, Loader2, Activity, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { getApplicationStatus } from "@/lib/api";
 
 const statusColors: Record<string, string> = {
-  "PENDING": "bg-info text-info-foreground",
-  "DIL_PROCESSING": "bg-info text-info-foreground",
-  "AGENTS_RUNNING": "bg-warning/20 text-warning-foreground border border-warning/30",
-  "DECIDED_PENDING_OFFICER": "bg-warning/20 text-warning-foreground border border-warning/30",
-  "OFFICER_APPROVED": "bg-success/15 text-success border border-success/30",
-  "OFFICER_REJECTED": "bg-destructive/15 text-destructive border border-destructive/30",
-  "OFFICER_CONDITIONAL": "bg-accent/20 text-accent-foreground border border-accent/30",
-  "OFFICER_ESCALATED": "bg-accent/20 text-accent-foreground border border-accent/30",
-  "ERROR": "bg-destructive/15 text-destructive border border-destructive/30",
+  "PENDING": "bg-primary/10 text-primary border-primary/20",
+  "DIL_PROCESSING": "bg-primary/10 text-primary border-primary/20",
+  "AGENTS_RUNNING": "bg-accent/10 text-accent border-accent/20 animate-pulse",
+  "DECIDED_PENDING_OFFICER": "bg-accent/10 text-accent border-accent/20",
+  "OFFICER_APPROVED": "bg-success/10 text-success border-success/20",
+  "OFFICER_REJECTED": "bg-destructive/10 text-destructive border-destructive/20",
+  "OFFICER_CONDITIONAL": "bg-warning/10 text-warning border-warning/20",
+  "OFFICER_ESCALATED": "bg-warning/10 text-warning border-warning/20",
 };
 
 export default function TrackPage() {
@@ -28,6 +27,7 @@ export default function TrackPage() {
   const [loading, setLoading] = useState(false);
 
   const handleSearch = async () => {
+    if (!searchId.trim()) return;
     setLoading(true);
     setNotFound(false);
     setApp(null);
@@ -42,48 +42,92 @@ export default function TrackPage() {
     }
   };
 
-  const displayStatus = app 
-    ? (["DIL_PROCESSING", "AGENTS_RUNNING", "DECIDED_PENDING_OFFICER"].includes(app.status) ? "PENDING" : app.status)
-    : "";
+  const currentStatus = app?.status || "PENDING";
+  const displayStatus = (["DIL_PROCESSING", "AGENTS_RUNNING", "DECIDED_PENDING_OFFICER"].includes(currentStatus)) 
+    ? "PROCESSING" 
+    : currentStatus.replace("OFFICER_", "");
 
   return (
     <PublicLayout>
-      <div className="container mx-auto px-4 py-12 max-w-2xl">
-        <h1 className="text-3xl font-bold font-display text-foreground mb-2 text-center">Track Your Application</h1>
-        <p className="text-muted-foreground text-center mb-8">Enter your Application ID to check the current status</p>
+      <div className="container mx-auto px-4 py-24 max-w-3xl">
+        <div className="text-center mb-12">
+          <h1 className="text-4xl md:text-5xl font-bold font-display text-foreground mb-4 tracking-tight">Track Application</h1>
+          <p className="text-muted-foreground text-lg font-light">Enter your application reference ID to check the current status.</p>
+        </div>
 
-        <div className="flex gap-3 mb-8">
-          <Input value={searchId} onChange={(e) => setSearchId(e.target.value)} placeholder="Enter Application ID (e.g., APP-12345678)"
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()} className="flex-1" />
-          <Button onClick={handleSearch} disabled={loading}><Search className="mr-2 h-4 w-4" /> {loading ? "Searching..." : "Search"}</Button>
+        <div className="flex flex-col sm:flex-row gap-4 mb-12">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input 
+              value={searchId} 
+              onChange={(e) => setSearchId(e.target.value)} 
+              placeholder="e.g. APP-8273"
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()} 
+              className="h-14 pl-12 bg-background/50 border-primary/10 transition-all focus:border-primary/40 text-lg" 
+            />
+          </div>
+          <Button onClick={handleSearch} disabled={loading || !searchId} className="h-14 px-8 bg-accent-gradient text-primary-foreground font-bold text-lg shadow-xl hover:scale-105 transition-all">
+            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Track Status"}
+          </Button>
         </div>
 
         {notFound && (
-          <div className="bg-destructive/10 text-destructive rounded-lg p-4 text-center text-sm">
-            No application found with ID "{searchId}". Please check and try again.
+          <div className="bg-destructive/5 text-destructive border border-destructive/20 rounded-2xl p-6 text-center animate-fade-in group">
+             <Activity className="h-10 w-10 mx-auto mb-3 opacity-50 group-hover:scale-110 transition-transform" />
+             <p className="font-bold text-lg">Application Not Found</p>
+             <p className="text-sm opacity-80 mt-1">Unable to locate application "{searchId}". Please check the ID and try again.</p>
           </div>
         )}
 
         {app && (
-          <Card className="shadow-elevated animate-fade-in">
-            <CardHeader>
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <CardTitle className="font-display">Application {app.application_id}</CardTitle>
-                <Badge className={statusColors[displayStatus] || "bg-muted"}>{displayStatus}</Badge>
+          <Card className="shadow-2xl animate-fade-in glass border-primary/5 overflow-hidden">
+            <div className="h-2 bg-accent-gradient w-full"></div>
+            <CardHeader className="pb-8">
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/5 flex items-center justify-center">
+                    <CheckCircle2 className="h-6 w-6 text-primary" />
+                  </div>
+                  <CardTitle className="font-display text-2xl">Application Details</CardTitle>
+                </div>
+                <Badge variant="outline" className={`${statusColors[currentStatus] || "bg-muted"} px-4 py-1.5 rounded-full font-bold uppercase tracking-widest text-xs`}>
+                  {displayStatus}
+                </Badge>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                <InfoRow label="Application ID" value={app.application_id} />
-                <InfoRow label="Status" value={displayStatus} />
-                {app.message && <InfoRow label="Message" value={app.message} />}
-                {app.officer_decision && <InfoRow label="Officer Decision" value={app.officer_decision} />}
-                {app.officer_reason && <InfoRow label="Officer Reason" value={app.officer_reason} />}
+            <CardContent className="space-y-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 text-sm">
+                <div className="space-y-1">
+                  <p className="text-muted-foreground font-medium uppercase tracking-tight text-[10px]">Reference Number</p>
+                  <p className="text-xl font-mono font-bold text-foreground">{app.application_id}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-muted-foreground font-medium uppercase tracking-tight text-[10px]">Current Status</p>
+                  <p className="text-xl font-bold text-foreground">{displayStatus}</p>
+                </div>
               </div>
+
               {app.officer_decision && (
-                <div className="bg-muted rounded-lg p-4 text-sm">
-                  <p className="font-semibold text-foreground mb-1">Decision Status</p>
-                  <p className="text-muted-foreground">{app.officer_decision === "APPROVED" ? "Your application has been approved!" : app.officer_decision === "REJECTED" ? "Your application has been rejected." : "Your application is under review."}</p>
+                <div className="bg-primary/5 rounded-2xl p-6 border border-primary/10 relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <ShieldCheck className="h-16 w-16" />
+                  </div>
+                  <h4 className="text-lg font-bold text-foreground mb-2 flex items-center gap-2">
+                     Application Status
+                  </h4>
+                  <p className="text-muted-foreground leading-relaxed">
+                    {app.officer_decision === "APPROVED" 
+                      ? "Your application has been approved. Our team will contact you soon with the next steps." 
+                      : app.officer_decision === "REJECTED" 
+                        ? "We regret to inform you that your application was not successful at this time." 
+                        : "Your application is currently under manual review by our credit officers."}
+                  </p>
+                  {app.officer_reason && (
+                    <div className="mt-4 pt-4 border-t border-primary/10">
+                       <p className="text-xs font-bold text-primary mb-1 uppercase tracking-widest">Bank Remarks</p>
+                       <p className="text-sm italic text-muted-foreground">"{app.officer_reason}"</p>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -91,14 +135,5 @@ export default function TrackPage() {
         )}
       </div>
     </PublicLayout>
-  );
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-foreground font-medium">{value}</span>
-    </div>
   );
 }
