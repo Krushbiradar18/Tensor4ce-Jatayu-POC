@@ -95,6 +95,8 @@ class FeatureVector(BaseModel):
     net_monthly_surplus: float = 0.0
     income_stability_score: float = 0.0
     ltv_ratio: float = 0.0
+    loan_amount_requested: float = 0.0
+    loan_tenure_months: int = 0
     loan_to_income_ratio: float = 0.0
     loan_purpose_risk_weight: float = 0.5
     tenure_risk_score: float = 0.0

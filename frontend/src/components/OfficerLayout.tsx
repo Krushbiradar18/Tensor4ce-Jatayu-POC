@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useLocation, useNavigate, Outlet, Navigate } from "react-router-dom";
 import { Building2, LayoutDashboard, FileText, BarChart3, Settings, User, LogOut, Bell, Search, Menu, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -19,10 +19,25 @@ export default function OfficerLayout() {
   const { toast } = useToast();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const auth = JSON.parse(localStorage.getItem("officer_auth") || "{}");
+  
+  const authStr = localStorage.getItem("officer_auth");
+  const auth = authStr ? JSON.parse(authStr) : null;
+
+  // Secondary protection layer
+  useEffect(() => {
+    if (!auth || !auth.email) {
+      console.log("[OfficerLayout] No auth found, redirecting");
+      navigate("/officer/login", { replace: true });
+    }
+  }, [auth, navigate]);
+
+  if (!auth || !auth.email) {
+    return null; // Don't even render shell
+  }
 
   const handleLogout = () => {
     localStorage.removeItem("officer_auth");
+    localStorage.removeItem("officer_token");
     navigate("/officer/login");
     toast({ title: "Logged Out", description: "You have been successfully logged out." });
   };

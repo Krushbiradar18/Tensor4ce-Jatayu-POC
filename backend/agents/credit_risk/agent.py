@@ -179,6 +179,8 @@ def cr_finalize(state: CreditRiskState) -> dict:
         out = {
             "application_id":         state["application_id"],
             "credit_score":           sr.get("pd", 0.05),
+            "model_risk_score":       round(sr.get("pd", 0.05) * 100, 2),
+            "model_risk_category":    sr.get("risk_band", "MEDIUM"),
             "risk_band":              sr.get("risk_band", "MEDIUM"),
             "foir":                   f.get("foir", 0),
             "dti_ratio":              f.get("dti_ratio", 0),

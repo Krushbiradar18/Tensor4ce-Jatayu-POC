@@ -89,7 +89,7 @@ def _agent_fallback_output(agent_name: str, app_id: str, error_msg: str) -> dict
             "credit_score": 0.45,
             "risk_band": "HIGH",
             "foir": 0.0,
-            "ltv": 0.0,
+            "ltv_ratio": 0.0,
             "model_risk_score": None,
             "top_factors": [],
             "officer_narrative": "Credit model output unavailable; escalated for manual review.",
@@ -166,93 +166,78 @@ def run_via_crewai(app_id: str) -> dict:
     Agents are contacted via A2A HTTP — each is a FastAPI sub-app.
     """
     from crewai import Agent, Task, Crew, Process
-    from orchestration.mcp_tools import ALL_MCP_TOOLS
+    from orchestration.mcp_tools import (
+        run_credit_model, run_fraud_model, 
+        check_rbi_rules, run_portfolio_model,
+        ALL_MCP_TOOLS
+    )
     from tools import _log_event, set_agent_output, AGENT_OUTPUTS
 
     llm = _build_llm()
     _log_event(app_id, "orchestrator", "CREWAI_START", {"mode": "hierarchical"})
 
-    # ── Manager Agent ────────────────────────────────────────────────────────
-    manager = Agent(
-        role="Chief Credit Underwriting AI",
-        goal=(
-            "Thoroughly assess every loan application by coordinating 4 specialist LangGraph "
-            "agents (Credit Risk, Fraud, Compliance, Portfolio), synthesising their findings, "
-            "and producing a fair, explainable, RBI-compliant final recommendation."
-        ),
-        backstory=(
-            "You are the Chief Credit Underwriting AI at a leading Indian bank. "
-            "You have access to specialist agents and tools. You coordinate the process, "
-            "making sure everything is done in order. You are methodical, fair, and fully RBI-compliant."
-        ),
-        llm=llm,
-        tools=ALL_MCP_TOOLS,
-        verbose=True,
-        allow_delegation=True,
-        max_iter=20,
-    )
-
     # ── Specialist CrewAI Agent wrappers (thin shells over A2A) ─────────────
-    def _make_a2a_agent(name: str, role: str, goal: str) -> Agent:
-        return Agent(
-            role=role,
-            goal=goal,
-            backstory=f"You are the {role} for the Tensor4ce credit AI system.",
-            tools=ALL_MCP_TOOLS,
-            llm=llm,
-            verbose=False,
-            allow_delegation=False,
-        )
-
-    credit_agent = _make_a2a_agent(
-        "credit_risk",
-        "Credit Risk Specialist",
-        "Compute PD, assign risk band, run macro overlay, generate narratives via LangGraph A2A."
+    credit_agent = Agent(
+        role="Credit Risk Specialist",
+        goal="Compute PD, assign risk band, and generate narratives via LangGraph A2A.",
+        backstory="You are a Credit Risk Specialist. Your only job is to run the 'Run Credit Model' tool once and return its result.",
+        tools=[run_credit_model],
+        llm=llm,
+        verbose=True,
+        allow_delegation=False,
+        max_iter=1,
     )
-    fraud_agent = _make_a2a_agent(
-        "fraud",
-        "Fraud Detection Specialist",
-        "Evaluate fraud signals, run Isolation Forest, apply hard rules via LangGraph A2A."
+    fraud_agent = Agent(
+        role="Fraud Detection Specialist",
+        goal="Detect fraud and identity signals via LangGraph A2A.",
+        backstory="You are a Fraud Detection Specialist. Your only job is to run the 'Run Fraud Model' tool once and return its result.",
+        tools=[run_fraud_model],
+        llm=llm,
+        verbose=True,
+        allow_delegation=False,
+        max_iter=1,
     )
-    compliance_agent = _make_a2a_agent(
-        "compliance",
-        "Compliance Specialist",
-        "Run all 12 RBI compliance rules deterministically and CoT warn flags via LangGraph A2A."
+    compliance_agent = Agent(
+        role="Compliance Specialist",
+        goal="Check RBI regulatory compliance via LangGraph A2A.",
+        backstory="You are a Compliance Specialist. Your only job is to run the 'Check RBI Rules' tool once and return its result.",
+        tools=[check_rbi_rules],
+        llm=llm,
+        verbose=True,
+        allow_delegation=False,
+        max_iter=1,
     )
-    portfolio_agent = _make_a2a_agent(
-        "portfolio",
-        "Portfolio Intelligence Specialist",
-        "Compute EL impact, check concentration limits, query similar cases via LangGraph A2A."
+    portfolio_agent = Agent(
+        role="Portfolio Intelligence Specialist",
+        goal="Assess portfolio concentration and EL impact via LangGraph A2A.",
+        backstory="You are a Portfolio Specialist. Your only job is to run the 'Run Portfolio Model' tool once and return its result.",
+        tools=[run_portfolio_model],
+        llm=llm,
+        verbose=True,
+        allow_delegation=False,
+        max_iter=1,
     )
 
     # ── Tasks ────────────────────────────────────────────────────────────────
     credit_task = Task(
-        description=f"You MUST call the 'run_credit_model' MCP tool for application {app_id} exactly ONCE. "
-                    f"Once you receive the JSON, provide it as your final answer and finish immediately.",
-        expected_output="Valid JSON with risk_band, credit_score, and officer_narrative.",
+        description=f"Directly invoke the 'Run Credit Model' tool for application {app_id}. Return its exact JSON output and nothing else.",
+        expected_output="Raw JSON from Credit Risk agent.",
         agent=credit_agent,
     )
     fraud_task = Task(
-        description=f"1. Call the 'run_fraud_model' MCP tool for application {app_id}.\n"
-                    f"2. Your FINAL ANSWER MUST BE the exact raw JSON string results received.\n"
-                    f"Finish immediately.",
-        expected_output="JSON with fraud_probability, fraud_level, and flags.",
+        description=f"Directly invoke the 'Run Fraud Model' tool for application {app_id}. Return its exact JSON output and nothing else.",
+        expected_output="Raw JSON from Fraud agent.",
         agent=fraud_agent,
     )
     compliance_task = Task(
-        description=f"1. Execute the 'check_rbi_rules' tool for application {app_id} ONCE.\n"
-                    f"2. Inspect the JSON result.\n"
-                    f"3. Your FINAL ANSWER MUST BE the exact raw JSON string received from the tool.\n"
-                    f"DO NOT perform any other logic or call any other tools. Finish immediately.",
-        expected_output="Valid JSON string from the check_rbi_rules tool.",
+        description=f"Directly invoke the 'Check RBI Rules' tool for application {app_id}. Return its exact JSON output and nothing else.",
+        expected_output="Raw JSON from Compliance agent.",
         agent=compliance_agent,
         context=[credit_task]
     )
     portfolio_task = Task(
-        description=f"1. Call the 'run_portfolio_model' MCP tool for application {app_id}.\n"
-                    f"2. Your FINAL ANSWER MUST BE the exact raw JSON string results received.\n"
-                    f"Finish immediately.",
-        expected_output="JSON with portfolio_recommendation and impact.",
+        description=f"Directly invoke the 'Run Portfolio Model' tool for application {app_id}. Return its exact JSON output and nothing else.",
+        expected_output="Raw JSON from Portfolio agent.",
         agent=portfolio_agent,
         context=[credit_task, compliance_task],
     )
@@ -260,12 +245,12 @@ def run_via_crewai(app_id: str) -> dict:
 
     # ── Crew kickoff ─────────────────────────────────────────────────────────
     crew = Crew(
-        agents=[manager, credit_agent, fraud_agent, compliance_agent, portfolio_agent],
+        agents=[credit_agent, fraud_agent, compliance_agent, portfolio_agent],
         tasks=[credit_task, fraud_task, compliance_task, portfolio_task],
         process=Process.sequential,
         memory=False,
         verbose=True,
-        max_rpm=15,
+        max_rpm=20,
     )
 
     raw_result = crew.kickoff(inputs={"application_id": app_id})

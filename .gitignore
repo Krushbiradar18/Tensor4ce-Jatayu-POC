@@ -61,3 +61,10 @@ htmlcov/
 .DS_Store
 node_modules/
 *.log
+backend/test_system_suite.py
+backend/test_ocr_debug.py
+backend/results.txt
+backend/get_cols.py
+backend/debug_db.py
+backend/columns.txt
+backend/scripts/discover_test_data.py

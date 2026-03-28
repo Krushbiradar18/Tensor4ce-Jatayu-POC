@@ -8,6 +8,7 @@ import ApplyPage from "./pages/ApplyPage";
 import SuccessPage from "./pages/SuccessPage";
 import TrackPage from "./pages/TrackPage";
 import OfficerLoginPage from "./pages/officer/OfficerLoginPage";
+import ProtectedRoute from "./components/ProtectedRoute";
 import OfficerLayout from "./components/OfficerLayout";
 import OfficerDashboardPage from "./pages/officer/OfficerDashboardPage";
 import OfficerApplicationsPage from "./pages/officer/OfficerApplicationsPage";
@@ -33,13 +34,15 @@ const App = () => (
 
           {/* Officer Portal */}
           <Route path="/officer/login" element={<OfficerLoginPage />} />
-          <Route path="/officer" element={<OfficerLayout />}>
-            <Route index element={<Navigate to="/officer/dashboard" replace />} />
-            <Route path="dashboard" element={<OfficerDashboardPage />} />
-            <Route path="applications" element={<OfficerApplicationsPage />} />
-            <Route path="applications/:id" element={<OfficerApplicationDetailPage />} />
-            <Route path="analytics" element={<OfficerAnalyticsPage />} />
-            <Route path="profile" element={<OfficerProfilePage />} />
+          <Route path="/officer" element={<ProtectedRoute />}>
+            <Route element={<OfficerLayout />}>
+              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route path="dashboard" element={<OfficerDashboardPage />} />
+              <Route path="applications" element={<OfficerApplicationsPage />} />
+              <Route path="applications/:id" element={<OfficerApplicationDetailPage />} />
+              <Route path="analytics" element={<OfficerAnalyticsPage />} />
+              <Route path="profile" element={<OfficerProfilePage />} />
+            </Route>
           </Route>
 
           <Route path="*" element={<NotFound />} />

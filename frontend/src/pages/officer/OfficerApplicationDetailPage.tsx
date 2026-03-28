@@ -1,11 +1,15 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, AlertTriangle, CheckCircle2, XCircle, ShieldAlert, BarChart3, Bot, Scale, Briefcase, RefreshCw, FileText, Info, ShieldCheck, Activity, FileCheck, Search, TrendingUp, TrendingDown } from "lucide-react";
+import { 
+  ArrowLeft, AlertTriangle, CheckCircle2, XCircle, ShieldAlert, 
+  BarChart3, Bot, Scale, Briefcase, RefreshCw, FileText, 
+  ShieldCheck, Activity 
+} from "lucide-react";
 import { getFullDecision, submitOfficerAction } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
@@ -66,10 +70,6 @@ export default function OfficerApplicationDetailPage() {
         <div className="h-6 w-32 bg-muted rounded animate-pulse" />
         <div className="h-10 w-full bg-muted rounded animate-pulse" />
         <div className="h-64 w-full bg-muted rounded animate-pulse" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="h-48 bg-muted rounded animate-pulse" />
-          <div className="h-48 bg-muted rounded animate-pulse" />
-        </div>
       </div>
     );
   }
@@ -99,7 +99,6 @@ export default function OfficerApplicationDetailPage() {
 
   return (
     <div className="space-y-6 animate-fade-in max-w-5xl pb-10">
-      {/* Breadcrumb & Status */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm">
           <Link to="/officer/applications" className="text-muted-foreground hover:text-primary transition-colors">Queue</Link>
@@ -122,7 +121,6 @@ export default function OfficerApplicationDetailPage() {
         </div>
       </div>
 
-      {/* Top AI Decision - Sober Version */}
       {aiDecision.ai_recommendation && (
         <div className={`p-4 border rounded-md flex items-center justify-between ${
           aiDecision.ai_recommendation === "REJECT" ? "border-l-4 border-l-destructive bg-destructive/5 border-destructive/20" : 
@@ -139,9 +137,6 @@ export default function OfficerApplicationDetailPage() {
             </div>
             <div>
               <p className="text-sm font-bold uppercase tracking-tight">AI Assessment Outcome: {aiDecision.ai_recommendation}</p>
-              {isPrecheckRejected && aiDecision.officer_summary && (
-                <p className="text-xs text-destructive font-medium mt-0.5">{aiDecision.officer_summary}</p>
-              )}
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-[10px] font-bold text-muted-foreground uppercase">Policy Match:</span>
                 <Badge variant="outline" className="text-[10px] font-mono py-0 h-4 border-muted-foreground/30">{aiDecision.decision_matrix_row || "SYSTEM_DEFAULT"}</Badge>
@@ -151,11 +146,10 @@ export default function OfficerApplicationDetailPage() {
         </div>
       )}
 
-      {/* KPI Cards - Agent Summaries */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <AgentStatCard 
           title="Credit Risk" 
-          value={isPrecheckRejected ? "Blocked" : (ai.risk_band ? `${ai.risk_band} (${ai.model_risk_score || "—"})` : "Wait...")} 
+          value={isPrecheckRejected ? "Blocked" : (ai.risk_band ? ai.risk_band : "Wait...")} 
           icon={BarChart3} 
           color={(ai.risk_band === "VERY_HIGH" || ai.risk_band === "HIGH") ? "text-destructive" : (ai.risk_band === "MODERATE" ? "text-warning" : "text-success")} 
         />
@@ -179,100 +173,134 @@ export default function OfficerApplicationDetailPage() {
         />
       </div>
 
-      {/* Profile and External Data Sections */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Applicant Profile */}
-        <AgentSection title="Applicant Profile & Financials" icon={FileText}>
-          <div className="grid grid-cols-2 gap-y-4 gap-x-6 text-sm">
-            <div>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase">Permanent PAN</p>
-              <p className="font-semibold uppercase">{form.pan_number || "—"}</p>
+        <div className="md:col-span-2">
+          <AgentSection title="Applicant Profile Summary" icon={FileText}>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-y-4 gap-x-6">
+              <div>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase">Loan Amount</p>
+                <p className="font-semibold text-lg text-primary">₹{form.loan_amount_requested?.toLocaleString() || "0"}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase">Category</p>
+                <p className="font-semibold uppercase">{form.loan_category || "PERSONAL"}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase">Purpose</p>
+                <p className="font-semibold truncate" title={form.loan_purpose}>{form.loan_purpose || "—"}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase">Tenure</p>
+                <p className="font-semibold">{form.loan_tenure_months || 0} Months</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase">Annual Income</p>
+                <p className="font-semibold">₹{form.annual_income?.toLocaleString() || "0"}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase">Gender</p>
+                <p className="font-semibold uppercase">{form.gender || "—"}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase">Employer</p>
+                <p className="font-semibold truncate">{form.employer_name || "—"}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase">Job Status</p>
+                <p className="font-semibold uppercase">{form.employment_type || "—"}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase">Exp.</p>
+                <p className="font-semibold">{form.employment_tenure_years || 0} yrs</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase">Existing EMI</p>
+                <p className="font-semibold">₹{form.existing_emi_monthly?.toLocaleString() || "0"}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase">Asset Value</p>
+                <p className="font-semibold">₹{form.residential_assets_value?.toLocaleString() || "0"}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase">DOB</p>
+                <p className="font-semibold">{form.date_of_birth || "—"}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase">Annual Income</p>
-              <p className="font-semibold">₹{form.annual_income?.toLocaleString() || "0"}</p>
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase">Employment</p>
-              <p className="font-semibold">{form.employment_type || "—"} ({form.employment_tenure_years || 0} yrs)</p>
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase">Loan Purpose</p>
-              <p className="font-semibold">{form.loan_purpose || "—"}</p>
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase">Existing Obligation</p>
-              <p className="font-semibold">₹{form.existing_emi_monthly?.toLocaleString() || "0"} /mo</p>
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase">Collateral/Assets</p>
-              <p className="font-semibold">₹{form.residential_assets_value?.toLocaleString() || "0"}</p>
-            </div>
-          </div>
-        </AgentSection>
+          </AgentSection>
+        </div>
+      </div>
 
-        {/* Mock API Verification Data */}
-        <AgentSection title="External Verification (Mock APIs)" icon={ShieldCheck}>
-          <div className="space-y-4">
+      <AgentSection title="Comprehensive Verification Intelligence" icon={ShieldCheck}>
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-[160px]">
+          {/* Identity Documents */}
+          <div className="lg:col-span-1 border-r border-dashed pr-6 space-y-3">
+             <p className="text-[10px] font-bold text-muted-foreground uppercase opacity-70 mb-2">Identity Documents</p>
+             <DocumentStatus label="PAN Card" status={features.kyc_pan_present ? "VERIFIED" : "MISSING"} />
+             <DocumentStatus label="Aadhaar Card" status={features.kyc_aadhaar_present ? "VERIFIED" : "MISSING"} />
+          </div>
+
+          {/* Bureau & Network Intelligence */}
+          <div className="lg:col-span-3 space-y-4">
             {!isPrecheckRejected && (
               <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-2 border rounded bg-muted/20">
+                <div className="grid grid-cols-4 gap-4">
+                  <div className="col-span-1 p-2 border rounded bg-muted/10">
                     <p className="text-[9px] font-bold text-muted-foreground uppercase">Bureau Score</p>
-                    <p className="text-base font-bold text-primary">{features.cibil_score || "—"}</p>
-                    <p className="text-[9px] text-muted-foreground">Source: TransUnion Mock Engine</p>
+                    <p className="text-xl font-bold tracking-tight text-foreground">{features.cibil_score || "—"}</p>
+                    <p className="text-[9px] text-muted-foreground font-medium uppercase tracking-tighter opacity-70">CIBIL Mock</p>
                   </div>
-                  <div className="p-2 border rounded bg-muted/20">
-                    <p className="text-[9px] font-bold text-muted-foreground uppercase">Risk Probability</p>
-                    <p className="text-base font-bold text-primary">{features.foir !== undefined ? `${(features.foir * 100).toFixed(1)}% FOIR` : "—"}</p>
-                    <p className="text-[9px] text-muted-foreground">Policy: Internal Scorecard</p>
+                  <div className="col-span-1 p-2 border rounded bg-muted/10">
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase">Bureau Age</p>
+                    <p className="text-base font-bold text-primary">{features.oldest_account_age_years || "—"} <span className="text-[10px] text-muted-foreground">yrs</span></p>
+                    <p className="text-[9px] text-muted-foreground font-medium uppercase tracking-tighter opacity-70">History</p>
+                  </div>
+                  <div className="col-span-2 grid grid-cols-2 gap-2">
+                    <div className="p-2 border rounded bg-muted/10">
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase">Util.</p>
+                      <p className="text-sm font-bold text-foreground">{((features.credit_utilization_pct || 0) * 100).toFixed(0)}%</p>
+                    </div>
+                    <div className="p-2 border rounded bg-muted/10">
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase">Act. TL %</p>
+                      <p className="text-sm font-bold text-foreground">{(features.total_trade_lines > 0) ? ((features.active_tl_pct || 0) * 100).toFixed(0) + "%" : "0%"}</p>
+                    </div>
+                    <div className="p-2 border rounded bg-muted/10">
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase">Delinquencies</p>
+                      <p className="text-sm font-bold text-foreground">{features.total_delinquencies || 0}</p>
+                    </div>
+                    <div className="p-2 border rounded bg-muted/10">
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase">Recent Enquiry</p>
+                      <p className="text-[10px] font-bold uppercase truncate">{features.recent_enq_product || "NONE"}</p>
+                    </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-[11px]">
-                  <div className="flex items-center justify-between border-b pb-1">
-                    <span className="text-muted-foreground uppercase font-bold">IP Risk Score:</span>
-                    <span className={features.ip_risk_score > 0.5 ? "text-destructive" : "text-success font-bold"}>{features.ip_risk_score || "0.0"}</span>
-                  </div>
-                  <div className="flex items-center justify-between border-b pb-1">
-                    <span className="text-muted-foreground uppercase font-bold">Country Lock:</span>
-                    <span className={features.ip_country_mismatch ? "text-destructive" : "text-success font-bold"}>{features.ip_country_mismatch ? "FAIL" : "IN"}</span>
-                  </div>
-                  <div className="flex items-center justify-between border-b pb-1">
-                    <span className="text-muted-foreground uppercase font-bold">Outstanding Loans:</span>
-                    <span className="font-bold">{features.num_active_loans || 0}</span>
-                  </div>
-                  <div className="flex items-center justify-between border-b pb-1">
-                    <span className="text-muted-foreground uppercase font-bold">Enquiries (6m):</span>
-                    <span className={features.num_hard_enquiries_6m > 3 ? "text-destructive" : "font-bold"}>{features.num_hard_enquiries_6m || 0}</span>
-                  </div>
+
+                <div className="flex items-center justify-between pt-4 border-t border-muted/20">
+                   <div className="flex gap-8">
+                      <div>
+                         <p className="text-[9px] font-bold text-muted-foreground uppercase">Ext. Total Debt</p>
+                         <p className="text-sm font-bold font-mono">₹{features.total_outstanding_debt?.toLocaleString() || "0"}</p>
+                      </div>
+                      <div>
+                         <p className="text-[9px] font-bold text-muted-foreground uppercase">Enquiries (6M)</p>
+                         <p className="text-sm font-bold">{features.num_hard_enquiries_6m || 0}</p>
+                      </div>
+                   </div>
+                   <div className="flex gap-4 items-center bg-muted/20 px-3 py-1.5 rounded text-[8px] font-mono text-muted-foreground ml-auto">
+                      <div className="flex gap-4">
+                        <span>IP RISK: {features.ip_risk_score}</span>
+                        <span>GEO: {features.ip_country_mismatch ? "LOGGED" : "NATIVE"}</span>
+                      </div>
+                      {/* <span className="border-l border-muted-foreground/30 pl-3">SID: {appData.application_id?.split('-')[1]}</span> */}
+                   </div>
                 </div>
               </>
             )}
-            {isPrecheckRejected && (
-              <div className="p-4 bg-destructive/5 border border-dashed border-destructive/20 rounded-md text-center">
-                <ShieldAlert className="h-6 w-6 text-destructive/40 mx-auto mb-2" />
-                <p className="text-xs font-bold text-destructive uppercase tracking-wide">External verification skipped</p>
-                <p className="text-[10px] text-muted-foreground mt-1">Identity validation failed pre-check benchmarks.</p>
-              </div>
-            )}
           </div>
-        </AgentSection>
-      </div>
-
-      {/* Uploaded Documents Checklist */}
-      <AgentSection title="Document & Verification Checklist" icon={Activity}>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <DocumentStatus label="PAN Card" status={features.kyc_pan_present ? "VERIFIED" : (isPrecheckRejected ? "FAILED/MISSING" : "MISSING")} />
-          <DocumentStatus label="Aadhaar Card" status={features.kyc_aadhaar_present ? "VERIFIED" : (isPrecheckRejected ? "FAILED/MISSING" : "MISSING")} />
-          <DocumentStatus label="Bank Statement (6M)" status={features.bank_statement_months >= 6 ? "VERIFIED" : (features.bank_statement_months > 0 ? "PARTIAL" : (isPrecheckRejected ? "SKIPPED" : "MISSING"))} />
-          <DocumentStatus label="Salary Slip / Form 16" status={features.annual_income_verified > 0 ? "VERIFIED" : (isPrecheckRejected ? "SKIPPED" : "NOT_SUBMITTED")} />
         </div>
       </AgentSection>
 
-      {/* Detailed Agent Result Sections - More Sober */}
       {!isPrecheckRejected && (
         <div className="space-y-4">
-          {/* Credit Risk Section */}
           <AgentSection title="1. CREDIT RISK SPECIALIST REPORT" icon={BarChart3}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-4">
@@ -280,37 +308,45 @@ export default function OfficerApplicationDetailPage() {
                   <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Model Assessment</p>
                   <div className="flex items-baseline gap-2">
                     <span className={`text-xl font-bold ${(ai.risk_band === "VERY_HIGH" || ai.risk_band === "HIGH") ? "text-destructive" : "text-foreground"}`}>{ai.risk_band}</span>
-                    <span className="text-xs text-muted-foreground">(Score: {ai.model_risk_score}/100)</span>
+                    <span className="px-2 py-0.5 rounded-full bg-primary/5 text-primary/70 font-semibold text-[10px] border border-primary/10">
+                      Credit Risk Score: {ai.credit_score !== undefined ? `${(ai.credit_score * 100).toFixed(1)}%` : "—"}
+                    </span>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <ProcessCheck label="Prob. of Default (PD)" value={isPrecheckRejected ? "N/A" : (ai.credit_score !== undefined ? `${(ai.credit_score * 100).toFixed(2)}%` : "Wait...")} status={isPrecheckRejected ? "FAIL" : (ai.credit_score > 0.5 ? "FAIL" : "PASS")} />
-                  <ProcessCheck label="Debt Service Coverage" value={isPrecheckRejected ? "N/A" : (ai.foir !== undefined ? `${(ai.foir * 100).toFixed(1)}%` : "Wait...")} status={isPrecheckRejected ? "FAIL" : (ai.foir > 0.5 ? "FAIL" : "PASS")} />
-                  <ProcessCheck label="Loan-to-Value (LTV)" value={isPrecheckRejected ? "N/A" : (ai.ltv !== undefined ? `${(ai.ltv * 100).toFixed(1)}%` : "Wait...")} status="PASS" />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-2 border rounded-sm bg-muted/5">
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase">Obligation-to-Income (FOIR)</p>
+                    <p className="text-base font-bold text-primary">{features.foir !== undefined ? `${(features.foir * 100).toFixed(1)}%` : "—"}</p>
+                  </div>
+                  <div className="p-2 border rounded-sm bg-muted/5">
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase">Monthly Surplus</p>
+                    <p className="text-base font-bold text-success">₹{(ai.credit_agent?.surplusPerMonth || 0).toLocaleString()}</p>
+                  </div>
+                  <div className="p-2 border rounded-sm bg-muted/5 col-span-2">
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase">Proposed Monthly EMI</p>
+                    <p className="text-base font-bold text-foreground">₹{(ai.credit_agent?.proposedEMI || 0).toLocaleString()}</p>
+                  </div>
                 </div>
               </div>
-              <div className="md:col-span-2 border-l pl-6 space-y-4">
-                <div>
+
+              <div className="md:col-span-2 border-l pl-6">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase mb-3 text-slate-400">Risk Contribution Factors</p>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {(ai.shap_top_features || []).map((f: string) => (
+                    <span key={f} className="px-2 py-1 bg-muted/10 text-muted-foreground border border-muted-foreground/10 rounded text-[10px] font-medium">
+                      {f}
+                    </span>
+                  ))}
+                </div>
+                <ProcessCheck label="Loan-to-Value (LTV)" value={appData.form_data?.residential_assets_value ? ((appData.form_data?.loan_amount_requested / appData.form_data?.residential_assets_value) * 100).toFixed(1) + "%" : "UNSECURED"} status="PASS" />
+                <div className="mt-4">
                   <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Underwriting Narrative</p>
                   <p className="text-sm text-foreground/80 leading-normal">{ai.officer_narrative || "No narrative available."}</p>
                 </div>
-                {ai.top_factors && ai.top_factors.length > 0 && (
-                  <div>
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Risk Contribution Factors (SHAP)</p>
-                    <div className="flex flex-wrap gap-2">
-                      {ai.top_factors.slice(0, 5).map((f: any, i: number) => (
-                        <span key={i} className={`text-[10px] px-2 py-0.5 border rounded-sm flex items-center gap-1 ${f.direction === "NEGATIVE" ? "bg-destructive/5 text-destructive border-destructive/10" : "bg-success/5 text-success border-success/10"}`}>
-                          {f.human_label || f.feature} ({(f.shap_value || 0).toFixed(2)})
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </AgentSection>
 
-          {/* Fraud Section */}
           <AgentSection title="2. FRAUD DETECTION & VERIFICATION" icon={ShieldAlert}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-4">
@@ -320,124 +356,126 @@ export default function OfficerApplicationDetailPage() {
                     {fraud.fraud_probability !== undefined ? `${(fraud.fraud_probability * 100).toFixed(1)}%` : "0.0%"}
                   </p>
                 </div>
-                <div className="space-y-2">
-                  <ProcessCheck label="Identity Consistency" value={isPrecheckRejected ? "REJECTED" : (fraud.identity_consistency || "Wait...")} status={isPrecheckRejected ? "FAIL" : (fraud.identity_consistency === "HIGH" ? "PASS" : "WARN")} />
-                  <ProcessCheck label="IP Risk Assessment" value={isPrecheckRejected ? "SKIPPED" : (features.ip_risk_score || "0.0")} status={features.ip_risk_score > 0.5 ? "FAIL" : "PASS"} />
-                  <FormatLabel label="Hard Blocks Triggered" value={isPrecheckRejected ? "1 (Pre-check)" : (fraud.fired_hard_rules?.length || 0)} color={fraud.fired_hard_rules?.length > 0 || isPrecheckRejected ? "text-destructive" : "text-muted-foreground"} />
+                <div className="space-y-3">
+                  <ProcessCheck label="Identity Match" value={fraud.identity_consistency || "Wait..."} status={fraud.identity_consistency === "HIGH" ? "PASS" : "WARN"} />
+                  {fraud.recommend_kyc_recheck && (
+                    <div className="flex items-center gap-1.5 px-2 py-1 bg-destructive/5 border border-destructive/20 rounded-sm text-destructive animate-pulse">
+                      <ShieldAlert className="h-3 w-3" />
+                      <span className="text-[10px] font-bold uppercase tracking-tighter">KYC RECHECK REQ</span>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase mb-1">Triggered Signals</p>
+                    <div className="flex flex-wrap gap-1">
+                      {([...(fraud.fired_hard_rules || []), ...(fraud.fired_soft_signals || [])]).length > 0 ? (
+                        ([...(fraud.fired_hard_rules || []), ...(fraud.fired_soft_signals || [])]).map((r: any, i: number) => (
+                          <span key={i} className="px-1.5 py-0.5 bg-muted/20 text-[9px] font-medium rounded border border-muted-foreground/10 flex items-center gap-1">
+                            {r.includes("HARD") ? <XCircle className="h-2 w-2 text-destructive" /> : <AlertTriangle className="h-2 w-2 text-yellow-500" />}
+                            {r}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground italic font-medium">No signals hit</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
               <div className="md:col-span-2 border-l pl-6">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Detailed Analysis</p>
-                <p className="text-sm text-foreground/80 leading-normal mb-4">{fraud.explanation || "No suspicious patterns detected in metadata."}</p>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  {fraud.fired_hard_rules?.length > 0 && (
-                    <div className="space-y-1">
-                      <p className="text-[9px] font-bold text-destructive uppercase">Security Violations</p>
-                      {fraud.fired_hard_rules.map((r: any, i: number) => (
-                        <div key={i} className="text-[10px] flex items-center gap-1 font-medium"><XCircle className="h-3 w-3" /> {r}</div>
-                      ))}
-                    </div>
-                  )}
-                  {fraud.fired_soft_signals?.length > 0 && (
-                    <div className="space-y-1">
-                      <p className="text-[9px] font-bold text-warning-foreground uppercase">Anomaly Signals</p>
-                      {fraud.fired_soft_signals.map((s: any, i: number) => (
-                        <div key={i} className="text-[10px] flex items-center gap-1 font-medium"><AlertTriangle className="h-3 w-3" /> {s}</div>
-                      ))}
-                    </div>
-                  )}
+                <p className="text-sm text-foreground/80 leading-normal mb-8">{fraud.explanation || "No suspicious patterns detected."}</p>
+                <div className="pt-2 border-t border-muted/20">
+                   <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">IP Fingerprint Risk</p>
+                   <div className="flex items-center gap-2">
+                      <div className="h-1.5 w-full bg-muted/20 rounded-full overflow-hidden max-w-[120px]">
+                         <div className="h-full bg-primary/40 rounded-full" style={{ width: `${(fraud.ip_risk_score || 0) * 100}%` }} />
+                      </div>
+                      <span className="text-[10px] font-semibold text-muted-foreground">{((fraud.ip_risk_score || 0) * 100).toFixed(0)}%</span>
+                   </div>
                 </div>
               </div>
             </div>
           </AgentSection>
 
-          {/* Compliance Section */}
           <AgentSection title="3. REGULATORY COMPLIANCE AUDIT" icon={Scale}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-4">
                 <div>
                   <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Overall Compliance</p>
-                  <p className={`text-xl font-bold ${compliance.overall_status === "BLOCK_FAIL" ? "text-destructive" : "text-foreground"}`}>
-                    {compliance.overall_status}
-                  </p>
+                  <p className="text-xl font-bold">{compliance.overall_status || "PENDING"}</p>
                 </div>
-                <div className="space-y-2">
-                  <ProcessCheck label="RBI Master Circular" value={isPrecheckRejected ? "NON-COMPLIANT" : (compliance.rbi_compliant ? "COMPLIANT" : "NON-COMPLIANT")} status={isPrecheckRejected ? "FAIL" : (compliance.rbi_compliant ? "PASS" : "FAIL")} />
-                  <ProcessCheck label="AML/CTF Screening" value={isPrecheckRejected ? "SKIPPED" : (compliance.aml_review_required ? "REVIEW" : "CLEAN")} status={compliance.aml_review_required ? "WARN" : "PASS"} />
-                  <ProcessCheck label="KYC Sufficiency" value={isPrecheckRejected ? "REJECTED" : (features.kyc_pan_present && features.kyc_aadhaar_present ? "OK" : "INCOMPLETE")} status={features.kyc_pan_present && features.kyc_aadhaar_present ? "PASS" : "FAIL"} />
+                <div className="space-y-2 pb-2">
+                  <ProcessCheck label="RBI Master Circular" value={compliance.rbi_compliant ? "PASS" : "FAIL"} status={compliance.rbi_compliant ? "PASS" : "FAIL"} />
+                  <ProcessCheck label="AML Screening" value={compliance.aml_review_required ? "REVIEW" : "CLEAN"} status={compliance.aml_review_required ? "WARN" : "PASS"} />
+                  <ProcessCheck label="KYC Verification" value={compliance.kyc_complete ? "VERIFIED" : "PENDING"} status={compliance.kyc_complete ? "PASS" : "WARN"} />
                 </div>
-              </div>
-              <div className="md:col-span-2 border-l pl-6">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Audit Trail & Rationale</p>
-                <p className="text-sm text-foreground/80 leading-normal mb-4">{compliance.narrative || "System checks validated against standard bank policies."}</p>
-                
                 {compliance.block_flags?.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-[9px] font-bold text-destructive uppercase">Policy Blocks</p>
-                    {compliance.block_flags.map((f: any, i: number) => (
-                      <div key={i} className="text-[10px] p-2 bg-destructive/5 border border-destructive/10 rounded-sm">
-                        <span className="font-bold">{f.rule_id}:</span> {f.description}
-                      </div>
-                    ))}
-                  </div>
+                   <div className="pt-2 border-t border-muted/20">
+                      <p className="text-[9px] font-bold text-destructive uppercase mb-1">Regulation Flags</p>
+                      {compliance.block_flags.map((f: any, i: number) => (
+                         <div key={i} className="text-[10px] text-destructive truncate flex items-center gap-1 font-medium italic"><XCircle className="h-2 w-2" /> {f.rule_id || f}</div>
+                      ))}
+                   </div>
                 )}
+              </div>
+              <div className="md:col-span-2 border-l pl-6 text-sm text-foreground/80 leading-normal">
+                {compliance.narrative || "Compliance check completed."}
               </div>
             </div>
           </AgentSection>
 
-          {/* Portfolio Section */}
           <AgentSection title="4. PORTFOLIO EXPOSURE ANALYSIS" icon={Briefcase}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-4">
                 <div>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Concentration Risk</p>
-                  <p className="text-xl font-bold">{portfolio.portfolio_recommendation}</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Exposure Impact</p>
+                  <p className="text-xl font-bold tracking-tight">{(portfolio.el_impact_inr || 0).toLocaleString()} INR</p>
                 </div>
-                <div className="p-3 border rounded bg-primary/5">
-                  <p className="text-[9px] font-bold text-primary uppercase mb-1">Expected Loss (EL)</p>
-                  <p className="text-base font-bold text-primary tracking-tight">{isPrecheckRejected ? "Blocked" : `₹${portfolio.el_impact_inr?.toLocaleString() || "0"}`}</p>
-                  <p className="text-[9px] text-muted-foreground mt-1 underline decoration-primary/20">Impact on personal loan pool</p>
+                <div className="space-y-2">
+                  <ProcessCheck label="Sector Exposure" value={(portfolio.sector_concentration_new * 100).toFixed(2) + "%"} status={portfolio.concentration_flags?.includes("SECTOR_CONCENTRATION_BREACH") ? "FAIL" : "PASS"} />
+                  <ProcessCheck label="Geography Exposure" value={(portfolio.geo_concentration_new * 100).toFixed(2) + "%"} status="PASS" />
                 </div>
+                {portfolio.concentration_flags?.length > 0 && (
+                   <div className="pt-2 border-t border-muted/20">
+                      <p className="text-[9px] font-bold text-muted-foreground uppercase mb-1">Concentration Signals</p>
+                      <div className="flex flex-wrap gap-1">
+                         {portfolio.concentration_flags.map((flag: string) => (
+                            <span key={flag} className="px-1 py-0.5 bg-muted/20 text-[9px] text-muted-foreground font-semibold rounded border border-muted-foreground/10">{flag}</span>
+                         ))}
+                      </div>
+                   </div>
+                )}
               </div>
               <div className="md:col-span-2 border-l pl-6">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Portfolio Strategy Observation</p>
-                <p className="text-sm text-foreground/80 leading-normal mb-4">{portfolio.cot_reasoning || "Exposure remains within limits for this applicant sector."}</p>
-                
-                <div className="grid grid-cols-2 gap-4 text-[11px]">
-                  <div className="flex items-center justify-between border-b pb-1">
-                    <span className="text-muted-foreground">Sector Concentration:</span>
-                    <span className="font-bold">{(portfolio.sector_concentration_new * 100).toFixed(2)}%</span>
-                  </div>
-                  <div className="flex items-center justify-between border-b pb-1">
-                    <span className="text-muted-foreground">Product Cap:</span>
-                    <span className="font-bold text-success">OK</span>
-                  </div>
-                </div>
+                <p className="text-sm text-foreground/80 leading-normal mb-8 italic">{portfolio.cot_reasoning || "Exposure within risk limits."}</p>
+                {portfolio.el_impact_note && (
+                   <div className="p-3 bg-muted/10 border border-muted/20 rounded-md">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">EL Impact Note</p>
+                      <p className="text-xs text-muted-foreground italic font-medium">"{portfolio.el_impact_note}"</p>
+                   </div>
+                )}
               </div>
             </div>
           </AgentSection>
         </div>
       )}
 
-      {/* Decision Panel */}
       {!app.status.startsWith("OFFICER_") && (
         <Card className="shadow-none border border-border">
           <CardHeader className="pb-3 px-4">
-            <CardTitle className="text-lg font-bold font-sans">Officer Final Action</CardTitle>
+            <CardTitle className="text-lg font-bold">Officer Final Action</CardTitle>
             <CardDescription className="text-xs">Submit the final processing decision for this application.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <div className="md:col-span-1 space-y-3">
-                <Label className="text-xs font-bold text-primary uppercase tracking-wider">Select Decision</Label>
+                <Label className="text-xs font-bold uppercase tracking-wider">Select Decision</Label>
                 <div className="grid grid-cols-1 gap-2">
                   {["APPROVED", "REJECTED", "ESCALATED", "CONDITIONAL"].map((d) => (
                     <Button 
                       key={d} 
                       variant={decision === d ? "default" : "outline"} 
                       onClick={() => setDecision(d)}
-                      className={`justify-start h-10 text-xs font-bold transition-none ${decision === d ? (d === "REJECTED" ? "bg-destructive hover:bg-destructive" : "bg-primary hover:bg-primary") : ""}`}
+                      className={`justify-start h-10 text-xs font-bold ${decision === d ? (d === "REJECTED" ? "bg-destructive hover:bg-destructive" : "bg-primary hover:bg-primary") : ""}`}
                     >
                       {d}
                     </Button>
@@ -449,11 +487,11 @@ export default function OfficerApplicationDetailPage() {
                 <Textarea 
                   value={notes} 
                   onChange={(e) => setNotes(e.target.value)} 
-                  placeholder="Enter detailed reasoning for the final decision..." 
-                  className="min-h-[140px] text-sm bg-background border-border resize-none" 
+                  placeholder="Enter detailed reasoning..." 
+                  className="min-h-[140px] text-sm bg-background border-border" 
                 />
                 <div className="flex items-center justify-between">
-                  <p className="text-[10px] text-muted-foreground uppercase font-medium">Internal review audit will be logged.</p>
+                  <p className="text-[10px] text-muted-foreground uppercase font-medium">Audit logs will reflect this action.</p>
                   <Button onClick={handleSubmit} className="px-10 h-10 text-xs font-bold uppercase tracking-widest shadow-none">Submit Decision</Button>
                 </div>
               </div>
@@ -529,15 +567,6 @@ function AgentSection({ title, icon: Icon, children }: any) {
       <div className="p-4">
         {children}
       </div>
-    </div>
-  );
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between py-1 border-b border-border/50 last:border-0">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="text-xs font-semibold text-foreground text-right max-w-[60%] truncate">{value}</span>
     </div>
   );
 }

@@ -68,16 +68,32 @@ def get_cibil_data(pan: str) -> Optional[dict]:
         return None
 
     # Map database row (lowercased) to the expected schema
+    # Map database row (lowercased) to the expected schema
+    # Handle -99999 sentinels which often represent NULL/Missing in bureau datasets
+    def _clean(val, default=0.0):
+        if val is None: return default
+        try:
+            fval = float(val)
+            if fval == -99999 or fval < -100: return default
+            return val
+        except (ValueError, TypeError):
+            return default
+
+    # Correct column mappings based on actual DB schema
     return {
-        "cibil_score": float(row.get("credit_score", row.get("cibil_score", 0))),
-        "num_hard_enquiries_6m": int(row.get("no_of_inquiries", row.get("num_enquiries", 0))),
-        "dpd_30_count": int(row.get("num_times_30p_dpd", 0)),
-        "dpd_90_count": int(row.get("num_times_60p_dpd", 0)),
-        "payment_history_score": float(row.get("payment_history_score", 50)),
-        "credit_utilization_pct": float(row.get("cc_utilization", 0.3)),
-        "oldest_account_age_years": float(row.get("age_of_oldest_account", 1.0)),
-        "total_outstanding_debt": float(row.get("total_outstanding", 0)),
-        "num_active_loans": int(row.get("num_std", 1)),
+        "cibil_score": float(_clean(row.get("credit_score"), 650)),
+        "num_hard_enquiries_6m": int(max(0, _clean(row.get("enq_l6m"), 0))),
+        "dpd_30_count": int(max(0, _clean(row.get("num_times_30p_dpd"), 0))),
+        "dpd_90_count": int(max(0, _clean(row.get("num_times_60p_dpd"), 0))),
+        "payment_history_score": float(_clean(row.get("payment_history_score"), 50)),
+        # Proper utilization logic: prefer CC utilization, fallback to TL balance pct
+        "credit_utilization_pct": float(max(0, _clean(row.get("cc_utilization"), _clean(row.get("pct_currentbal_all_tl"), 0)))),
+        "oldest_account_age_years": round(float(_clean(row.get("time_with_curr_empr", 12)/12, 1.0)), 1), 
+        "total_outstanding_debt": float(max(0, _clean(row.get("max_unsec_exposure_inpct", 0) * row.get("netmonthlyincome", 0) / 100, 0))),
+        "num_active_loans": int(max(0, _clean(row.get("num_std"), 0))),
+        "active_tl_pct": float(_clean(row.get("pct_of_active_tls_ever"), 0.0)),
+        "recent_enq_product": str(_clean(row.get("last_prod_enq2"), "None")),
+        "total_delinquencies": int(max(0, _clean(row.get("num_times_delinquent"), 0))),
         "bureau_unavailable": False,
     }
 

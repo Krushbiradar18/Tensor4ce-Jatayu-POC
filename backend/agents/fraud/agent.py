@@ -85,19 +85,24 @@ def fr_evaluate(state: FraudState) -> dict:
 
 def fr_explain(state: FraudState) -> dict:
     """
-    Node 3 (CONDITIONAL): Only runs for SUSPICIOUS or HIGH_RISK cases.
-    Generates a Gemini explanation of the fraud signals detected.
+    Node 3: Generates a Gemini explanation of the fraud signals detected.
+    Now runs for ALL cases to provide detailed analysis as requested.
     """
     from tools import _call_gemini, _log_event
     _log_event(state["application_id"], "fraud_graph", "NODE", {"node": "explain"})
     c     = state["fraud_checks"]
     level = c.get("fraud_level", "CLEAN")
     rules = "; ".join(c.get("fired_hard_rules", []) + c.get("fired_soft_signals", [])[:2])
-    explanation = _call_gemini(
-        f"You are a fraud analyst. In 2 sentences, explain to a credit officer why this "
-        f"application is rated {level}. Detected signals: {rules or 'none'}. Be specific.",
-        fallback=f"Application flagged as {level}. Signals: {rules or 'none detected'}."
-    )
+    
+    if level == "CLEAN" and not rules:
+        prompt = "You are a fraud analyst. The application shows normal behavioural patterns and no suspicious signals. Write 2 concise sentences confirming this for the credit officer."
+        fallback = "Application shows normal behavioural patterns. No significant fraud signals detected."
+    else:
+        prompt = (f"You are a fraud analyst. In 2 concise sentences, explain to a credit officer why this "
+                 f"application is rated {level}. Detected signals: {rules or 'none'}. Be specific.")
+        fallback = f"Application flagged as {level}. Signals: {rules or 'none detected'}."
+        
+    explanation = _call_gemini(prompt, fallback=fallback)
     return {"explanation": explanation}
 
 
@@ -107,22 +112,25 @@ def fr_finalize(state: FraudState) -> dict:
     c = state.get("fraud_checks", {})
     if state.get("error"):
         out = {"application_id": state["application_id"], "error": state["error"],
-               "fraud_level": "SUSPICIOUS", "fraud_probability": 0.5}
+               "fraud_level": "SUSPICIOUS", "fraud_probability": 0.5, "identity_consistency": "LOW"}
     else:
         level = c.get("fraud_level", "CLEAN")
+        # Logic for identity consistency
+        hard_rules = c.get("fired_hard_rules", [])
+        id_flags = [r for r in hard_rules if "IDENTITY" in r or "MISMATCH" in r or "PAN" in r]
+        consistency = "HIGH" if not id_flags else ("MEDIUM" if len(id_flags) == 1 else "LOW")
+        
         out = {
             "application_id":        state["application_id"],
             "fraud_level":           level,
             "fraud_probability":     c.get("fraud_probability", 0.0),
-            "fired_hard_rules":      c.get("fired_hard_rules", []),
+            "fired_hard_rules":      hard_rules,
             "fired_soft_signals":    c.get("fired_soft_signals", []),
             "ip_risk_score":         c.get("ip_risk_score", 0.0),
+            "identity_consistency":  consistency,
+            "identity_mismatch_flags": id_flags,
             "recommend_kyc_recheck": c.get("recommend_kyc_recheck", False),
-            "explanation": (
-                state.get("explanation", "No significant fraud signals detected.")
-                if level in ("SUSPICIOUS", "HIGH_RISK")
-                else "Application shows normal behavioural patterns."
-            ),
+            "explanation":           state.get("explanation", "Application shows normal behavioural patterns."),
         }
     return {"output": out}
 
@@ -130,8 +138,8 @@ def fr_finalize(state: FraudState) -> dict:
 def _fr_route_after_evaluate(state: FraudState) -> str:
     if state.get("error"):
         return "finalize"
-    level = state.get("fraud_checks", {}).get("fraud_level", "CLEAN")
-    return "explain" if level in ("SUSPICIOUS", "HIGH_RISK") else "finalize"
+    # Always run explain for detailed LLM analysis
+    return "explain"
 
 
 def build_fraud_graph():

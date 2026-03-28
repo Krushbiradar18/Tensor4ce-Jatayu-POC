@@ -7,6 +7,7 @@ export type OfficerDecision = "Pending" | "Approved" | "Rejected" | "Escalated" 
 export interface PersonalInfo {
   fullName: string;
   dateOfBirth: string;
+  gender: "MALE" | "FEMALE" | "OTHER";
   aadhaarNumber: string;
   panNumber: string;
   email: string;
@@ -31,7 +32,8 @@ export interface LoanInfo {
   loanAmount: number;
   loanPurpose: string;
   loanTerm: LoanTerm;
-  existingDebts: string;
+  existingEmi: number;
+  residentialAssets: number;
 }
 
 export interface UploadedDoc {

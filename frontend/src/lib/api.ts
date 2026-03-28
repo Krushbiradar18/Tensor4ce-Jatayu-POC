@@ -124,6 +124,21 @@ export async function extractDocuments(aadhaarFile?: File, panFile?: File): Prom
   return response.json();
 }
 
+export async function loginOfficer(credentials: Record<string, string>): Promise<any> {
+  const response = await fetch(`${API_BASE}/officer/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(credentials),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ detail: "Login failed" }));
+    throw new Error(errorData.detail || `Failed to login: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
 export async function checkHealth(): Promise<any> {
   const response = await fetch(`${API_BASE}/health`);
 

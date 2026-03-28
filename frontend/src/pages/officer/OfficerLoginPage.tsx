@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Building2, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+import { loginOfficer } from "@/lib/api";
 
 export default function OfficerLoginPage() {
   const [email, setEmail] = useState("");
@@ -17,28 +19,42 @@ export default function OfficerLoginPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleLogin = (e: React.FormEvent) => {
+  useEffect(() => {
+    const auth = JSON.parse(localStorage.getItem("officer_auth") || "null");
+    if (auth && auth.email) {
+      navigate("/officer/dashboard", { replace: true });
+    }
+  }, [navigate]);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
       toast({ title: "Error", description: "Please enter both email and password.", variant: "destructive" });
       return;
     }
 
-    // Check hardcoded credentials
-    if (email !== "admin" || password !== "admin123") {
+    setLoading(true);
+    try {
+      const response = await loginOfficer({ email, password });
+      if (response.success) {
+        localStorage.setItem("officer_auth", JSON.stringify(response.user));
+        // We could also store response.token if needed for subsequent API calls
+        if (response.token) {
+          localStorage.setItem("officer_token", response.token);
+        }
+        
+        toast({ title: "Login Successful", description: `Welcome back, ${response.user.name}` });
+        navigate("/officer/dashboard");
+      }
+    } catch (err: any) {
       toast({
         title: "Authentication Failed",
-        description: "Invalid username or password. Use admin/admin123.",
+        description: err.message || "Invalid username or password.",
         variant: "destructive"
       });
-      return;
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(true);
-    setTimeout(() => {
-      localStorage.setItem("officer_auth", JSON.stringify({ email, name: "Admin Officer", role: "Loan Officer" }));
-      navigate("/officer/dashboard");
-    }, 800);
   };
 
   return (

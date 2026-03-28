@@ -19,9 +19,9 @@ const loanTypes: LoanType[] = ["Personal"];
 const loanTerms: LoanTerm[] = [12, 24, 36, 48, 60];
 const indianStates = ["Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh","Delhi","Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka","Kerala","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland","Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana","Tripura","Uttar Pradesh","Uttarakhand","West Bengal"];
 
-const initialPersonal: PersonalInfo = { fullName:"",dateOfBirth:"",aadhaarNumber:"",panNumber:"",email:"",phone:"",address:"",city:"",state:"",pinCode:"" };
+const initialPersonal: PersonalInfo = { fullName:"",dateOfBirth:"",gender:"MALE",aadhaarNumber:"",panNumber:"",email:"",phone:"",address:"",city:"",state:"",pinCode:"" };
 const initialEmployment: EmploymentInfo = { employmentStatus:"",employerName:"",jobTitle:"",monthlyIncome:0,yearsAtJob:0,additionalIncome:"" };
-const initialLoan: LoanInfo = { loanType:"Personal",loanAmount:0,loanPurpose:"",loanTerm:12,existingDebts:"" };
+const initialLoan: LoanInfo = { loanType:"Personal",loanAmount:0,loanPurpose:"",loanTerm:12,existingEmi:0,residentialAssets:0 };
 
 export default function ApplyPage() {
   const [step, setStep] = useState(0);
@@ -58,6 +58,8 @@ export default function ApplyPage() {
     } else if (step === 2) {
       if (loan.loanAmount <= 0) e.loanAmount = "Enter valid amount";
       if (!loan.loanPurpose.trim()) e.loanPurpose = "Required";
+      if (loan.existingEmi < 0) e.existingEmi = "Cannot be negative";
+      if (loan.residentialAssets < 0) e.residentialAssets = "Cannot be negative";
     } else if (step === 3) {
       if (!termsAccepted) e.terms = "You must accept the terms";
     }
@@ -78,16 +80,17 @@ export default function ApplyPage() {
         pan_number: personal.panNumber,
         aadhaar_last4: personal.aadhaarNumber.slice(-4),
         date_of_birth: personal.dateOfBirth,
-        gender: "MALE", // Default for now
+        gender: personal.gender,
         employment_type: employment.employmentStatus.toUpperCase().includes("SALARIED") ? "SALARIED" : "SELF_EMPLOYED",
         employer_name: employment.employerName,
         annual_income: employment.monthlyIncome * 12,
         employment_tenure_years: employment.yearsAtJob,
         loan_amount_requested: loan.loanAmount,
         loan_tenure_months: loan.loanTerm,
-        loan_purpose: loan.loanType.toUpperCase(),
-        existing_emi_monthly: 0, // Parse from existingDebts if needed
-        residential_assets_value: 0,
+        loan_purpose: loan.loanPurpose,
+        loan_category: loan.loanType.toUpperCase(),
+        existing_emi_monthly: loan.existingEmi,
+        residential_assets_value: loan.residentialAssets,
         mobile_number: personal.phone,
         email: personal.email,
         address: {
@@ -203,6 +206,17 @@ export default function ApplyPage() {
                   <div><Label>Date of Birth *</Label><Input type="date" value={personal.dateOfBirth} onChange={(e) => updateP("dateOfBirth", e.target.value)} /><FieldError field="dateOfBirth" /></div>
                   <div><Label>Aadhaar Number *</Label><Input value={personal.aadhaarNumber} onChange={(e) => updateP("aadhaarNumber", e.target.value)} placeholder="1234 5678 9012" /><FieldError field="aadhaarNumber" /></div>
                   <div><Label>PAN Number *</Label><Input value={personal.panNumber} onChange={(e) => updateP("panNumber", e.target.value.toUpperCase())} placeholder="ABCDE1234F" /><FieldError field="panNumber" /></div>
+                  <div>
+                    <Label>Gender *</Label>
+                    <Select value={personal.gender} onValueChange={(v: any) => updateP("gender", v)}>
+                      <SelectTrigger><SelectValue/></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="MALE">Male</SelectItem>
+                        <SelectItem value="FEMALE">Female</SelectItem>
+                        <SelectItem value="OTHER">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div><Label>Email *</Label><Input type="email" value={personal.email} onChange={(e) => updateP("email", e.target.value)} placeholder="you@email.com" /><FieldError field="email" /></div>
                   <div><Label>Phone *</Label><Input value={personal.phone} onChange={(e) => updateP("phone", e.target.value)} placeholder="+91 98765 43210" /><FieldError field="phone" /></div>
                 </div>
@@ -235,10 +249,8 @@ export default function ApplyPage() {
                   <FieldError field="employmentStatus" />
                 </div>
                 <div><Label>Employer Name *</Label><Input value={employment.employerName} onChange={(e) => updateE("employerName", e.target.value)} /><FieldError field="employerName" /></div>
-                <div><Label>Job Title *</Label><Input value={employment.jobTitle} onChange={(e) => updateE("jobTitle", e.target.value)} /><FieldError field="jobTitle" /></div>
                 <div><Label>Monthly Income (₹) *</Label><Input type="number" value={employment.monthlyIncome || ""} onChange={(e) => updateE("monthlyIncome", Number(e.target.value))} /><FieldError field="monthlyIncome" /></div>
                 <div><Label>Years at Current Job *</Label><Input type="number" value={employment.yearsAtJob || ""} onChange={(e) => updateE("yearsAtJob", Number(e.target.value))} /><FieldError field="yearsAtJob" /></div>
-                <div><Label>Additional Income Sources</Label><Input value={employment.additionalIncome} onChange={(e) => updateE("additionalIncome", e.target.value)} placeholder="e.g., Rental income" /></div>
               </div>
             )}
 
@@ -246,7 +258,7 @@ export default function ApplyPage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label>Loan Type *</Label>
+                    <Label>Loan Category *</Label>
                     <Select value={loan.loanType} onValueChange={(v) => updateL("loanType", v)}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>{loanTypes.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
@@ -261,8 +273,11 @@ export default function ApplyPage() {
                     </Select>
                   </div>
                 </div>
-                <div><Label>Loan Purpose *</Label><Textarea value={loan.loanPurpose} onChange={(e) => updateL("loanPurpose", e.target.value)} placeholder="Describe the purpose" /><FieldError field="loanPurpose" /></div>
-                <div><Label>Existing Debts / Liabilities</Label><Textarea value={loan.existingDebts} onChange={(e) => updateL("existingDebts", e.target.value)} placeholder="e.g., ₹15,000/month EMI" /></div>
+                <div><Label>Reason/Purpose for Loan *</Label><Textarea value={loan.loanPurpose} onChange={(e) => updateL("loanPurpose", e.target.value)} placeholder="Describe the purpose" /><FieldError field="loanPurpose" /></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div><Label>Existing Monthly EMIs (₹)</Label><Input type="number" value={loan.existingEmi || 0} onChange={(e) => updateL("existingEmi", Number(e.target.value))} /><FieldError field="existingEmi" /></div>
+                  <div><Label>Total Residential Asset Value (₹)</Label><Input type="number" value={loan.residentialAssets || 0} onChange={(e) => updateL("residentialAssets", Number(e.target.value))} /><FieldError field="residentialAssets" /></div>
+                </div>
               </div>
             )}
 
@@ -308,8 +323,9 @@ export default function ApplyPage() {
                   <h3 className="font-semibold text-foreground">Application Summary</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <SummarySection title="Personal" items={[
-                      ["Name", personal.fullName], ["DOB", personal.dateOfBirth], ["Aadhaar", personal.aadhaarNumber],
-                      ["PAN", personal.panNumber], ["Email", personal.email], ["Phone", personal.phone],
+                      ["Name", personal.fullName], ["DOB", personal.dateOfBirth], ["Gender", personal.gender],
+                      ["Aadhaar", personal.aadhaarNumber], ["PAN", personal.panNumber], 
+                      ["Email", personal.email], ["Phone", personal.phone],
                       ["City", personal.city], ["State", personal.state],
                     ]} />
                     <SummarySection title="Employment" items={[
@@ -317,8 +333,9 @@ export default function ApplyPage() {
                       ["Income", `₹${employment.monthlyIncome.toLocaleString()}/mo`], ["Experience", `${employment.yearsAtJob} years`],
                     ]} />
                     <SummarySection title="Loan" items={[
-                      ["Type", loan.loanType], ["Amount", `₹${loan.loanAmount.toLocaleString()}`],
+                      ["Category", loan.loanType], ["Amount", `₹${loan.loanAmount.toLocaleString()}`],
                       ["Term", `${loan.loanTerm} months`], ["Purpose", loan.loanPurpose],
+                      ["Monthly EMI", `₹${loan.existingEmi.toLocaleString()}`], ["Assets", `₹${loan.residentialAssets.toLocaleString()}`],
                     ]} />
                     <SummarySection title="Documents" items={docs.map((d, i) => [`File ${i + 1}`, d.name])} />
                   </div>

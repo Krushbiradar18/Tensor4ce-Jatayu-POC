@@ -49,6 +49,7 @@ def po_validate(state: PortfolioState) -> dict:
         ctx = _get_context_dict(app_id)
         return {
             "features": ctx.get("features", {}),
+            "app_dict": ctx.get("form", {}),
             "macro": _get_macro_config()
         }
     except Exception as e:
@@ -110,20 +111,22 @@ def po_analysis(state: PortfolioState) -> dict:
     loan_amt = float(feat.get("loan_amount_requested", 0))
     el_impact = round(pd * lgd * loan_amt, 2)
     
-    # Estimate EL increase
-    total_el = ps.get("total_exposure_inr", 10000000) * 0.02 # assume 2% base EL
+    # Estimate EL increase relative to current portfolio EL
+    # Scale up default portfolio size to 100Cr for more stability in PoC
+    total_exposure = ps.get("total_outstanding", 100000000) 
+    total_el = total_exposure * 0.02 # assume 2% base EL pool
     el_increase_pct = (el_impact / total_el) * 100 if total_el > 0 else 0
     
-    if el_increase_pct > 5.0:
+    if el_increase_pct > 15.0: # Only flag as high if it's over 15% increase
         flags.append("EL_IMPACT_HIGH")
-    elif el_increase_pct > 2.0:
+    elif el_increase_pct > 5.0:
         flags.append("EL_IMPACT_CAUTION")
 
     # 4. Recommendation Logic
-    # Alignment fix: if flags exist or if EL impact is significant, CAUTION
-    if any("BREACH" in f or "HIGH" in f for f in flags):
+    # Rejection only on actual SECTOR/GEO BREACH
+    if any("BREACH" in f for f in flags):
         rec = "REJECT_FOR_PORTFOLIO"
-    elif flags or el_impact > 100000: # Threshold for caution
+    elif flags or el_impact > 250000: # Increase threshold for caution
         rec = "CAUTION"
     else:
         rec = "ACCEPT"
@@ -146,18 +149,18 @@ def po_cot(state: PortfolioState) -> dict:
     flags = state.get("concentration_flags", [])
     el = state.get("el_impact_inr", 0.0)
     
-    # Feed deterministic results to LLM to ensure alignment
+    # Enhanced prompt for detailed narrative
     prompt = (
-        f"You are a portfolio risk manager. Assess this loan's impact. "
-        f"Recommendation: {rec}. Concentration flags: {flags or 'None'}. "
-        f"Expected Loss impact: ₹{el:,.0f}. "
-        f"Analysis indicates this loan {'worsens' if rec != 'ACCEPT' else 'maintains'} portfolio diversification. "
-        "Write 2 concise sentences for the credit file."
+        f"You are a portfolio risk advisor. Provide a VERY concise strategy observation (max 2 short sentences). "
+        f"Concentration risk: {rec}. Flags matched: {flags or 'None'}. "
+        f"Expected Loss (EL) impact: ₹{el:,.1f}. "
+        f"The loan is for a {state.get('app_dict', {}).get('loan_purpose', 'requested')} product. "
+        "Explain the high-level impact and finish. Be extremely brief."
     )
     
-    cot = _call_gemini(prompt, fallback=f"Portfolio impact: {rec}. EL impact ₹{el:,.0f}.")
+    cot = _call_gemini(prompt, fallback=f"Portfolio impact: {rec}. EL impact ₹{el:,.0f}. Strategy observation complete.")
     
-    # Alignment enforcement: if LLM detects worsening but rec is ACCEPT, downgrade to CAUTION
+    # Downgrade to CAUTION if Gemini detects worsening
     final_rec = rec
     if "worsen" in cot.lower() and rec == "ACCEPT":
         final_rec = "CAUTION"
@@ -170,7 +173,7 @@ def po_finalize(state: PortfolioState) -> dict:
     _log_event(state["application_id"], "portfolio_graph", "NODE", {"node": "finalize"})
     
     if state.get("error"):
-        return {"output": {"error": state["error"], "portfolio_recommendation": "ACCEPT"}}
+        return {"output": {"error": state["error"], "portfolio_recommendation": "ACCEPT", "el_impact_inr": 0.0}}
         
     ps = state.get("portfolio_stats", {})
     out = {
@@ -183,7 +186,7 @@ def po_finalize(state: PortfolioState) -> dict:
         "risk_band_distribution": ps.get("risk_band_distribution", {}),
         "el_impact_inr": state.get("el_impact_inr", 0.0),
         "concentration_flags": state.get("concentration_flags", []),
-        "similar_cases_npa_rate": 0.038,
+        "similar_cases_npa_rate": ps.get("portfolio_npa_rate", 0.038),
         "cot_reasoning": state.get("cot_reasoning", ""),
     }
     return {"output": out}

@@ -46,25 +46,34 @@ def co_run_rules(state: ComplianceState) -> dict:
 
 def co_cot(state: ComplianceState) -> dict:
     """
-    Node 3 (CONDITIONAL): Chain-of-Thought reasoning via Gemini.
-    Only runs when there are WARNING-level flags that need nuanced analysis.
+    Node 3: Chain-of-Thought reasoning via Gemini.
+    Now runs for ALL cases to provide audit rationale as requested.
     """
     from tools import _call_gemini, _log_event
     _log_event(state["application_id"], "compliance_graph", "NODE", {"node": "cot"})
     r     = state["rule_result"]
     warns = r.get("warn_flags", [])
+    blocks = r.get("block_flags", [])
     f     = state["features"]
+    
     warn_text = "; ".join(f"{w['rule_id']}: {w['description']}" for w in warns)
+    block_text = "; ".join(f"{b['rule_id']}: {b['description']}" for b in blocks)
     income    = f.get("annual_income_verified", 0)
     foir      = f.get("foir", 0)
     product   = state["form_data"].get("loan_purpose", "PERSONAL")
 
-    cot = _call_gemini(
-        f"You are an RBI compliance officer. Analyse these compliance warnings: {warn_text}. "
-        f"Applicant: {product} loan, income ₹{income:,.0f}, FOIR {foir:.1%}. "
-        f"For each warning, give: [RULE_ID]: 1-sentence reasoning → PROCEED / HOLD. Be brief.",
-        fallback=f"Warnings noted: {warn_text}. Manual review recommended for flagged items."
-    )
+    if not warns and not blocks:
+        prompt = (f"You are an RBI compliance officer. The application for a {product} loan (Income: ₹{income:,.0f}) "
+                 "has passed all standard compliance blocks and regulatory checks. "
+                 "Write a 2-sentence audit trail summary confirming the application's adherence to standard bank policy.")
+        fallback = "System checks validated against standard bank policies. All regulatory gates passed."
+    else:
+        prompt = (f"You are an RBI compliance officer. Analyze these compliance flags - Blocks: {block_text or 'None'}, Warnings: {warn_text or 'None'}. "
+                 f"Applicant: {product} loan, income ₹{income:,.0f}, FOIR {foir:.1%}. "
+                 f"Provide a brief 2-3 sentence audit trail & rationale explaining the impact of these findings. Be specific.")
+        fallback = f"Regulatory check found flags: {block_text or warn_text}. Manual compliance review required."
+
+    cot = _call_gemini(prompt, fallback=fallback)
     return {"cot_reasoning": cot}
 
 
@@ -74,23 +83,20 @@ def co_finalize(state: ComplianceState) -> dict:
     r = state.get("rule_result", {})
     if state.get("error"):
         out = {"application_id": state["application_id"], "error": state["error"],
-               "all_blocks_passed": False, "overall_status": "BLOCK_FAIL"}
+               "all_blocks_passed": False, "overall_status": "BLOCK_FAIL", "rbi_compliant": False}
     else:
         all_passed = r.get("all_blocks_passed", True)
-        fallback_cot = (
-            "All compliance rules passed."
-            if all_passed and not r.get("warn_flags")
-            else f"{'Blocks: ' + ','.join(b['rule_id'] for b in r.get('block_flags', [])) if not all_passed else 'Warnings noted.'}"
-        )
         out = {
             "application_id":     state["application_id"],
             "all_blocks_passed":  all_passed,
+            "rbi_compliant":      all_passed,
             "block_flags":        r.get("block_flags", []),
             "warn_flags":         r.get("warn_flags", []),
             "overall_status":     r.get("overall_status", "PASS"),
             "kyc_complete":       r.get("kyc_complete", True),
             "aml_review_required": r.get("aml_review_required", False),
-            "cot_reasoning":      state.get("cot_reasoning", fallback_cot),
+            "cot_reasoning":      state.get("cot_reasoning", "Compliance check completed."),
+            "narrative":          state.get("cot_reasoning", "System checks validated against standard bank policies."),
             "audit_hash":         r.get("audit_hash", ""),
         }
     return {"output": out}
@@ -99,8 +105,8 @@ def co_finalize(state: ComplianceState) -> dict:
 def _co_route_after_rules(state: ComplianceState) -> str:
     if state.get("error"):
         return "finalize"
-    warns = state.get("rule_result", {}).get("warn_flags", [])
-    return "cot" if warns else "finalize"
+    # Always run cot for detailed audit trail
+    return "cot"
 
 
 def build_compliance_graph():

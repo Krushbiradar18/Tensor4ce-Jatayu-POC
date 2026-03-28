@@ -4,7 +4,7 @@ Transforms raw form input into a typed ApplicationContext.
 No OCR dependencies required — uses form data directly for PoC.
 """
 from __future__ import annotations
-import re, json, math, hashlib, logging
+import os, re, json, math, hashlib, logging
 from datetime import date, datetime
 from pathlib import Path
 from typing import Optional
@@ -87,15 +87,22 @@ def get_bureau_data(pan: str) -> dict:
     # Try to get real data from loaded dataset
     try:
         from dataset_loader import get_cibil_data
-        real_data = get_cibil_data(pan)
-        if real_data:
-            logger.info(f"[DIL] Using real CIBIL data from dataset for PAN {pan}")
-            return real_data
+        # 1. Try DB first
+        db_row = get_cibil_data(pan)
+        if db_row:
+            logger.info(f"[DIL] Using REAL bureau DB data for PAN {pan}")
+            # Sanitize/Clamp slightly to ensure UI perfection
+            raw_util = db_row.get("credit_utilization_pct", 0.2)
+            if raw_util > 1.0: # If it was expressed as 43 instead of 0.43
+                 raw_util /= 100.0
+            db_row["credit_utilization_pct"] = max(0.05, min(0.95, raw_util))
+            return db_row
     except Exception as e:
-        logger.warning(f"[DIL] Could not load CIBIL data from dataset: {e}")
+        logger.warning(f"[DIL] DB lookup failed for bureau data: {e}")
 
-    # Check overrides
-    overrides_path = Path("data/bureau_mock_rules.json")
+    # 2. Try Manual overrides json
+    data_dir = os.environ.get("DATA_DIR", "data")
+    overrides_path = Path(data_dir) / "bureau_overrides.json"
     if overrides_path.exists():
         rules = json.loads(overrides_path.read_text())
         override = rules.get("pan_overrides", {}).get(pan.upper())
@@ -114,7 +121,7 @@ def get_bureau_data(pan: str) -> dict:
         "payment_history_score":    float(int(80 * (cibil - 300) / 600 + 20)),
         "dpd_30_count":             max(0, int((650 - cibil) / 80)) if cibil < 650 else 0,
         "dpd_90_count":             max(0, int((550 - cibil) / 80)) if cibil < 550 else 0,
-        "credit_utilization_pct":   round(0.2 + (0.6 * (900 - cibil) / 600), 2),
+        "credit_utilization_pct":   max(0.05, min(0.95, round(0.2 + (0.6 * (900 - cibil) / 600), 2))),
         "oldest_account_age_years": round(1 + (8 * (cibil - 300) / 600), 1),
         "total_outstanding_debt":   float((h % 500000) + 50000),
         "bureau_unavailable":       cibil == 0,
@@ -249,6 +256,8 @@ def run_dil_pipeline(
         income_stability_score  = round(inc_stability, 4),
         # Collateral
         ltv_ratio               = round(min(ltv, 2.0), 4),
+        loan_amount_requested   = form.loan_amount_requested,
+        loan_tenure_months      = form.loan_tenure_months,
         loan_to_income_ratio    = round(loan_inc_ratio, 4),
         loan_purpose_risk_weight= LOAN_PRODUCT_RISK.get(product, 0.5),
         tenure_risk_score       = round(form.loan_tenure_months / 360, 4),

@@ -644,6 +644,22 @@ def officer_action(app_id: str, action: OfficerAction):
 
 
 
+@app.post("/api/officer/login")
+def login(credentials: dict):
+    email = credentials.get("email")
+    password = credentials.get("password")
+    
+    # Simple hardcoded check for PoC
+    if email == "admin" and password == "admin123":
+        return {
+            "success": True, 
+            "token": "fake-jwt-token-for-poc",
+            "user": {"email": email, "name": "Admin Officer", "role": "Loan Officer"}
+        }
+    
+    raise HTTPException(status_code=401, detail="Invalid credentials")
+
+
 @app.get("/api/health")
 def health():
     from dil import _BLACKLIST
