@@ -257,7 +257,16 @@ def submit_application(req: SubmitRequest, background_tasks: BackgroundTasks):
 
     app_id = f"APP-{uuid.uuid4().hex[:8].upper()}"
     req.form_data["application_id"] = app_id
+    
+    # Log application submission event
     db.save_application(app_id, req.form_data, req.ip_metadata)
+    
+    # Check if frontend reported OCR extraction issues
+    if req.document_data and req.document_data.get("extraction_failed"):
+        db.log_event(app_id, "system", "OCR_EXTRACTION_FAILED", {
+            "message": "Frontend reported OCR extraction failure or data mismatch.",
+            "error": req.document_data.get("extraction_error", "Unknown error")
+        })
 
     # ── Document identity check (when OCR data is provided) ──────────────────
     if req.document_data:

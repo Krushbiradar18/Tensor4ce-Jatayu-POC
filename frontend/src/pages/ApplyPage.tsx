@@ -134,7 +134,7 @@ export default function ApplyPage() {
 
     if (aadhaar || pan) {
       setIsProcessingOcr(true);
-      toast({ title: "OCR Processing", description: "Extracting data from your documents..." });
+
       try {
         const data = await extractDocuments(aadhaar, pan);
         console.log("OCR Result:", data);
@@ -145,10 +145,12 @@ export default function ApplyPage() {
         if (data.pan_number && !personal.panNumber) updateP("panNumber", data.pan_number);
         if (data.aadhaar_number && !personal.aadhaarNumber) updateP("aadhaarNumber", data.aadhaar_number);
 
-        toast({ title: "OCR Complete", description: "Successfully extracted data from documents." });
+        toast({ title: "Document Uploaded", description: "Verification check will be performed by our team." });
       } catch (err) {
-        console.error("OCR Error:", err);
-        toast({ title: "OCR Failed", description: "Could not extract data automatically.", variant: "destructive" });
+        console.error("OCR Extraction Error:", err);
+        // Silently mark as failed for backend audit but don't error to user
+        setOcrData((prev: any) => ({ ...prev, extraction_failed: true, extraction_error: String(err) }));
+        toast({ title: "Document Uploaded", description: "Processing initiated." });
       } finally {
         setIsProcessingOcr(false);
       }

@@ -30,6 +30,7 @@ export default function OfficerApplicationDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [decision, setDecision] = useState<string>("APPROVED");
   const [notes, setNotes] = useState("");
+  const [isAuditExpanded, setIsAuditExpanded] = useState(false);
   const { toast } = useToast();
 
   const isFinalStatus = (status: string) => 
@@ -456,6 +457,92 @@ export default function OfficerApplicationDetailPage() {
               </div>
             </div>
           </AgentSection>
+          <AgentSection 
+            title="5. COMPREHENSIVE AUDIT TRAIL & TRANSMISSION EVENTS" 
+            icon={Activity}
+            action={
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setIsAuditExpanded(!isAuditExpanded)}
+                className="h-6 px-2 text-[10px] font-bold text-muted-foreground hover:text-primary transition-colors"
+              >
+                {isAuditExpanded ? "COLLAPSE HISTORY" : "EXPAND AUDIT LOG"}
+              </Button>
+            }
+          >
+            {isAuditExpanded ? (
+              <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="border rounded-lg bg-muted/10 overflow-hidden">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-muted/50 text-[10px] font-bold uppercase tracking-widest text-muted-foreground border-b border-muted">
+                        <th className="px-4 py-2 w-1/4">Timestamp</th>
+                        <th className="px-4 py-2 w-1/6">Level</th>
+                        <th className="px-4 py-2 w-1/4">Event Source</th>
+                        <th className="px-4 py-2">Details / Narrative</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-muted/30">
+                      {(app.audit_log || []).slice().reverse().map((event: any, i: number) => {
+                        const isOfficer = (event.agent_name || "").toLowerCase() === "officer";
+                        const isSystem = (event.agent_name || "").toLowerCase() === "system";
+                        const isBot = !isOfficer && !isSystem;
+                        return (
+                          <tr key={i} className={`text-[11px] hover:bg-muted/5 transition-colors ${isOfficer ? "bg-primary/5 font-medium" : ""}`}>
+                            <td className="px-4 py-2 text-muted-foreground font-mono">
+                              {new Date(event.created_at || event.timestamp).toLocaleString(undefined, { 
+                                hour: '2-digit', 
+                                minute: '2-digit', 
+                                second: '2-digit',
+                                day: '2-digit',
+                                month: 'short'
+                              })}
+                            </td>
+                            <td className="px-4 py-2">
+                              <Badge variant="outline" className={`text-[9px] py-0 h-4 uppercase ${
+                                event.event_type === "ERROR" ? "text-destructive border-destructive/30" : 
+                                event.event_type === "OFFICER_ACTION" ? "text-primary border-primary/30" : "text-muted-foreground"
+                              }`}>
+                                {(event.event_type || event.event_name || "EVENT").replace("_", " ")}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-2 flex items-center gap-2">
+                              {isOfficer ? <ShieldCheck className="h-3 w-3 text-primary" /> : isSystem ? <ShieldCheck className="h-3 w-3 text-muted-foreground" /> : <Bot className="h-3 w-3 text-primary" />}
+                              <span className="capitalize">{event.agent_name || "System"}</span>
+                            </td>
+                            <td className="px-4 py-2 max-w-lg truncate" title={JSON.stringify(event.payload)}>
+                              <p className="text-foreground/90 leading-relaxed font-light">
+                                {event.payload?.reason || event.payload?.message || (typeof event.payload === 'string' ? event.payload : "View Payload Data")}
+                              </p>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {(app.audit_log || []).length === 0 && (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground italic tracking-tight">No audit events recorded for this vector.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="flex justify-between items-center text-[10px] text-muted-foreground px-2">
+                  <div className="flex items-center gap-4">
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-primary/20" /> OFFICER ACTION</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-muted/40" /> SYSTEM / AGENT EVENT</span>
+                  </div>
+                  <p className="font-mono">SID: {id}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center p-8 gap-3 border border-dashed rounded-lg bg-muted/5 opacity-70">
+                 <Activity className="h-8 w-8 text-muted-foreground/30" />
+                 <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Transmission Log Secreted</p>
+                 <Button variant="outline" size="sm" onClick={() => setIsAuditExpanded(true)} className="h-8 text-[10px] font-bold">REVEAL LOGS</Button>
+              </div>
+            )}
+          </AgentSection>
         </div>
       )}
 
@@ -557,12 +644,15 @@ function AgentStatCard({ title, value, icon: Icon, color }: { title: string; val
   );
 }
 
-function AgentSection({ title, icon: Icon, children }: any) {
+function AgentSection({ title, icon: Icon, action, children }: any) {
   return (
     <div className="border rounded-md overflow-hidden bg-card">
-      <div className="bg-muted/30 py-2 px-4 border-b flex items-center gap-2">
-        <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-        <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{title}</h4>
+      <div className="bg-muted/30 py-2 px-4 border-b flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+          <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{title}</h4>
+        </div>
+        {action}
       </div>
       <div className="p-4">
         {children}
