@@ -20,10 +20,11 @@ const statusColors: Record<string, string> = {
 };
 
 export default function OfficerDashboardPage() {
-  const { data: apps = [], isLoading, isFetching, refetch } = useQuery({
+
+  const { data: apps = [], isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ["officerQueue"],
     queryFn: getOfficerQueue,
-    refetchInterval: 15000, // Background poll every 15s
+    refetchInterval: 15000, 
   });
 
   const total = apps.length;
@@ -47,14 +48,26 @@ export default function OfficerDashboardPage() {
     try { return JSON.parse(str); } catch (e) { return {}; }
   };
 
+
   if (isLoading) {
     return (
-      <div className="space-y-6 animate-fade-in p-6">
-        <div className="h-8 w-48 bg-muted rounded animate-pulse mb-6" />
+      <div className="p-6 space-y-6 animate-fade-in">
+        <div className="h-8 w-48 bg-muted rounded animate-pulse" />
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {[1,2,3,4].map(i => <div key={i} className="h-32 bg-muted rounded animate-pulse" />)}
         </div>
-        <div className="h-64 bg-muted rounded animate-pulse" />
+        <div className="h-96 bg-muted rounded animate-pulse" />
+      </div>
+    );
+  }
+
+
+  if (isError) {
+    return (
+      <div className="p-10 text-center space-y-4">
+        <div className="text-destructive font-semibold">Error connecting to local backend</div>
+        <p className="text-sm text-muted-foreground">Make sure the backend is running and you have access.</p>
+        <Button onClick={() => refetch()} variant="outline"><RefreshCw className="mr-2 h-4 w-4" /> Retry Connection</Button>
       </div>
     );
   }

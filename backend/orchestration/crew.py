@@ -233,50 +233,54 @@ def run_via_crewai(app_id: str) -> dict:
         agent=credit_agent,
     )
     fraud_task = Task(
-        description=f"You MUST call the 'run_fraud_model' MCP tool for application {app_id} exactly ONCE. "
-                    f"Once you receive the JSON, provide it as your final answer and finish immediately.",
-        expected_output="Valid JSON with fraud_level, fraud_probability, and explanation.",
+        description=f"1. Call the 'run_fraud_model' MCP tool for application {app_id}.\n"
+                    f"2. Your FINAL ANSWER MUST BE the exact raw JSON string results received.\n"
+                    f"Finish immediately.",
+        expected_output="JSON with fraud_probability, fraud_level, and flags.",
         agent=fraud_agent,
     )
     compliance_task = Task(
-        description=f"You MUST call the 'check_rbi_rules' MCP tool for application {app_id} exactly ONCE. "
-                    f"Once you receive the JSON, provide it as your final answer and finish immediately.",
-        expected_output="JSON with all_blocks_passed, block_flags, and overall_status.",
+        description=f"1. Execute the 'check_rbi_rules' tool for application {app_id} ONCE.\n"
+                    f"2. Inspect the JSON result.\n"
+                    f"3. Your FINAL ANSWER MUST BE the exact raw JSON string received from the tool.\n"
+                    f"DO NOT perform any other logic or call any other tools. Finish immediately.",
+        expected_output="Valid JSON string from the check_rbi_rules tool.",
         agent=compliance_agent,
-        context=[credit_task],
+        context=[credit_task]
     )
     portfolio_task = Task(
-        description=f"You MUST call the 'run_portfolio_model' MCP tool for application {app_id} exactly ONCE. "
-                    f"Once you receive the JSON, provide it as your final answer and finish immediately.",
-        expected_output="JSON with portfolio_recommendation and el_impact_inr.",
+        description=f"1. Call the 'run_portfolio_model' MCP tool for application {app_id}.\n"
+                    f"2. Your FINAL ANSWER MUST BE the exact raw JSON string results received.\n"
+                    f"Finish immediately.",
+        expected_output="JSON with portfolio_recommendation and impact.",
         agent=portfolio_agent,
         context=[credit_task, compliance_task],
     )
+
 
     # ── Crew kickoff ─────────────────────────────────────────────────────────
     crew = Crew(
         agents=[manager, credit_agent, fraud_agent, compliance_agent, portfolio_agent],
         tasks=[credit_task, fraud_task, compliance_task, portfolio_task],
         process=Process.sequential,
-        memory=False,   # Disabled: requires OpenAI key; we use Vertex AI
+        memory=False,
         verbose=True,
-        max_rpm=10,      # Slightly increased RPM for better throughput
+        max_rpm=15,
     )
 
     raw_result = crew.kickoff(inputs={"application_id": app_id})
     _log_event(app_id, "orchestrator", "CREWAI_COMPLETE", {})
 
-    # ── After CrewAI runs, invoke each agent via A2A to get typed outputs ──
-    # (CrewAI text output is supplementary; real typed outputs come from tool calls during kickoff)
+    # ── After CrewAI runs, retrieve typed outputs from the A2A store ──
     from tools import get_agent_output, set_agent_output
     
-    credit_out = get_agent_output(app_id, "credit") or _safe_call_agent("credit_risk", app_id)
-    fraud_out  = get_agent_output(app_id, "fraud") or _safe_call_agent("fraud", app_id)
-    comp_out   = get_agent_output(app_id, "compliance") or _safe_call_agent("compliance", app_id)
-    port_out   = get_agent_output(app_id, "portfolio") or _safe_call_agent("portfolio", app_id, 
-                                                                           payload={"credit_risk_output": credit_out})
-    
-    # Ensure they are saved (in case they came from _safe_call_agent fallback)
+    # We retrieve what was cached during tool calls by the agents.
+    credit_out = get_agent_output(app_id, "credit") or _agent_fallback_output("credit_risk", app_id, "Manager skipped agent")
+    fraud_out  = get_agent_output(app_id, "fraud")  or _agent_fallback_output("fraud", app_id, "Manager skipped agent")
+    comp_out   = get_agent_output(app_id, "compliance") or _agent_fallback_output("compliance", app_id, "Manager skipped agent")
+    port_out   = get_agent_output(app_id, "portfolio") or _agent_fallback_output("portfolio", app_id, "Manager skipped agent")
+
+    # In case they were fallbacks, ensure they are stored for building the final decision
     set_agent_output(app_id, "credit", credit_out)
     set_agent_output(app_id, "fraud",  fraud_out)
     set_agent_output(app_id, "compliance", comp_out)

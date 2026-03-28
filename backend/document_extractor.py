@@ -19,10 +19,13 @@ logger = logging.getLogger(__name__)
 _ocr = None
 
 
+import os
 def _get_ocr():
     global _ocr
     if _ocr is None:
         from paddleocr import PaddleOCR
+        # Control PaddleOCR's own internal logging level
+        show_log = os.environ.get("LOG_LEVEL", "DEBUG").upper() == "DEBUG"
         _ocr = PaddleOCR(lang="en")
     return _ocr
 
@@ -54,9 +57,12 @@ def _extract_text_lines(pdf_path: str) -> list[str]:
     ocr = _get_ocr()
     images = _pdf_to_images(pdf_path)
     lines: list[str] = []
-    for img in images:
-        result = ocr.predict(img)
+    logger.info("Running OCR on %d pages...", len(images))
+    for i, img in enumerate(images):
+        logger.debug("Processing page %d...", i + 1)
+        result = ocr.ocr(img, cls=True)  # Use .ocr() for v3+ or .predict() if needed
         if not result:
+            logger.debug("No text found on page %d.", i + 1)
             continue
         for item in result:
             # PaddleOCR v3: item is a dict with 'rec_texts'
@@ -174,11 +180,13 @@ def extract_from_aadhaar_pdf(pdf_path: str) -> dict:
     if name is None:
         name = _find_name_fallback(lines)
 
-    return {
+    result = {
         "name": name,
         "aadhaar_number": _find_aadhaar(lines),
         "raw_lines": lines,
     }
+    logger.info("Aadhaar extraction complete: %s", {k: v for k, v in result.items() if k != 'raw_lines'})
+    return result
 
 
 def extract_from_pan_pdf(pdf_path: str) -> dict:
@@ -220,8 +228,10 @@ def extract_from_pan_pdf(pdf_path: str) -> dict:
     if name is None:
         name = _find_name_fallback(lines)
 
-    return {
+    result = {
         "name": name,
         "pan_number": _find_pan(lines),
         "raw_lines": lines,
     }
+    logger.info("PAN extraction complete: %s", {k: v for k, v in result.items() if k != 'raw_lines'})
+    return result

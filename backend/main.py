@@ -25,6 +25,9 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+# Silence LiteLLM console spam
+os.environ["LITELLM_LOG"] = "ERROR"
+
 from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -120,11 +123,19 @@ def _derive_processing_stage(status: str, audit_log: list[dict]) -> str:
     return "In progress"
 
 
+
 logging.basicConfig(
-    level=logging.INFO,
+    level=os.environ.get("LOG_LEVEL", "INFO").upper(),
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+# Suppress noise from libraries
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("litellm").setLevel(logging.WARNING)
+logging.getLogger("crewai").setLevel(logging.INFO)
+logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 
 # ── Lifespan (startup/shutdown) ────────────────────────────────────────────────
@@ -237,8 +248,9 @@ if frontend_dir.exists():
 
 # ── API Endpoints ──────────────────────────────────────────────────────────────
 
+
 @app.post("/api/apply")
-async def submit_application(req: SubmitRequest, background_tasks: BackgroundTasks):
+def submit_application(req: SubmitRequest, background_tasks: BackgroundTasks):
     import uuid
     from datetime import datetime
     from verification.verifier import run_preliminary_identity_precheck
@@ -329,8 +341,9 @@ async def submit_application(req: SubmitRequest, background_tasks: BackgroundTas
     }
 
 
+
 @app.post("/api/test/sample")
-async def submit_sample_application(background_tasks: BackgroundTasks):
+def submit_sample_application(background_tasks: BackgroundTasks):
     """
     Submits a sample high-quality application for testing.
     Uses a known-good PAN (RRKDN2234M) to ensure system flow results in Approval/Clearance.
@@ -384,8 +397,9 @@ async def submit_sample_application(background_tasks: BackgroundTasks):
     }
 
 
+
 @app.post("/api/test/rejected")
-async def submit_rejected_sample_application(background_tasks: BackgroundTasks):
+def submit_rejected_sample_application(background_tasks: BackgroundTasks):
     """
     Submits a sample application designed to be REJECTED.
     Uses a blacklisted PAN defined in dil.py.
@@ -484,8 +498,9 @@ async def _run_bg(app_id: str, form_data: dict, ip_meta: dict):
         db.log_event(app_id, "system", "ERROR", {"error": str(e)})
 
 
+
 @app.get("/api/status/{app_id}")
-async def get_status(app_id: str):
+def get_status(app_id: str):
     row = db.get_application(app_id)
     if not row:
         raise HTTPException(404, "Application not found")
@@ -511,23 +526,27 @@ async def get_status(app_id: str):
     return result
 
 
+
 @app.get("/api/officer/queue")
-async def officer_queue():
-    apps = db.list_applications(50)
+def officer_queue():
+    """
+    Returns the latest applications for the officer dashboard.
+    Synchronous definition allows FastAPI to run it in a threadpool, 
+    preventing event-loop starvation during intensive background processing.
+    """
+    apps = db.list_applications_extended(50)
+    app_ids = [a["application_id"] for a in apps]
+    bulk_logs = db.get_bulk_audit_logs(app_ids)
+    
     for a in apps:
-        d = db.get_decision(a["application_id"])
-        a["ai_recommendation"] = d.get("ai_recommendation") if d else None
-        a["processing_ms"]     = d.get("processing_time_ms") if d else None
-        try:
-            audit_log = db.get_audit_log(a["application_id"])
-        except Exception:
-            audit_log = []
+        audit_log = bulk_logs.get(a["application_id"], [])
         a["processing_stage"] = _derive_processing_stage(a.get("status", ""), audit_log)
     return apps
 
 
+
 @app.get("/api/officer/decision/{app_id}")
-async def get_full_decision(app_id: str):
+def get_full_decision(app_id: str):
     row = db.get_application(app_id)
     if not row:
         raise HTTPException(404, "Application not found")
@@ -609,8 +628,9 @@ async def extract_documents(
     return {**result, "errors": errors}
 
 
+
 @app.post("/api/officer/action/{app_id}")
-async def officer_action(app_id: str, action: OfficerAction):
+def officer_action(app_id: str, action: OfficerAction):
     row = db.get_application(app_id)
     if not row:
         raise HTTPException(404, "Application not found")
@@ -623,8 +643,9 @@ async def officer_action(app_id: str, action: OfficerAction):
     return {"success": True, "application_id": app_id, "decision": action.decision}
 
 
+
 @app.get("/api/health")
-async def health():
+def health():
     from dil import _BLACKLIST
     from agents_base import _PORTFOLIO, _RULES
     from dataset_loader import get_dataset_stats

@@ -9,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, Upload, X, ArrowLeft, ArrowRight, Save } from "lucide-react";
-import { submitApplication as submitApplicationAPI } from "@/lib/api";
+import { submitApplication as submitApplicationAPI, extractDocuments } from "@/lib/api";
 import { PersonalInfo, EmploymentInfo, LoanInfo, LoanType, LoanTerm, UploadedDoc } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
 
 const steps = ["Personal Info", "Employment", "Loan Details", "Review & Submit"];
 const loanTypes: LoanType[] = ["Personal"];
@@ -27,7 +28,9 @@ export default function ApplyPage() {
   const [personal, setPersonal] = useState<PersonalInfo>(initialPersonal);
   const [employment, setEmployment] = useState<EmploymentInfo>(initialEmployment);
   const [loan, setLoan] = useState<LoanInfo>(initialLoan);
-  const [docs, setDocs] = useState<UploadedDoc[]>([]);
+  const [docs, setDocs] = useState<File[]>([]);
+  const [ocrData, setOcrData] = useState<any>(null);
+  const [isProcessingOcr, setIsProcessingOcr] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const navigate = useNavigate();
@@ -96,7 +99,10 @@ export default function ApplyPage() {
         submitted_at: new Date().toISOString(),
       };
 
-      const response = await submitApplicationAPI(backendFormData);
+      const response = await submitApplicationAPI({
+        ...backendFormData,
+        document_data: ocrData,
+      });
       navigate(`/apply/success?id=${response.application_id}`);
     } catch (error) {
       toast({
@@ -113,16 +119,46 @@ export default function ApplyPage() {
     toast({ title: "Saved!", description: "Your progress has been saved. You can continue later." });
   };
 
+  const handleFiles = async (newFiles: File[]) => {
+    const updatedDocs = [...docs, ...newFiles];
+    setDocs(updatedDocs);
+    
+    // Identify Aadhaar and PAN by filename or type if possible, 
+    // but for PoC we can just try extracting from whatever was uploaded.
+    const aadhaar = updatedDocs.find(f => f.name.toLowerCase().includes("aadhaar") || f.name.toLowerCase().includes("id"));
+    const pan = updatedDocs.find(f => f.name.toLowerCase().includes("pan"));
+
+    if (aadhaar || pan) {
+      setIsProcessingOcr(true);
+      toast({ title: "OCR Processing", description: "Extracting data from your documents..." });
+      try {
+        const data = await extractDocuments(aadhaar, pan);
+        console.log("OCR Result:", data);
+        setOcrData(data);
+        
+        // Auto-fill fields if they are empty
+        if (data.name && !personal.fullName) updateP("fullName", data.name);
+        if (data.pan_number && !personal.panNumber) updateP("panNumber", data.pan_number);
+        if (data.aadhaar_number && !personal.aadhaarNumber) updateP("aadhaarNumber", data.aadhaar_number);
+
+        toast({ title: "OCR Complete", description: "Successfully extracted data from documents." });
+      } catch (err) {
+        console.error("OCR Error:", err);
+        toast({ title: "OCR Failed", description: "Could not extract data automatically.", variant: "destructive" });
+      } finally {
+        setIsProcessingOcr(false);
+      }
+    }
+  };
+
   const handleFileDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    const files = Array.from(e.dataTransfer.files);
-    setDocs((prev) => [...prev, ...files.map((f) => ({ name: f.name, type: f.type, size: f.size }))]);
+    handleFiles(Array.from(e.dataTransfer.files));
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
-    const files = Array.from(e.target.files);
-    setDocs((prev) => [...prev, ...files.map((f) => ({ name: f.name, type: f.type, size: f.size }))]);
+    handleFiles(Array.from(e.target.files));
   };
 
   const removeDoc = (idx: number) => setDocs((d) => d.filter((_, i) => i !== idx));
@@ -241,9 +277,18 @@ export default function ApplyPage() {
                     onDrop={handleFileDrop}
                     onClick={() => document.getElementById("file-input")?.click()}
                   >
-                    <Upload className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                    <p className="text-muted-foreground text-sm">Drag & drop files here or click to browse</p>
-                    <p className="text-xs text-muted-foreground mt-1">ID Proof, Income Proof, Address Proof</p>
+                    {isProcessingOcr ? (
+                      <div className="flex flex-col items-center py-4">
+                        <Loader2 className="h-10 w-10 text-primary animate-spin mb-3" />
+                        <p className="text-muted-foreground text-sm">Processing documents with AI...</p>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                        <p className="text-muted-foreground text-sm">Drag & drop files here or click to browse</p>
+                        <p className="text-xs text-muted-foreground mt-1">ID Proof, Income Proof, Address Proof</p>
+                      </>
+                    )}
                     <input id="file-input" type="file" multiple className="hidden" onChange={handleFileSelect} />
                   </div>
                   {docs.length > 0 && (

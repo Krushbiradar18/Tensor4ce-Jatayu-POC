@@ -66,7 +66,7 @@ def run_preliminary_identity_precheck(form_data: dict) -> tuple[bool, str, list[
     record = get_identity_record(user_pan) if user_pan else None
     if not record:
         mismatches.append("PAN_NOT_FOUND_IN_MOCK_BUREAU")
-        return False, "Inccorect and mismatch user data", mismatches
+        return False, "Incorrect and mismatch user data", mismatches
 
     expected_pan = str(record.get("pan", "")).upper().strip()
     expected_name = _normalize_name(str(record.get("name", "")))
@@ -94,7 +94,7 @@ def run_preliminary_identity_precheck(form_data: dict) -> tuple[bool, str, list[
         mismatches.append("AADHAAR_MISMATCH")
 
     if mismatches:
-        return False, "Inccorect and mismatch user data", mismatches
+        return False, "Incorrect and mismatch user data", mismatches
 
     return True, "", []
 

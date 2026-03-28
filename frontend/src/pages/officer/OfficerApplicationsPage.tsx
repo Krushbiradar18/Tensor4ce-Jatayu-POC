@@ -40,7 +40,8 @@ export default function OfficerApplicationsPage() {
     if (presetStatus) setStatusFilter(presetStatus);
   }, [presetSearch, presetStatus]);
 
-  const { data: allApps = [], isLoading, isFetching, refetch } = useQuery({
+
+  const { data: allApps = [], isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ["officerQueue"],
     queryFn: getOfficerQueue,
     refetchInterval: 15000,
@@ -85,12 +86,24 @@ export default function OfficerApplicationsPage() {
   const pageCount = Math.ceil(filtered.length / PAGE_SIZE);
   const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
+
+
   if (isLoading) {
     return (
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-6 animate-fade-in p-6">
         <h1 className="text-2xl font-bold font-display text-foreground">Applications</h1>
         <div className="h-10 bg-muted rounded animate-pulse" />
         <div className="h-96 bg-muted rounded animate-pulse" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="p-10 text-center space-y-4 rounded-xl border border-dashed mt-10">
+        <div className="text-destructive font-bold text-lg">Failed to sync applications</div>
+        <p className="text-muted-foreground text-sm">The backend might be busy or unreachable. Please try again.</p>
+        <Button onClick={() => refetch()} variant="outline"><RefreshCw className="mr-2 h-4 w-4" /> Retry Connection</Button>
       </div>
     );
   }

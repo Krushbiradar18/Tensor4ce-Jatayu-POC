@@ -107,6 +107,23 @@ export async function submitOfficerAction(
   return response.json();
 }
 
+export async function extractDocuments(aadhaarFile?: File, panFile?: File): Promise<any> {
+  const formData = new FormData();
+  if (aadhaarFile) formData.append("aadhaar", aadhaarFile);
+  if (panFile) formData.append("pan", panFile);
+
+  const response = await fetch(`${API_BASE}/extract-documents`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to extract document data: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
 export async function checkHealth(): Promise<any> {
   const response = await fetch(`${API_BASE}/health`);
 

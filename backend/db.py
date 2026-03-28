@@ -264,19 +264,28 @@ def get_audit_log(application_id: str) -> list[dict]:
     return [dict(row) for row in rows]
 
 
-def list_applications(limit: int = 50) -> list[dict]:
+
+def list_applications_extended(limit: int = 50) -> list[dict]:
+    """
+    Fetched applications and their latest decisions in a single optimized query.
+    Used by the Officer Dashboard to avoid N+1 query issues.
+    """
+    query = text("""
+        WITH latest_decisions AS (
+            SELECT application_id, payload,
+                   ROW_NUMBER() OVER (PARTITION BY application_id ORDER BY decided_at DESC) as rn
+            FROM decisions
+        )
+        SELECT a.application_id, a.status, a.created_at, a.raw_payload,
+               d.payload as decision_payload
+        FROM applications a
+        LEFT JOIN latest_decisions d ON a.application_id = d.application_id AND d.rn = 1
+        ORDER BY a.created_at DESC
+        LIMIT :limit
+    """)
+    
     with engine.begin() as conn:
-        rows = conn.execute(
-            text(
-                """
-                SELECT application_id, status, created_at, raw_payload
-                FROM applications
-                ORDER BY created_at DESC
-                LIMIT :limit
-                """
-            ),
-            {"limit": limit},
-        ).mappings().all()
+        rows = conn.execute(query, {"limit": limit}).mappings().all()
 
     result = []
     for row in rows:
@@ -290,5 +299,44 @@ def list_applications(limit: int = 50) -> list[dict]:
             item["applicant_name"] = "—"
             item["loan_purpose"] = "—"
             item["loan_amount"] = 0
+            
+        if item.get("decision_payload"):
+            try:
+                d = json.loads(item["decision_payload"])
+                item["ai_recommendation"] = d.get("ai_recommendation")
+                item["processing_ms"] = d.get("processing_time_ms")
+            except Exception:
+                item["ai_recommendation"] = None
+                item["processing_ms"] = None
+        else:
+            item["ai_recommendation"] = None
+            item["processing_ms"] = None
+            
         result.append(item)
+    return result
+
+
+def get_bulk_audit_logs(application_ids: list[str]) -> dict[str, list[dict]]:
+    """
+    Fetches audit logs for multiple applications in a single query.
+    """
+    if not application_ids:
+        return {}
+        
+    query = text("""
+        SELECT *
+        FROM audit_log
+        WHERE application_id IN :ids
+        ORDER BY application_id, id ASC
+    """)
+    
+    with engine.begin() as conn:
+        rows = conn.execute(query, {"ids": tuple(application_ids)}).mappings().all()
+        
+    result = {}
+    for row in rows:
+        app_id = row["application_id"]
+        if app_id not in result:
+            result[app_id] = []
+        result[app_id].append(dict(row))
     return result

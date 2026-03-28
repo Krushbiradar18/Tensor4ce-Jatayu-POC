@@ -53,8 +53,9 @@ async def agent_card():
     return AGENT_CARD
 
 
+
 @app.post("/a2a/tasks/send", response_model=A2ATaskResponse)
-async def run_task(req: A2ATaskRequest):
+def run_task(req: A2ATaskRequest):
     t0 = time.time()
     logger.info(f"[A2A][fraud] task_id={req.task_id} app_id={req.application_id}")
     try:
