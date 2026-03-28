@@ -179,65 +179,65 @@ def run_via_crewai(app_id: str) -> dict:
     # ── Specialist CrewAI Agent wrappers (thin shells over A2A) ─────────────
     credit_agent = Agent(
         role="Credit Risk Specialist",
-        goal="Compute PD, assign risk band, and generate narratives via LangGraph A2A.",
-        backstory="You are a Credit Risk Specialist. Your only job is to run the 'Run Credit Model' tool once and return its result.",
+        goal="Execute the 'run_credit_model' tool and return its exact JSON output.",
+        backstory="You are a Credit Risk Specialist. You MUST call the 'run_credit_model' tool immediately once with the provided application_id to get the risk assessment results. Do not provide thoughts or summaries; simply return the raw tool output.",
         tools=[run_credit_model],
         llm=llm,
         verbose=True,
         allow_delegation=False,
-        max_iter=1,
+        max_iter=3,
     )
     fraud_agent = Agent(
         role="Fraud Detection Specialist",
-        goal="Detect fraud and identity signals via LangGraph A2A.",
-        backstory="You are a Fraud Detection Specialist. Your only job is to run the 'Run Fraud Model' tool once and return its result.",
+        goal="Execute the 'run_fraud_model' tool and return its exact JSON output.",
+        backstory="You are a Fraud Detection Specialist. You MUST call the 'run_fraud_model' tool immediately once with the provided application_id to get fraud signals. Do not provide thoughts or summaries; simply return the raw tool output.",
         tools=[run_fraud_model],
         llm=llm,
         verbose=True,
         allow_delegation=False,
-        max_iter=1,
+        max_iter=3,
     )
     compliance_agent = Agent(
         role="Compliance Specialist",
-        goal="Check RBI regulatory compliance via LangGraph A2A.",
-        backstory="You are a Compliance Specialist. Your only job is to run the 'Check RBI Rules' tool once and return its result.",
+        goal="Execute the 'check_rbi_rules' tool and return its exact JSON output.",
+        backstory="You are a Compliance Specialist. You MUST call the 'check_rbi_rules' tool immediately once with the provided application_id to verify regulatory compliance. Do not provide thoughts or summaries; simply return the raw tool output.",
         tools=[check_rbi_rules],
         llm=llm,
         verbose=True,
         allow_delegation=False,
-        max_iter=1,
+        max_iter=3,
     )
     portfolio_agent = Agent(
         role="Portfolio Intelligence Specialist",
-        goal="Assess portfolio concentration and EL impact via LangGraph A2A.",
-        backstory="You are a Portfolio Specialist. Your only job is to run the 'Run Portfolio Model' tool once and return its result.",
+        goal="Execute the 'run_portfolio_model' tool and return its exact JSON output.",
+        backstory="You are a Portfolio Specialist. You MUST call the 'run_portfolio_model' tool immediately once with the provided application_id to assess portfolio impact. Do not provide thoughts or summaries; simply return the raw tool output.",
         tools=[run_portfolio_model],
         llm=llm,
         verbose=True,
         allow_delegation=False,
-        max_iter=1,
+        max_iter=3,
     )
 
     # ── Tasks ────────────────────────────────────────────────────────────────
     credit_task = Task(
-        description=f"Directly invoke the 'Run Credit Model' tool for application {app_id}. Return its exact JSON output and nothing else.",
-        expected_output="Raw JSON from Credit Risk agent.",
+        description=f"Invoke the 'run_credit_model' tool for application {app_id}. You must return the raw JSON result from the tool.",
+        expected_output="The raw JSON dictionary from the credit risk specialist agent.",
         agent=credit_agent,
     )
     fraud_task = Task(
-        description=f"Directly invoke the 'Run Fraud Model' tool for application {app_id}. Return its exact JSON output and nothing else.",
-        expected_output="Raw JSON from Fraud agent.",
+        description=f"Invoke the 'run_fraud_model' tool for application {app_id}. You must return the raw JSON result from the tool.",
+        expected_output="The raw JSON dictionary from the fraud specialist agent.",
         agent=fraud_agent,
     )
     compliance_task = Task(
-        description=f"Directly invoke the 'Check RBI Rules' tool for application {app_id}. Return its exact JSON output and nothing else.",
-        expected_output="Raw JSON from Compliance agent.",
+        description=f"Invoke the 'check_rbi_rules' tool for application {app_id}. You must return the raw JSON result from the tool.",
+        expected_output="The raw JSON dictionary from the compliance specialist agent.",
         agent=compliance_agent,
         context=[credit_task]
     )
     portfolio_task = Task(
-        description=f"Directly invoke the 'Run Portfolio Model' tool for application {app_id}. Return its exact JSON output and nothing else.",
-        expected_output="Raw JSON from Portfolio agent.",
+        description=f"Invoke the 'run_portfolio_model' tool for application {app_id}. You must return the raw JSON result from the tool.",
+        expected_output="The raw JSON dictionary from the portfolio specialist agent.",
         agent=portfolio_agent,
         context=[credit_task, compliance_task],
     )
