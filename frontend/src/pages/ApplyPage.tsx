@@ -53,7 +53,7 @@ export default function ApplyPage() {
     } else if (step === 1) {
       if (!employment.employmentStatus) e.employmentStatus = "Required";
       if (!employment.employerName.trim()) e.employerName = "Required";
-      if (!employment.jobTitle.trim()) e.jobTitle = "Required";
+      // if (!employment.jobTitle.trim()) e.jobTitle = "Required";
       if (employment.monthlyIncome <= 0) e.monthlyIncome = "Enter valid income";
       if (employment.yearsAtJob < 0) e.yearsAtJob = "Enter valid years";
     } else if (step === 2) {
