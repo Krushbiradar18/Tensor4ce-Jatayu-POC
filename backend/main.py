@@ -30,7 +30,8 @@ from pathlib import Path
 # Silence LiteLLM console spam
 os.environ["LITELLM_LOG"] = "ERROR"
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File
+from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Depends
+from auth import create_access_token, get_current_officer
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -539,7 +540,7 @@ def get_status(app_id: str):
 
 
 @app.get("/api/officer/queue")
-def officer_queue():
+def officer_queue(current_user: dict = Depends(get_current_officer)):
     """
     Returns the latest applications for the officer dashboard.
     Synchronous definition allows FastAPI to run it in a threadpool, 
@@ -557,7 +558,7 @@ def officer_queue():
 
 
 @app.get("/api/officer/decision/{app_id}")
-def get_full_decision(app_id: str):
+def get_full_decision(app_id: str, current_user: dict = Depends(get_current_officer)):
     row = db.get_application(app_id)
     if not row:
         raise HTTPException(404, "Application not found")
@@ -641,7 +642,7 @@ async def extract_documents(
 
 
 @app.post("/api/officer/action/{app_id}")
-def officer_action(app_id: str, action: OfficerAction):
+def officer_action(app_id: str, action: OfficerAction, current_user: dict = Depends(get_current_officer)):
     row = db.get_application(app_id)
     if not row:
         raise HTTPException(404, "Application not found")
@@ -655,6 +656,7 @@ def officer_action(app_id: str, action: OfficerAction):
 
 
 
+
 @app.post("/api/officer/login")
 def login(credentials: dict):
     email = credentials.get("email")
@@ -662,10 +664,13 @@ def login(credentials: dict):
     
     # Simple hardcoded check for PoC
     if email == "admin" and password == "admin123":
+        user_data = {"email": email, "name": "Admin Officer", "role": "Loan Officer"}
+        token = create_access_token(user_data)
+        
         return {
             "success": True, 
-            "token": "fake-jwt-token-for-poc",
-            "user": {"email": email, "name": "Admin Officer", "role": "Loan Officer"}
+            "token": token,
+            "user": user_data
         }
     
     raise HTTPException(status_code=401, detail="Invalid credentials")

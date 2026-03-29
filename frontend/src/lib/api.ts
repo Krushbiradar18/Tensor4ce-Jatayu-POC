@@ -39,6 +39,17 @@ export interface OfficerActionRequest {
   reason: string;
 }
 
+function getAuthHeaders(contentType: string = "application/json") {
+  const token = localStorage.getItem("officer_token");
+  const headers: Record<string, string> = {
+    "Content-Type": contentType,
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 export async function submitApplication(formData: Record<string, any>): Promise<ApplicationResponse> {
   const response = await fetch(`${API_BASE}/apply`, {
     method: "POST",
@@ -71,7 +82,9 @@ export async function getApplicationStatus(appId: string): Promise<ApplicationRe
 }
 
 export async function getOfficerQueue(): Promise<OfficerQueueItem[]> {
-  const response = await fetch(`${API_BASE}/officer/queue`);
+  const response = await fetch(`${API_BASE}/officer/queue`, {
+    headers: getAuthHeaders()
+  });
 
   if (!response.ok) {
     throw new Error(`Failed to get officer queue: ${response.statusText}`);
@@ -81,7 +94,9 @@ export async function getOfficerQueue(): Promise<OfficerQueueItem[]> {
 }
 
 export async function getFullDecision(appId: string): Promise<any> {
-  const response = await fetch(`${API_BASE}/officer/decision/${appId}`);
+  const response = await fetch(`${API_BASE}/officer/decision/${appId}`, {
+    headers: getAuthHeaders()
+  });
 
   if (!response.ok) {
     throw new Error(`Failed to get decision: ${response.statusText}`);
@@ -96,7 +111,7 @@ export async function submitOfficerAction(
 ): Promise<{ success: boolean; application_id: string; decision: string }> {
   const response = await fetch(`${API_BASE}/officer/action/${appId}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify(action),
   });
 
