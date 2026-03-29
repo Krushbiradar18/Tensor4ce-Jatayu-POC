@@ -114,10 +114,21 @@ export default function OfficerApplicationDetailPage() {
 
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold font-sans text-foreground">{formData.applicant_name || "Applicant Details"}</h1>
-          <p className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
-            <span className="bg-muted px-2 py-0.5 rounded text-[10px] font-mono border">{id}</span>
-            <span>• {formData.email}</span>
+          <div className="flex items-center gap-3 mb-1">
+            <h1 className="text-3xl font-black font-display text-foreground tracking-tight uppercase">{formData.applicant_name || "Applicant Details"}</h1>
+            <Badge variant="outline" className="text-[10px] font-bold border-primary/30 text-primary bg-primary/5 uppercase tracking-tighter shadow-sm">Verified Profile</Badge>
+          </div>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em] font-bold flex items-center gap-2 opacity-80">
+            <span className="flex h-2 w-2 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-40"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary shadow-[0_0_8px_hsl(var(--primary))]"></span>
+            </span>
+            ARIA AI Deep Risk Intelligence Active
+          </p>
+          <p className="text-[10px] text-muted-foreground flex items-center gap-2 mt-3 font-mono opacity-60">
+            <span>REFERENCE: {id}</span>
+            <span>•</span>
+            <span className="lowercase">{formData.email}</span>
           </p>
         </div>
       </div>

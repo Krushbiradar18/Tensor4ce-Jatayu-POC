@@ -6,9 +6,9 @@ export default function AboutPage() {
     <PublicLayout>
       <div className="bg-hero-gradient py-24">
         <div className="container mx-auto px-4 text-center">
-          <h1 className="text-5xl md:text-6xl font-bold font-display text-primary-foreground mb-6">About ARIA</h1>
+          <h1 className="text-5xl md:text-6xl font-bold font-display text-primary-foreground mb-6">About Tensor Bank</h1>
           <p className="text-xl text-primary-foreground/80 max-w-3xl mx-auto font-light leading-relaxed">
-            Leading the future of modern finance. We provide smart digital infrastructure for next-generation financial services, making banking fast, secure, and accessible for everyone.
+            Leading the future of modern finance. We are a digital-first institution providing next-generation financial services, making banking fast, secure, and accessible for everyone.
           </p>
         </div>
       </div>

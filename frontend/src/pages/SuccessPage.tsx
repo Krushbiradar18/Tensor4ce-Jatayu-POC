@@ -43,7 +43,7 @@ export default function SuccessPage() {
             <Link to={`/track?id=${id}`}>Track Status <ArrowRight className="ml-2 h-5 w-5" /></Link>
           </Button>
           <Button asChild size="lg" variant="outline" className="h-14 px-10 border-primary/20 hover:bg-primary/5">
-            <Link to="/">Exit Command</Link>
+            <Link to="/">Return to Home</Link>
           </Button>
         </div>
       </div>

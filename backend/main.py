@@ -1,7 +1,9 @@
 """
 main.py — FastAPI Application (Refactored v3.1)
 =================================================
-5-Layer Architecture per Tensor4ce Stage 2 Solutioning v3.1:
+Developed by Team Tensor4ce:
+Yash Agrawal, Karan Panchal, Nesar Wagannawar, Krushnali Biradar
+
 
   Layer 1: Frontend (React) — served as static files
   Layer 2: API Gateway — this file (FastAPI, JWT auth stub, background tasks)
@@ -187,7 +189,7 @@ async def lifespan(app: FastAPI):
 
 # ── App & Middleware ───────────────────────────────────────────────────────────
 
-app = FastAPI(title="ARIA - Agentic Risk Intelligence & Analytics", version="2.4.0", lifespan=lifespan)
+app = FastAPI(title="ARIA AI (Agentic Risk Intelligence and Analytics)", version="2.4.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 

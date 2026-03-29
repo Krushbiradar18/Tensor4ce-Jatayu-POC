@@ -8,6 +8,8 @@ import ApplyPage from "./pages/ApplyPage";
 import SuccessPage from "./pages/SuccessPage";
 import TrackPage from "./pages/TrackPage";
 import OfficerLoginPage from "./pages/officer/OfficerLoginPage";
+import AboutPage from "./pages/AboutPage";
+import ContactPage from "./pages/ContactPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import OfficerLayout from "./components/OfficerLayout";
 import OfficerDashboardPage from "./pages/officer/OfficerDashboardPage";
@@ -31,6 +33,8 @@ const App = () => (
           <Route path="/apply" element={<ApplyPage />} />
           <Route path="/apply/success" element={<SuccessPage />} />
           <Route path="/track" element={<TrackPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/contact" element={<ContactPage />} />
 
           {/* Officer Portal */}
           <Route path="/officer/login" element={<OfficerLoginPage />} />

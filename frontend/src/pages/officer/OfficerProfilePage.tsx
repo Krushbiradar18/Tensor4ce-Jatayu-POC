@@ -27,9 +27,8 @@ export default function OfficerProfilePage() {
       </div>
 
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="bg-muted lg:w-[400px]">
-          <TabsTrigger value="profile" className="flex items-center gap-2"><User className="h-4 w-4" /> Profile</TabsTrigger>
-          <TabsTrigger value="security" className="flex items-center gap-2"><Shield className="h-4 w-4" /> Security</TabsTrigger>
+        <TabsList className="bg-muted lg:w-[200px]">
+          <TabsTrigger value="profile" className="flex items-center gap-2 w-full"><User className="h-4 w-4" /> Profile</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="mt-6">
@@ -68,35 +67,6 @@ export default function OfficerProfilePage() {
                 <h4 className="text-sm font-semibold mb-2 flex items-center gap-2"><Wallet className="h-4 w-4 text-primary" /> Authority Limits</h4>
                 <p className="text-xs text-muted-foreground">Up to ₹50,00,000 for Personal Loans. Up to ₹2,00,00,000 for Home Loans. Higher amounts require escalation.</p>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-
-        <TabsContent value="security" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Platform Security</CardTitle>
-              <CardDescription>Manage your authentication and data access controls.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="p-4 bg-warning/5 border border-warning/20 rounded-lg flex items-center gap-3">
-                <Shield className="h-8 w-8 text-warning" />
-                <div>
-                  <p className="font-semibold text-warning-foreground">Two-Factor Authentication</p>
-                  <p className="text-sm text-muted-foreground">Stronger security for high-value loan approvals. <b>Mandatory</b> as per Corporate Policy.</p>
-                </div>
-                <Button variant="outline" size="sm" className="ml-auto">Configure</Button>
-              </div>
-              <div className="space-y-2 pt-4">
-                <Label>Current Password</Label>
-                <Input type="password" placeholder="••••••••" />
-              </div>
-              <div className="space-y-2">
-                <Label>New Password</Label>
-                <Input type="password" />
-              </div>
-              <Button variant="secondary" className="mt-2">Enable 2FA</Button>
             </CardContent>
           </Card>
         </TabsContent>

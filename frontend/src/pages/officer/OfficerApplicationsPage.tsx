@@ -111,7 +111,16 @@ export default function OfficerApplicationsPage() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold font-display text-foreground">Applications</h1>
+        <div>
+          <h1 className="text-3xl font-black font-display text-foreground tracking-tight uppercase">Applications</h1>
+          <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-[0.2em] font-bold flex items-center gap-2 opacity-80">
+            <span className="flex h-2 w-2 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-40"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary shadow-[0_0_8px_hsl(var(--primary))]"></span>
+            </span>
+            ARIA AI Risk Queue Access
+          </p>
+        </div>
         <div className="flex items-center gap-2">
           {isFetching && <RefreshCw className="h-4 w-4 animate-spin text-primary" />}
           <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>

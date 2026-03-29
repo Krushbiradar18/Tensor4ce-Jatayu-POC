@@ -20,32 +20,33 @@ export default function ContactPage() {
         <h1 className="text-4xl md:text-5xl font-bold font-display text-foreground mb-12 text-center tracking-tight">Intelligence Support</h1>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
           <Card className="shadow-lg border-primary/10">
-            <CardHeader><CardTitle className="font-display text-2xl">Connect with ARIA</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="font-display text-2xl">Connect with Tensor Bank</CardTitle></CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2"><Label>Full Name</Label><Input placeholder="John Doe" required className="h-11" /></div>
                 <div className="space-y-2"><Label>Institutional Email</Label><Input type="email" placeholder="john@institution.com" required className="h-11" /></div>
-                <div className="space-y-2"><Label>Inquiry Details</Label><Textarea placeholder="How can ARIA assist your risk management today?" required className="min-h-[120px]" /></div>
+                <div className="space-y-2"><Label>Inquiry Details</Label><Textarea placeholder="How can Tensor Bank assist your financial needs today?" required className="min-h-[120px]" /></div>
                 <Button type="submit" className="w-full h-12 bg-accent-gradient text-primary-foreground font-semibold text-base hover:scale-[1.02] transition-transform">Dispatch Inquiry</Button>
               </form>
             </CardContent>
           </Card>
-          <div className="space-y-10 py-4">
-            {[
-              { icon: Phone, title: "Global Intelligence Line", desc: "+1 (800) ARIA-RISK\nSupport available 24/7 for Enterprise partners" },
-              { icon: Mail, title: "Electronic Correspondence", desc: "intelligence@aria.ai\npartnerships@aria.ai" },
-              { icon: MapPin, title: "Risk Command Center", desc: "ARIA Intelligence Hub\nTech District, Level 42\nMumbai, MS 400051" },
-            ].map((c) => (
-              <div key={c.title} className="flex gap-6 group">
-                <div className="w-14 h-14 bg-primary/5 rounded-2xl flex items-center justify-center shrink-0 group-hover:bg-accent-gradient group-hover:text-primary-foreground transition-all">
-                  <c.icon className="h-6 w-6 text-primary group-hover:text-inherit" />
+          <div className="space-y-8 py-4">
+            <div>
+              <h3 className="text-2xl font-bold text-foreground mb-4 font-display">How can we help?</h3>
+              <p className="text-muted-foreground leading-relaxed mb-6">
+                Whether you're looking for support with your application, have questions about our loan products, or need to speak with a representative, our team is here for you. 
+              </p>
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <Mail className="h-5 w-5 text-primary" />
+                  <span>support@tensorbank.com</span>
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-foreground mb-1 font-display">{c.title}</h3>
-                  <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">{c.desc}</p>
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <Phone className="h-5 w-5 text-primary" />
+                  <span>Available 24/7 for account support</span>
                 </div>
               </div>
-            ))}
+            </div>
           </div>
         </div>
       </div>

@@ -21,7 +21,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
             <div className="w-10 h-10 rounded-xl bg-accent-gradient flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
               <ShieldCheck className="h-6 w-6 text-primary-foreground" />
             </div>
-            <span className="text-2xl font-bold font-display tracking-tight text-foreground">ARIA</span>
+            <span className="text-2xl font-bold font-display tracking-tight text-foreground text-gradient">Tensor Bank</span>
           </Link>
           <nav className="hidden md:flex items-center gap-1">
             {navLinks.map((l) => (
@@ -36,7 +36,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
               </Link>
             ))}
             <Button asChild size="sm" className="ml-3 bg-accent-gradient text-primary-foreground hover:opacity-90 shadow-md">
-              <Link to="/apply">Get Started</Link>
+              <Link to="/apply">Apply Now</Link>
             </Button>
           </nav>
           <button className="md:hidden text-foreground" onClick={() => setMobileOpen(!mobileOpen)}>
@@ -58,30 +58,36 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
         )}
       </header>
       <main className="flex-1">{children}</main>
-      <footer className="bg-primary text-primary-foreground py-10">
+      <footer className="bg-primary text-primary-foreground py-12">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+            <div className="space-y-6">
               <div className="flex items-center gap-2 text-primary-foreground group">
                 <ShieldCheck className="h-8 w-8 group-hover:scale-110 transition-transform" />
-                <span className="text-2xl font-bold font-display tracking-tight uppercase">ARIA</span>
+                <span className="text-2xl font-bold font-display tracking-tight uppercase">Tensor Bank</span>
               </div>
-              <p className="text-primary-foreground/70 text-sm leading-relaxed">Advanced Risk Intelligence & Analytics.<br/>Modern financial solutions for a digital world.</p>
+              <p className="text-primary-foreground/70 text-sm leading-relaxed max-w-xs">Empowering your financial journey with modern, secure, and transparent banking solutions. Built for the digital age.</p>
             </div>
             <div>
-              <h4 className="font-semibold mb-3">Quick Links</h4>
-              <div className="flex flex-col gap-1 text-sm text-primary-foreground/70">
-                <Link to="/apply" className="hover:text-primary-foreground">Apply for Loan</Link>
-                <Link to="/track" className="hover:text-primary-foreground">Track Application</Link>
+              <h4 className="font-semibold mb-4 text-lg">Quick Links</h4>
+              <div className="flex flex-col gap-2 text-sm text-primary-foreground/70">
+                <Link to="/apply" className="hover:text-primary-foreground transition-colors text-base">Apply for Loan</Link>
+                <Link to="/track" className="hover:text-primary-foreground transition-colors text-base">Track Application</Link>
+                <Link to="/about" className="hover:text-primary-foreground transition-colors text-base">About Us</Link>
+                <Link to="/contact" className="hover:text-primary-foreground transition-colors text-base">Contact Us</Link>
               </div>
             </div>
             <div>
-              <h4 className="font-semibold mb-3">Contact</h4>
-              <p className="text-sm text-primary-foreground/70 leading-relaxed">intelligence@aria.ai<br />Global Risk Center<br />Tech Hub, Mumbai</p>
+              <h4 className="font-semibold mb-4 text-lg">Contact Us</h4>
+              <p className="text-sm text-primary-foreground/70 leading-relaxed text-base">support@tensorbank.com<br />24/7 Digital Support</p>
             </div>
           </div>
-          <div className="border-t border-primary-foreground/20 mt-8 pt-6 text-center text-sm text-primary-foreground/50">
-            © {new Date().getFullYear()} ARIA. All rights reserved.
+          <div className="border-t border-primary-foreground/10 mt-12 pt-8 text-center">
+            <p className="text-sm text-primary-foreground/40 mb-2">Designed & Developed by <span className="text-primary-foreground/60 font-semibold">Tensor4ce</span></p>
+            <p className="text-[10px] text-primary-foreground/30 uppercase tracking-[0.2em] mb-4">Yash Agrawal • Karan Panchal • Nesar Wagannawar • Krushnali Biradar</p>
+            <p className="text-xs text-primary-foreground/50">
+              © {new Date().getFullYear()} Tensor Bank. All rights reserved.
+            </p>
           </div>
         </div>
       </footer>

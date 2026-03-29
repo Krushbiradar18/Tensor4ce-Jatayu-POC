@@ -20,7 +20,7 @@ export default function LandingPage() {
   return (
     <PublicLayout>
       {/* Hero */}
-      <section className="bg-hero-gradient py-24 md:py-40 relative overflow-hidden">
+      <section className="bg-hero-gradient py-24 md:py-20 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] pointer-events-none"></div>
         <div className="container mx-auto px-4 text-center relative z-10">
           <Badge variant="outline" className="mb-6 px-4 py-1 text-primary-foreground border-primary-foreground/20 bg-primary-foreground/5 animate-fade-in">
@@ -31,14 +31,14 @@ export default function LandingPage() {
             <span className="text-gradient">For Everyone</span>
           </h1>
           <p className="text-xl md:text-2xl text-primary-foreground/80 max-w-3xl mx-auto mb-12 font-body font-light leading-relaxed">
-            Experience the future of digital banking with ARIA. 
+            Experience the future of digital banking with Tensor Bank. 
             Fast, secure, and transparent loan approvals in minutes.
           </p>
           <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
             <Button asChild size="lg" className="bg-accent-gradient text-primary-foreground font-semibold text-lg px-10 py-7 hover:scale-105 transition-all shadow-xl">
               <Link to="/apply">Apply for a Loan <ArrowRight className="ml-2 h-5 w-5" /></Link>
             </Button>
-            <Button asChild size="lg" variant="outline" className="text-primary-foreground border-primary-foreground/20 hover:bg-primary-foreground/10 px-10 py-7 text-lg">
+            <Button asChild size="lg" variant="outline" className="bg-transparent text-primary-foreground border-primary-foreground/20 hover:bg-primary-foreground/10 px-10 py-7 text-lg font-semibold hover:scale-105 transition-all">
               <Link to="/track">Track Application</Link>
             </Button>
           </div>
@@ -92,7 +92,7 @@ export default function LandingPage() {
       <section className="py-16 md:py-20">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-4xl md:text-6xl font-bold mb-6 font-display text-foreground tracking-tighter">Ready to Begin?</h2>
-          <p className="text-muted-foreground text-xl mb-12 max-w-2xl mx-auto font-light leading-relaxed">Join thousands of happy customers who trust ARIA for their financial needs.</p>
+          <p className="text-muted-foreground text-xl mb-12 max-w-2xl mx-auto font-light leading-relaxed">Join thousands of happy customers who trust Tensor Bank for their financial needs.</p>
           <Button asChild size="lg" className="bg-accent-gradient text-primary-foreground font-semibold px-12 py-8 text-lg hover:scale-105 transition-all shadow-2xl">
             <Link to="/apply">Start Your Application <ArrowRight className="ml-2" /></Link>
           </Button>

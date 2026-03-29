@@ -357,7 +357,7 @@ export default function ApplyPage() {
                 <div className="flex items-start gap-2">
                   <Checkbox id="terms" checked={termsAccepted} onCheckedChange={(v) => setTermsAccepted(!!v)} />
                   <label htmlFor="terms" className="text-sm text-foreground/70 leading-relaxed cursor-pointer select-none">
-                    I authorize ARIA to verify my credentials and perform standard credit checks. I confirm that the information provided is true and accurate.
+                    I authorize Tensor Bank to verify my credentials and perform standard credit checks. I confirm that the information provided is true and accurate.
                   </label>
                 </div>
                 <FieldError field="terms" />

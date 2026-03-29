@@ -65,12 +65,24 @@ export default function OfficerLoginPage() {
       <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-accent/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2 pointer-events-none"></div>
 
       <Card className="w-full max-w-md shadow-elevated animate-fade-in border-border/50 relative z-10 bg-card">
-        <CardHeader className="text-center pb-2">
-          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4 border border-primary/20 shadow-sm">
-            <ShieldCheck className="h-9 w-9 text-primary" />
+        <CardHeader className="text-center pb-2 pt-8">
+          <div className="relative group mx-auto mb-6">
+            <div className="absolute -inset-1.5 bg-gradient-to-r from-primary to-accent rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
+            <div className="relative w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20 shadow-sm transition-transform duration-500 group-hover:scale-105">
+              <ShieldCheck className="h-11 w-11 text-primary animate-pulse" />
+            </div>
           </div>
-          <CardTitle className="text-2xl font-bold font-display tracking-tight text-foreground">Officer Portal</CardTitle>
-          <CardDescription className="text-muted-foreground mt-1">Please sign in to access the dashboard</CardDescription>
+          <CardTitle className="text-3xl font-black font-display tracking-tight text-foreground uppercase">
+            ARIA <span className="text-primary italic">AI</span>
+          </CardTitle>
+          <div className="flex flex-col items-center gap-1 mt-1">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] leading-none">
+              Officer Intelligence Portal
+            </span>
+            <CardDescription className="text-muted-foreground mt-2 text-sm font-medium">
+              Enter credentials to initialize agentic dashboard
+            </CardDescription>
+          </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-6 pt-4">
@@ -80,7 +92,7 @@ export default function OfficerLoginPage() {
                 type="text" 
                 value={email} 
                 onChange={(e) => setEmail(e.target.value)} 
-                placeholder="officer@aria.com" 
+                placeholder="officer@aria-ai.com" 
                 className="h-11 border-border focus-visible:ring-primary/20" 
               />
             </div>

@@ -62,12 +62,32 @@ export default function OfficerLayout() {
     <div className="min-h-screen flex bg-background">
       {/* Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-sidebar border-r border-sidebar-border transform transition-transform lg:translate-x-0 lg:static lg:inset-auto ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
-        <div className="flex items-center gap-2 px-5 h-16 border-b border-sidebar-border">
-          <div className="w-9 h-9 rounded-lg bg-sidebar-primary flex items-center justify-center">
-            <ShieldCheck className="h-5 w-5 text-sidebar-primary-foreground" />
+        <div className="flex flex-col gap-4 px-6 py-8 border-b border-sidebar-border/50 bg-sidebar-background/60 backdrop-blur-md sticky top-0 z-10 overflow-hidden">
+          <div className="absolute -top-10 -right-10 w-32 h-32 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
+          
+          <div className="flex items-center justify-between">
+            <div className="relative group">
+              <div className="absolute -inset-1.5 bg-gradient-to-r from-primary/60 to-accent/60 rounded-2xl blur opacity-30 group-hover:opacity-60 transition duration-1000 group-hover:duration-200"></div>
+              <div className="relative w-12 h-12 rounded-2xl bg-sidebar-primary flex items-center justify-center shadow-[0_0_15px_rgba(var(--sidebar-primary),0.3)] transform transition-transform group-hover:scale-110 duration-500">
+                <ShieldCheck className="h-7 w-7 text-sidebar-primary-foreground" />
+              </div>
+            </div>
+            <button className="lg:hidden text-sidebar-foreground hover:bg-sidebar-accent/50 p-1.5 rounded-lg transition-colors" onClick={() => setSidebarOpen(false)}><X className="h-5 w-5" /></button>
           </div>
-          <span className="text-xl font-bold font-display tracking-tight text-sidebar-foreground">ARIA</span>
-          <button className="lg:hidden ml-auto text-sidebar-foreground" onClick={() => setSidebarOpen(false)}><X className="h-5 w-5" /></button>
+
+          <div className="flex flex-col space-y-1">
+            <span className="text-4xl font-black font-display tracking-tighter text-white uppercase leading-none bg-gradient-to-br from-white via-white to-white/50 bg-clip-text text-transparent drop-shadow-sm">
+              ARIA <span className="text-primary italic">AI</span>
+            </span>
+            <div className="flex flex-col">
+              {/* <span className="text-[8px] font-black text-primary/90 uppercase tracking-[0.25em] leading-none mb-1">
+                Risk Management
+              </span> */}
+              <span className="text-[12px] font-bold text-sidebar-muted uppercase tracking-[0.1em] leading-none opacity-60">
+                Agentic Risk Intelligence & Analytics
+              </span>
+            </div>
+          </div>
         </div>
         <nav className="p-3 space-y-1">
           {navItems.map((item) => (
@@ -93,7 +113,15 @@ export default function OfficerLayout() {
       <div className="flex-1 flex flex-col min-w-0">
         <header className="h-16 bg-card border-b border-border flex items-center px-4 gap-4 sticky top-0 z-30">
           <button className="lg:hidden text-foreground" onClick={() => setSidebarOpen(true)}><Menu className="h-5 w-5" /></button>
-          <div className="flex-1 flex items-center max-w-md">
+          
+          <div className="flex items-center gap-2 lg:hidden">
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-sm">
+              <ShieldCheck className="h-5 w-5 text-white" />
+            </div>
+            <span className="font-display font-black tracking-tight text-foreground text-lg uppercase">ARIA <span className="text-primary">AI</span></span>
+          </div>
+
+          <div className="flex-1 flex items-center max-w-md ml-auto lg:ml-0">
             <div className="relative w-full">
               <button 
                 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-primary transition-colors focus:outline-none"
