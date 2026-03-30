@@ -1,4 +1,4 @@
-export type LoanType = "Personal";
+export type LoanType = "Personal" | "Home" | "Auto" | "Education";
 export type LoanTerm = 12 | 24 | 36 | 48 | 60;
 export type ApplicationStatus = "Submitted" | "Under Review" | "Approved" | "Rejected" | "More Information Required";
 export type AIDecision = "APPROVE" | "REJECT" | "REVIEW" | "ESCALATE";

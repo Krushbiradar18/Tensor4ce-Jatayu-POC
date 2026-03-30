@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 
 const steps = ["Personal Info", "Employment", "Loan Details", "Review & Submit"];
-const loanTypes: LoanType[] = ["Personal"];
+const loanTypes: LoanType[] = ["Personal", "Home", "Auto", "Education"];
 const loanTerms: LoanTerm[] = [12, 24, 36, 48, 60];
 const indianStates = ["Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh","Delhi","Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka","Kerala","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland","Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana","Tripura","Uttar Pradesh","Uttarakhand","West Bengal"];
 
@@ -88,8 +88,8 @@ export default function ApplyPage() {
         employment_tenure_years: employment.yearsAtJob,
         loan_amount_requested: loan.loanAmount,
         loan_tenure_months: loan.loanTerm,
-        loan_purpose: loan.loanPurpose,
-        loan_category: loan.loanType.toUpperCase(),
+        loan_purpose: loan.loanType.toUpperCase(),
+        purpose_description: loan.loanPurpose,
         existing_emi_monthly: loan.existingEmi,
         residential_assets_value: loan.residentialAssets,
         mobile_number: personal.phone,

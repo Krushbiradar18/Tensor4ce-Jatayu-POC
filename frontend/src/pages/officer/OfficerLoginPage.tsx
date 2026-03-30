@@ -87,7 +87,7 @@ export default function OfficerLoginPage() {
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-6 pt-4">
             <div className="space-y-2">
-              <Label className="text-foreground/80 font-medium">Email Address</Label>
+              <Label className="text-foreground/80 font-medium">Username</Label>
               <Input 
                 type="text" 
                 value={email} 

@@ -258,7 +258,7 @@ def submit_application(req: SubmitRequest, background_tasks: BackgroundTasks):
     from datetime import datetime
     from verification.verifier import run_preliminary_identity_precheck
 
-    app_id = f"APP-{uuid.uuid4().hex[:8].upper()}"
+    app_id = req.form_data.get("application_id") or f"APP-{uuid.uuid4().hex[:8].upper()}"
     req.form_data["application_id"] = app_id
     
     # Log application submission event

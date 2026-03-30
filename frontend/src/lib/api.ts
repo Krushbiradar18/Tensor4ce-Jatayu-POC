@@ -7,6 +7,7 @@ export interface SubmitApplicationRequest {
     user_agent: string;
     timestamp: string;
   };
+  document_data?: Record<string, any>;
 }
 
 export interface ApplicationResponse {
@@ -50,7 +51,9 @@ function getAuthHeaders(contentType: string = "application/json") {
   return headers;
 }
 
-export async function submitApplication(formData: Record<string, any>): Promise<ApplicationResponse> {
+export async function submitApplication(data: Record<string, any>): Promise<ApplicationResponse> {
+  const { document_data, ...formData } = data;
+  
   const response = await fetch(`${API_BASE}/apply`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -61,6 +64,7 @@ export async function submitApplication(formData: Record<string, any>): Promise<
         user_agent: navigator.userAgent,
         timestamp: new Date().toISOString(),
       },
+      document_data: document_data || {},
     }),
   });
 

@@ -26,7 +26,7 @@ def _get_ocr():
         from paddleocr import PaddleOCR
         # Control PaddleOCR's own internal logging level
         show_log = os.environ.get("LOG_LEVEL", "DEBUG").upper() == "DEBUG"
-        _ocr = PaddleOCR(lang="en")
+        _ocr = PaddleOCR(lang="en", use_angle_cls=True)
     return _ocr
 
 
@@ -60,7 +60,7 @@ def _extract_text_lines(pdf_path: str) -> list[str]:
     logger.info("Running OCR on %d pages...", len(images))
     for i, img in enumerate(images):
         logger.debug("Processing page %d...", i + 1)
-        result = ocr.ocr(img, cls=True)  # Use .ocr() for v3+ or .predict() if needed
+        result = ocr.ocr(img)  # cls=True moved to constructor
         if not result:
             logger.debug("No text found on page %d.", i + 1)
             continue

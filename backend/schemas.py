@@ -54,6 +54,7 @@ class LoanApplicationIn(BaseModel):
     loan_amount_requested: float
     loan_tenure_months: int
     loan_purpose: LoanProduct
+    purpose_description: str = ""
     existing_emi_monthly: float = 0.0
     residential_assets_value: float = 0.0
     mobile_number: str = ""
