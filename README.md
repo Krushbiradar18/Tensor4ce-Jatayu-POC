@@ -1,6 +1,7 @@
-# ARIA AI: Agentic Risk Intelligence & Analytics
+# Agentic AI for Intelligent Credit Risk Assessment & Loan Approval  
 
-## Agentic AI for Intelligent Credit Risk Assessment & Loan Approval  
+## ARIA AI: Agentic Risk Intelligence & Analytics
+
 ### Team Tensor4ce
 
 ARIA is an autonomous multi-agent AI system for end-to-end loan underwriting. Four specialist AI agents (Credit Risk, Fraud Detection, Compliance, Portfolio) are coordinated by a CrewAI orchestrator powered by Google Gemini. A React-based officer dashboard provides the human-in-the-loop review layer.
