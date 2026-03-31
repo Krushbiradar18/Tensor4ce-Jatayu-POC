@@ -1,7 +1,7 @@
-# ARIA — Agentic Risk Intelligence & Analytics
+# ARIA AI: Agentic Risk Intelligence & Analytics
 
-**Agentic Credit Risk Assessment & Loan Approval System**  
-Team Tensor4ce
+## Agentic AI for Intelligent Credit Risk Assessment & Loan Approval  
+### Team Tensor4ce
 
 ARIA is an autonomous multi-agent AI system for end-to-end loan underwriting. Four specialist AI agents (Credit Risk, Fraud Detection, Compliance, Portfolio) are coordinated by a CrewAI orchestrator powered by Google Gemini. A React-based officer dashboard provides the human-in-the-loop review layer.
 
@@ -206,7 +206,7 @@ npm install       # or: bun install
 
 ### Database
 
-PostgreSQL must be running. The app **auto-creates** the `aria` database and all tables on first startup via `db.init_db()` — no migrations needed.
+PostgreSQL must be running. The app **auto-creates** the `aria` database and all tables on first startup via `db.init_db()`, no migrations needed.
 
 ---
 
@@ -244,7 +244,7 @@ PG_PORT=5432
 PG_DB=aria
 ```
 
-> Without an LLM key, the system runs in **Direct LangGraph** mode — all four agents still execute and produce full outputs; the CrewAI manager step is skipped.
+> Without an LLM key, the system runs in **Direct LangGraph** mode, i.e. all four agents still execute and produce full outputs; the CrewAI manager step is skipped.
 
 ---
 
@@ -282,7 +282,7 @@ Password: admin123
 | `orchestrator.py` | Runs the full pipeline. Calls `run_via_crewai()` if Gemini available, else `run_direct_pipeline()` |
 | `orchestration/crew.py` | Assembles the CrewAI crew (manager agent + task), kicks off, parses JSON output |
 | `agent_adapters.py` | Thin adapters that call each agent and normalise their output for the orchestrator |
-| `crew_runner.py` | `build_final_decision()` — reads A2A store, applies decision matrix, returns `FinalDecision` |
+| `crew_runner.py` | `build_final_decision()`: reads A2A store, applies decision matrix, returns `FinalDecision` |
 | `tools.py` | MCP tools registered on the CrewAI manager: `run_credit_risk_assessment`, `run_fraud_detection`, `run_compliance_check`, `run_portfolio_analysis`, `apply_decision_matrix_tool`, `log_audit_tool` |
 | `agents/*/agent.py` | LangGraph `StateGraph` definitions for each specialist agent |
 | `agents/*/app.py` | FastAPI sub-apps implementing the A2A protocol for each agent |
@@ -350,10 +350,10 @@ Agents read shared input from the `FeatureStore` (keyed by `application_id`) and
 
 Tables auto-created by `db.init_db()` on startup.
 
-**`applications`** — one row per submission  
-**`decisions`** — full agent output payload per application  
-**`officer_actions`** — officer approve / reject / escalate actions  
-**`audit_log`** — immutable event log (one row per agent event, tool call, or status change)
+**`applications`** : one row per submission  
+**`decisions`** : full agent output payload per application  
+**`officer_actions`** : officer approve / reject / escalate actions  
+**`audit_log`** : immutable event log (one row per agent event, tool call, or status change)
 
 Application status lifecycle:
 ```
@@ -372,7 +372,3 @@ PENDING → DIL_PROCESSING → AGENTS_RUNNING → DECIDED_PENDING_OFFICER → OF
 | Karan Panchal |
 | Nesar Wagannawar |
 | Krushnali Biradar |
-
----
-
-*ARIA — Agentic Risk Intelligence & Analytics · Team Tensor4ce*
