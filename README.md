@@ -219,7 +219,7 @@ Create `backend/.env`:
 
 # Option A: Google AI Studio
 GOOGLE_API_KEY=your_key
-GEMINI_MODEL=gemini-2.0-flash-exp
+GEMINI_MODEL=gemini-2.5-flash-exp
 
 # Option B: Vertex AI
 CREWAI_LLM_PROVIDER=vertex
@@ -366,12 +366,12 @@ PENDING → DIL_PROCESSING → AGENTS_RUNNING → DECIDED_PENDING_OFFICER → OF
 
 **Team Tensor4ce**
 
-| Name | Area |
-|---|---|
-| Yash Agrawal | Agentic ML pipeline, Credit Risk Agent, XGBoost + SHAP |
-| Karan Panchal | Backend architecture, FastAPI, CrewAI orchestration |
-| Nesar Wagannawar | LangGraph agents, A2A protocol, Fraud & Portfolio agents |
-| Krushnali Biradar | Frontend (React / TypeScript), Officer Dashboard, UI/UX |
+| Name |
+|---|
+| Yash Agrawal |
+| Karan Panchal |
+| Nesar Wagannawar |
+| Krushnali Biradar |
 
 ---
 
