@@ -21,52 +21,52 @@
   },
   {
     "source": "RBI Housing Finance Circular 2024 — Loan-to-Value (LTV) Ratio Norms",
-    "text": "For individual housing loans, the LTV ratio shall not exceed 80% for loan amounts up to ₹30 lakh and 75% for loan amounts above ₹30 lakh, as per RBI circular dated January 2024. LTV is calculated as the ratio of the loan amount to the market value of the property being financed. For properties under construction, the LTV should be calculated on the agreement value or the RBI-approved valuer's assessed value, whichever is lower. Non-compliance with LTV norms attracts higher risk weight (150% vs 50%) under Basel III capital adequacy framework.",
+    "text": "For individual housing loans, the LTV ratio shall not exceed 80% for loan amounts up to ₹30 lakh and 75% for loan amounts above ₹30 lakh, as per RBI circular dated January 2024. LTV is calculated as the ratio of the loan amount to the market value of the property being financed. For properties under construction, the LTV should be calculated on the agreement value or the RBI‑approved valuer's assessed value, whichever is lower. Non‑compliance with LTV norms attracts higher risk weight (150% vs 50%) under Basel III capital adequacy framework.",
     "regulation": "RBI_LTV_HOME"
   },
   {
     "source": "RBI Vehicle Loan Guidelines 2022 — LTV Norms for Auto Loans",
-    "text": "For vehicle loans (two-wheeler and four-wheeler), the Loan-to-Value ratio must not exceed 85% of the on-road price of the vehicle inclusive of insurance, registration, and road tax. For used vehicles, the LTV shall be computed on the depreciated value assessed by an approved valuer. Banks shall maintain documentation of vehicle valuation and insurance assignment as collateral security. Auto loans exceeding 85% LTV require additional collateral or a higher interest rate spread to compensate for elevated risk.",
+    "text": "For vehicle loans (two‑wheeler and four‑wheeler), the Loan‑to‑Value ratio must not exceed 85% of the on‑road price of the vehicle inclusive of insurance, registration, and road tax. For used vehicles, the LTV shall be computed on the depreciated value assessed by an approved valuer. Banks shall maintain documentation of vehicle valuation and insurance assignment as collateral security. Auto loans exceeding 85% LTV require additional collateral or a higher interest rate spread to compensate for elevated risk.",
     "regulation": "RBI_LTV_AUTO"
   },
   {
     "source": "RBI Retail Lending Master Direction 2023 — Applicant Eligibility",
-    "text": "The applicant must be a minimum of 21 years of age at the time of loan application and shall not exceed 65 years at the time of loan maturity. For joint applications, the primary applicant's age is considered for eligibility determination. Banks may apply stricter age criteria based on internal credit policies, but they cannot relax the 21-65 age band prescribed by RBI. Age verification must be done through OVDs such as PAN card, Aadhaar, or passport with date of birth clearly mentioned.",
+    "text": "The applicant must be a minimum of 21 years of age at the time of loan application and shall not exceed 65 years at the time of loan maturity. For joint applications, the primary applicant's age is considered for eligibility determination. Banks may apply stricter age criteria based on internal credit policies, but they cannot relax the 21‑65 age band prescribed by RBI. Age verification must be done through OVDs such as PAN card, Aadhaar, or passport with date of birth clearly mentioned.",
     "regulation": "RBI_AGE_ELIGIBILITY"
   },
   {
     "source": "RBI Credit Information Companies (Regulation) Act, 2005 — Bureau Check Mandate",
-    "text": "All banks and financial institutions regulated by RBI must mandatorily obtain a credit information report from at least one RBI-licensed Credit Information Company (CIC) before sanctioning any credit facility. The four licensed CICs are: TransUnion CIBIL, Equifax, Experian, and CRIF High Mark. A bureau check must be performed within 30 days prior to the date of loan sanction. The credit report must be maintained as part of the loan file for audit purposes. Failure to perform bureau check is a regulatory non-compliance under the CICRA 2005.",
+    "text": "All banks and financial institutions regulated by RBI must mandatorily obtain a credit information report from at least one RBI‑licensed Credit Information Company (CIC) before sanctioning any credit facility. The four licensed CICs are: TransUnion CIBIL, Equifax, Experian, and CRIF High Mark. A bureau check must be performed within 30 days prior to the date of loan sanction. The credit report must be maintained as part of the loan file for audit purposes. Failure to perform bureau check is a regulatory non‑compliance under the CICRA 2005.",
     "regulation": "RBI_BUREAU_CHECK"
   },
   {
     "source": "RBI Master Circular on Frauds — Classification and Reporting 2023",
-    "text": "As per RBI Master Circular on Frauds dated July 2023, all Regulated Entities must maintain an internal fraud registry and cross-check every loan applicant's PAN against the Central Fraud Registry maintained by RBI. Applications from PANs flagged in the fraud registry must be mandatorily rejected. The RE must report any new fraud above ₹1 lakh to RBI within 21 days of detection. Internal fraud databases must be updated within 7 working days of fraud confirmation. PAN blacklist checks are a BLOCK condition for loan origination.",
+    "text": "As per RBI Master Circular on Frauds dated July 2023, all Regulated Entities must maintain an internal fraud registry and cross‑check every loan applicant's PAN against the Central Fraud Registry maintained by RBI. Applications from PANs flagged in the fraud registry must be mandatorily rejected. The RE must report any new fraud above ₹1 lakh to RBI within 21 days of detection. Internal fraud databases must be updated within 7 working days of fraud confirmation. PAN blacklist checks are a BLOCK condition for loan origination.",
     "regulation": "RBI_FRAUD_REGISTRY"
   },
   {
     "source": "Prevention of Money Laundering Act (PMLA) / RBI AML Guidelines 2023",
-    "text": "Under PMLA and RBI Master Direction on KYC, regulated entities must conduct enhanced due diligence for transactions that are unusual or complex in nature. For personal loans exceeding ₹10,00,000 (ten lakh rupees), the borrower must provide a declaration of source of funds and intended use. Suspicious Transaction Reports (STRs) must be filed with the Financial Intelligence Unit (FIU-IND) within 7 days. AML screening includes checking the applicant against UNSC sanctions lists, OFAC SDN list, and domestic law enforcement databases.",
+    "text": "Under PMLA and RBI Master Direction on KYC, regulated entities must conduct enhanced due diligence for transactions that are unusual or complex in nature. For personal loans exceeding ₹10,00,000 (ten lakh rupees), the borrower must provide a declaration of source of funds and intended use. Suspicious Transaction Reports (STRs) must be filed with the Financial Intelligence Unit (FIU‑IND) within 7 days. AML screening includes checking the applicant against UNSC sanctions lists, OFAC SDN list, and domestic law enforcement databases.",
     "regulation": "RBI_AML_PMLA"
   },
   {
     "source": "RBI Master Direction on KYC — AML Risk Categorization",
-    "text": "Regulated entities must classify customers into Low, Medium, and High risk categories based on parameters such as customer identity, social/financial status, nature of business activity, and country of origin. High-risk customers (including Politically Exposed Persons) require enhanced CDD including senior management approval, source of funds verification, and ongoing enhanced monitoring. For loan products, AML risk categorization must be completed before credit committee approval.",
+    "text": "Regulated entities must classify customers into Low, Medium, and High risk categories based on parameters such as customer identity, social/financial status, nature of business activity, and country of origin. High‑risk customers (including Politically Exposed Persons) require enhanced CDD including senior management approval, source of funds verification, and ongoing enhanced monitoring. For loan products, AML risk categorization must be completed before credit committee approval.",
     "regulation": "RBI_AML_RISK_CATEGORIZATION"
   },
   {
     "source": "Internal Credit Policy ICP-2024-07 — Income Documentation Standards",
-    "text": "Income proof documentation (Form 16, salary slips, ITR, bank statements) must not be older than 24 months from the date of loan application. For salaried applicants, the most recent 3 months' salary slips and latest Form 16 are considered valid income proof. For self-employed applicants, ITR for the last 2 completed assessment years is required. Income proof older than 24 months is flagged as a WARNING condition requiring updated documentation before final disbursement. This aligns with RBI's guidance on income verification for retail lending.",
+    "text": "Income proof documentation (Form 16, salary slips, ITR, bank statements) must not be older than 24 months from the date of loan application. For salaried applicants, the most recent 3 months' salary slips and latest Form 16 are considered valid income proof. For self‑employed applicants, ITR for the last 2 completed assessment years is required. Income proof older than 24 months is flagged as a WARNING condition requiring updated documentation before final disbursement. This aligns with RBI's guidance on income verification for retail lending.",
     "regulation": "RBI_INCOME_PROOF"
   },
   {
     "source": "RBI Fair Practices Code — Retail Lending 2023",
-    "text": "As per RBI Fair Practices Code, all loan applications must be processed within a reasonable timeframe and the applicant must be informed of the decision (approval, rejection, or request for additional information) within 15 working days. The reason for rejection must be communicated in writing. Interest rates must be transparently communicated and linked to an external benchmark (repo rate or T-bill rate). Prepayment charges are prohibited for floating rate loans. Any fees or charges must be disclosed upfront in the loan agreement.",
+    "text": "As per RBI Fair Practices Code, all loan applications must be processed within a reasonable timeframe and the applicant must be informed of the decision (approval, rejection, or request for additional information) within 15 working days. The reason for rejection must be communicated in writing. Interest rates must be transparently communicated and linked to an external benchmark (repo rate or T‑bill rate). Prepayment charges are prohibited for floating rate loans. Any fees or charges must be disclosed upfront in the loan agreement.",
     "regulation": "RBI_FAIR_PRACTICES"
   },
   {
     "source": "RBI Guidelines on Digital Lending — 2022",
-    "text": "Digital lending platforms must adhere to RBI guidelines issued on September 2, 2022. All loan disbursements and repayments must be directly between the RE's bank account and the borrower's bank account without any pass-through or pool account. The borrower must be provided a Key Fact Statement (KFS) containing the Annual Percentage Rate (APR), loan tenure, EMI amount, and total interest cost before loan execution. Digital lenders must provide a cooling-off period of minimum 3 days during which the borrower can exit the loan without penalty.",
+    "text": "Digital lending platforms must adhere to RBI guidelines issued on September 2, 2022. All loan disbursements and repayments must be directly between the RE's bank account and the borrower's bank account without any pass‑through or pool account. The borrower must be provided a Key Fact Statement (KFS) containing the Annual Percentage Rate (APR), loan tenure, EMI amount, and total interest cost before loan execution. Digital lenders must provide a cooling‑off period of minimum 3 days during which the borrower can exit the loan without penalty.",
     "regulation": "RBI_DIGITAL_LENDING"
   },
   {
@@ -76,12 +76,12 @@
   },
   {
     "source": "RBI Circular on NPA Recognition — 90 Days Past Due Norm",
-    "text": "A loan account is classified as Non-Performing Asset (NPA) if the principal or interest payment remains overdue for a period of 90 days or more. For agricultural loans, the NPA classification period is one or two crop seasons depending on the crop. RBI mandates automated NPA classification through the Asset Classification and Provisioning system. Borrowers with existing NPA accounts at any bank (as reflected in the credit bureau report) require enhanced scrutiny including a detailed write-up on why fresh credit is being considered.",
+    "text": "A loan account is classified as Non‑Performing Asset (NPA) if the principal or interest payment remains overdue for a period of 90 days or more. For agricultural loans, the NPA classification period is one or two crop seasons depending on the crop. RBI mandates automated NPA classification through the Asset Classification and Provisioning system. Borrowers with existing NPA accounts at any bank (as reflected in the credit bureau report) require enhanced scrutiny including a detailed write‑up on why fresh credit is being considered.",
     "regulation": "RBI_NPA_NORMS"
   },
   {
     "source": "RBI Circular — Delinquency and DPD Reporting Standards",
-    "text": "All regulated entities must report Days Past Due (DPD) information to Credit Information Companies on a monthly basis. DPD data includes: DPD 0 (current), DPD 1-30 (SMA-0), DPD 31-60 (SMA-1), DPD 61-90 (SMA-2), and DPD 90+ (NPA). Multiple instances of DPD 90+ in the last 24 months are considered a significant negative credit signal. Applicants with 2 or more DPD 90+ instances should be subjected to enhanced credit scrutiny including manual review by a senior credit officer. DPD information must be accurately maintained for a minimum of 36 months in the credit bureau records.",
+    "text": "All regulated entities must report Days Past Due (DPD) information to Credit Information Companies on a monthly basis. DPD data includes: DPD 0 (current), DPD 1‑30 (SMA‑0), DPD 31‑60 (SMA‑1), DPD 61‑90 (SMA‑2), and DPD 90+ (NPA). Multiple instances of DPD 90+ in the last 24 months are considered a significant negative credit signal. Applicants with 2 or more DPD 90+ instances should be subjected to enhanced credit scrutiny including manual review by a senior credit officer. DPD information must be accurately maintained for a minimum of 36 months in the credit bureau records.",
     "regulation": "RBI_DPD_REPORTING"
   },
   {
@@ -91,12 +91,12 @@
   },
   {
     "source": "RBI Master Direction — Credit Bureau Enquiry Norms",
-    "text": "Each hard enquiry (loan application) is recorded by the Credit Information Company and remains on the credit report for 24 months. Multiple hard enquiries within a short period (more than 4 in 6 months) indicate credit-hungry behaviour and are flagged as a negative signal by most credit scoring models. Soft enquiries (self-check, pre-approved offers) do not impact the credit score. Regulated entities should consider the number of recent enquiries as part of their credit assessment framework. An enquiry spike may also indicate identity theft or fraudulent applications.",
+    "text": "Each hard enquiry (loan application) is recorded by the Credit Information Company and remains on the credit report for 24 months. Multiple hard enquiries within a short period (more than 4 in 6 months) indicate credit‑hungry behaviour and are flagged as a negative signal by most credit scoring models. Soft enquiries (self‑check, pre‑approved offers) do not impact the credit score. Regulated entities should consider the number of recent enquiries as part of their credit assessment framework. An enquiry spike may also indicate identity theft or fraudulent applications.",
     "regulation": "RBI_ENQUIRY_NORMS"
   },
   {
     "source": "RBI Circular on Loan Product Limits — Unsecured Lending Cap 2023",
-    "text": "RBI has directed banks to increase the risk weight on unsecured consumer credit (excluding education and housing) to 125% from 100%, effective November 2023. This circular aims to curb excessive growth in unsecured retail lending. Banks must ensure that their unsecured loan portfolio does not exceed a board-approved internal limit as a percentage of total advances. Personal loan interest rates must factor in the higher capital cost due to increased risk weights. This regulation impacts the bank's portfolio-level risk appetite for personal loans.",
+    "text": "RBI has directed banks to increase the risk weight on unsecured consumer credit (excluding education and housing) to 125% from 100%, effective November 2023. This circular aims to curb excessive growth in unsecured retail lending. Banks must ensure that their unsecured loan portfolio does not exceed a board‑approved internal limit as a percentage of total advances. Personal loan interest rates must factor in the higher capital cost due to increased risk weights. This regulation impacts the bank's portfolio‑level risk appetite for personal loans.",
     "regulation": "RBI_UNSECURED_LENDING"
   },
   {
@@ -105,23 +105,198 @@
     "regulation": "RBI_NAME_MATCH"
   },
   {
-    "source": "RBI Guidelines on Debt-to-Income (DTI) Assessment",
+    "source": "RBI Guidelines on Debt‑to‑Income (DTI) Assessment",
     "text": "Banks should assess the borrower's total debt burden including the proposed loan against their gross income. The DTI ratio (total monthly debt payments divided by gross monthly income) should generally not exceed 50% for retail loans. Unlike FOIR which uses net income, DTI considers gross income and includes all types of debt obligations. Banks are expected to use both FOIR and DTI as complementary measures for credit assessment. An elevated DTI ratio (above 45%) combined with a high FOIR (above 50%) should trigger enhanced scrutiny.",
     "regulation": "RBI_DTI_ASSESSMENT"
   },
   {
     "source": "RBI Master Direction — Stress Testing Framework for Retail Lending",
-    "text": "Regulated entities must conduct periodic stress tests on their retail loan portfolio under various macroeconomic scenarios including: (1) income stress — assuming 20% reduction in borrower income, (2) interest rate stress — assuming 200 basis points increase in lending rates, (3) unemployment stress — assuming sector-specific job loss scenarios. Individual loan affordability must be tested against at least the base and moderate stress scenarios before approval. Loans that fail the moderate stress test (FOIR exceeding 65% under stress) should be flagged for enhanced review.",
+    "text": "Regulated entities must conduct periodic stress tests on their retail loan portfolio under various macroeconomic scenarios including: (1) income stress — assuming 20% reduction in borrower income, (2) interest rate stress — assuming 200 basis points increase in lending rates, (3) unemployment stress — assuming sector‑specific job loss scenarios. Individual loan affordability must be tested against at least the base and moderate stress scenarios before approval. Loans that fail the moderate stress test (FOIR exceeding 65% under stress) should be flagged for enhanced review.",
     "regulation": "RBI_STRESS_TESTING"
   },
   {
-    "source": "RBI Circular — Macro-Prudential Framework for Retail Credit",
-    "text": "The macroeconomic stress scenario configuration (NORMAL, MILD_STRESS, HIGH_STRESS) must be periodically reviewed and updated based on RBI's Financial Stability Report. Under HIGH_STRESS scenario, sector-specific NPA rate multipliers are applied to the computed Probability of Default. Banks must maintain adequate Capital Conservation Buffer (CCB) of 2.5% over and above the minimum CAR of 9% during stress periods. Stress-adjusted PD values must be used for provisioning calculations under Indian Accounting Standards (Ind AS 109).",
+    "source": "RBI Circular — Macro‑Prudential Framework for Retail Credit",
+    "text": "The macroeconomic stress scenario configuration (NORMAL, MILD_STRESS, HIGH_STRESS) must be periodically reviewed and updated based on RBI's Financial Stability Report. Under HIGH_STRESS scenario, sector‑specific NPA rate multipliers are applied to the computed Probability of Default. Banks must maintain adequate Capital Conservation Buffer (CCB) of 2.5% over and above the minimum CAR of 9% during stress periods. Stress‑adjusted PD values must be used for provisioning calculations under Indian Accounting Standards (Ind AS 109).",
     "regulation": "RBI_MACRO_PRUDENTIAL"
   },
   {
     "source": "RBI Guidelines — IP and Digital Fraud Prevention in Lending",
-    "text": "Regulated entities offering digital lending products must implement IP-based risk scoring to detect VPN/proxy usage, geographic anomalies, and bot-driven applications. Applications originating from high-risk IP addresses (VPN, Tor, data center IPs) must be flagged for enhanced verification. Country mismatch between the applicant's declared address and IP geolocation is a fraud indicator. Form fill time analysis (applications completed in under 45 seconds suggest automated/bot submissions) should be part of the digital fraud detection framework.",
+    "text": "Regulated entities offering digital lending products must implement IP‑based risk scoring to detect VPN/proxy usage, geographic anomalies, and bot‑driven applications. Applications originating from high‑risk IP addresses (VPN, Tor, data center IPs) must be flagged for enhanced verification. Country mismatch between the applicant's declared address and IP geolocation is a fraud indicator. Form fill time analysis (applications completed in under 45 seconds suggest automated/bot submissions) should be part of the digital fraud detection framework.",
     "regulation": "RBI_DIGITAL_FRAUD"
+  },
+  {
+    "source": "RBI Circular — Microfinance and MSME Lending Guidelines 2023",
+    "text": "Microfinance institutions and banks extending loans to MSMEs must conduct livelihood verification through cash flow analysis, cash book review, and vendor confirmations. Loans up to ₹5 lakh may be granted based on simplified cash flow models, but higher amounts require audited financial statements. The borrower’s repayment capacity must be demonstrated with a minimum Debt Service Coverage Ratio (DSCR) of 1.25.",
+    "regulation": "RBI_MS_ME_LENDING"
+  },
+  {
+    "source": "RBI Credit Risk Framework — Score-Based Lending",
+    "text": "Borrowers with credit score below 650 are considered high-risk and require enhanced underwriting including manual review. Scores between 650–700 fall under medium risk, while scores above 750 are considered low risk. Risk-based pricing must be applied accordingly.",
+    "regulation": "RBI_CREDIT_SCORE_BUCKETS"
+  },
+  {
+    "source": "RBI Risk-Based Pricing Guidelines",
+    "text": "Interest rates must be linked to borrower risk profile, including credit score, repayment history, and product type. Higher-risk borrowers must be charged higher spreads over benchmark rates.",
+    "regulation": "RBI_RISK_BASED_PRICING"
+  },
+  {
+    "source": "RBI Credit Card Risk Monitoring Guidelines",
+    "text": "Credit utilization above 75% of sanctioned limit is considered a high-risk indicator of financial stress and must trigger enhanced scrutiny.",
+    "regulation": "RBI_CREDIT_UTILIZATION"
+  },
+  {
+    "source": "RBI Behavioural Risk Indicators",
+    "text": "Frequent short-term borrowing and loan closures within 3 months indicate potential credit cycling and must be flagged for manual underwriting review.",
+    "regulation": "RBI_CREDIT_CYCLING"
+  },
+  {
+    "source": "RBI Retail Lending Guidelines — Employment Stability",
+    "text": "Minimum employment stability of 6 months in current organization is recommended for salaried borrowers. Frequent job switches within 12 months must trigger additional checks.",
+    "regulation": "RBI_EMPLOYMENT_STABILITY"
+  },
+  {
+    "source": "RBI Self-Employed Income Stability Norms",
+    "text": "Self-employed applicants must demonstrate business continuity of at least 2 years with stable or increasing income trends.",
+    "regulation": "RBI_SELF_EMPLOYED_STABILITY"
+  },
+  {
+    "source": "RBI Loan-to-Value (LTV) Ratio Guidelines",
+    "text": "Loan amount must not exceed 80% of property value for prime locations and 70% for secondary locations. Higher LTV ratios require explicit board approval.",
+    "regulation": "RBI_LTV_RATIO"
+  },
+  {
+    "source": "RBI Document Verification Guidelines",
+    "text": "All submitted documents must be validated for authenticity through digital verification APIs or issuer verification channels wherever available.",
+    "regulation": "RBI_DOCUMENT_VERIFICATION"
+  },
+  {
+    "source": "RBI Fraud Prevention — Document Tampering",
+    "text": "Any signs of document tampering, mismatch in fonts, or metadata inconsistencies must result in immediate rejection of application.",
+    "regulation": "RBI_DOCUMENT_FRAUD"
+  },
+  {
+    "source": "RBI End Use Monitoring Guidelines",
+    "text": "For loans above ₹5 lakh, lenders must verify the declared end-use of funds and ensure no diversion to speculative or prohibited activities.",
+    "regulation": "RBI_END_USE"
+  },
+  {
+    "source": "RBI Fraud Prevention —KYC Verification",
+    "text": "Customer identity must be verified using Aadhaar-based e-KYC or PAN verification. In case of manual document submission, identity must be cross-verified with DigiLocker or NSDL.",
+    "regulation": "RBI_KYC"
+  },
+  {
+    "source": "RBI Income Validation via Bank Statements",
+    "text": "Irregular salary credits or high variance in monthly income must be treated as risk indicators requiring additional validation.",
+    "regulation": "RBI_BANK_ANALYSIS"
+  },
+  {
+    "source": "RBI Penal Interest Guidelines",
+    "text": "Penal interest rates must be reasonable and should not be so excessive as to be construed as exploitative.",
+    "regulation": "RBI_PENAL_INTEREST"
+  },
+  {
+    "source": "RBI Penal Interest Guidelines",
+    "text": "Penal interest rates must be reasonable and should not be so excessive as to be construed as exploitative.",
+    "regulation": "RBI_PENAL_INTEREST"
+  },
+  {
+    "source": "RBI Documentation Standards",
+    "text": "Aadhaar XML/DigiLocker/mParivahan documents are considered primary source documents. PDF exports or screenshots are considered secondary and require secondary verification.",
+    "regulation": "RBI_DOCUMENT_VALIDATION"
+  },
+  {
+    "source": "RBI Documentation Standards",
+    "text": "Aadhaar XML/DigiLocker/mParivahan documents are considered primary source documents. PDF exports or screenshots are considered secondary and require secondary verification.",
+    "regulation": "RBI_DOCUMENT_VALIDATION"
+  },
+  {
+    "source": "RBI Income StabilityNorms",
+    "text": "Net profit margin should be consistent with industry benchmarks; deviations exceeding 30% require justification and manual review.",
+    "regulation": "RBI_NET_PROFIT_DEVIATION"
+  },
+  {
+    "source": "RBI Income Validation via Bank Statements",
+    "text": "Irregular salary credits or high variance in monthly income must be treated as risk indicators requiring additional validation.",
+    "regulation": "RBI_BANK_ANALYSIS"
+  },
+  {
+    "source": "RBI Cash Flow Analysis Guidelines",
+    "text": "High cash withdrawals exceeding 50% of monthly credits may indicate financial instability and must be flagged.",
+    "regulation": "RBI_CASH_FLOW_RISK"
+  },
+  {
+    "source": "RBI Digital Lending Fraud Controls",
+    "text": "Multiple applications from the same device or IP within a short duration must be treated as a fraud indicator.",
+    "regulation": "RBI_DEVICE_FRAUD"
+  },
+  {
+    "source": "RBI Identity Risk Controls",
+    "text": "Mismatch between geolocation, declared address, and employment location must trigger enhanced verification.",
+    "regulation": "RBI_GEO_MISMATCH"
+  },
+  {
+    "source": "RBI Concentration Risk Guidelines",
+    "text": "Exposure to a single borrower or borrower group must not exceed internal concentration limits approved by the board.",
+    "regulation": "RBI_CONCENTRATION_RISK"
+  },
+  {
+    "source": "RBI Collateral Valuation Norms",
+    "text": "Collateral must be valued by an RBI-approved independent valuer and must include a minimum haircut of 10% to account for market volatility.",
+    "regulation": "RBI_COLLATERAL_VALUATION"
+  },
+  {
+    "source": "RBI Delinquency Risk Assessment",
+    "text": "Any history of DPD 60+ in the last 12 months must trigger risk reclassification and manual underwriting review.",
+    "regulation": "RBI_DELINQUENCY_RISK"
+  },
+  {
+    "source": "RBI Repeat Lending Norms",
+    "text": "Existing borrowers with good repayment history may be offered pre-approved loans subject to updated bureau and KYC checks.",
+    "regulation": "RBI_REPEAT_BORROWER"
+  },
+  {
+    "source": "RBI Credit Mix Assessment",
+    "text": "A high proportion of unsecured loans in borrower’s credit profile increases default risk and must be factored into underwriting decisions.",
+    "regulation": "RBI_CREDIT_MIX"
+  },
+  {
+    "source": "RBI Stress Testing — EMI Shock",
+    "text": "Loan affordability must be tested under interest rate increase scenarios of at least 200 basis points.",
+    "regulation": "RBI_EMI_STRESS"
+  },
+  {
+    "source": "RBI Legal Due Diligence Guidelines",
+    "text": "All secured loans must undergo legal verification of property title, ensuring no encumbrances or disputes exist.",
+    "regulation": "RBI_LEGAL_CHECK"
+  },
+  {
+    "source": "RBI Transparency Guidelines",
+    "text": "All loan terms including interest rate, tenure, EMI, and penalties must be disclosed clearly before agreement execution.",
+    "regulation": "RBI_TRANSPARENCY"
+  },
+  {
+    "source": "RBI Credit Reporting Update 2025",
+    "text": "Lenders must update borrower credit information with Credit Information Companies every 15 days to ensure timely reporting.",
+    "regulation": "RBI_BUREAU_FREQUENCY"
+  },
+  {
+    "source": "RBI Loan Structuring Guidelines",
+    "text": "Loan tenure must align with borrower income profile and should not exceed reasonable repayment capacity.",
+    "regulation": "RBI_TENURE_RULE"
+  },
+  {
+    "source": "RBI Gold Loan Guidelines 2025",
+    "text": "Loan-to-Value ratio for gold loans ranges between 75% to 85% depending on loan amount tiers. Loans above ₹5 lakh must adhere to stricter LTV caps.",
+    "regulation": "RBI_LTV_GOLD"
+  },
+  {
+    "source": "RBI Co-Lending Framework 2026",
+    "text": "Banks and NBFCs must retain a minimum of 10% exposure in co-lending arrangements and ensure clear borrower disclosures.",
+    "regulation": "RBI_CO_LENDING"
+  },
+  {
+    "source": "RBI KYC Amendment 2025",
+    "text": "Customer onboarding can be completed through Video KYC (V-CIP), non-face-to-face methods, or traditional in-person verification.",
+    "regulation": "RBI_VIDEO_KYC"
   }
 ]
