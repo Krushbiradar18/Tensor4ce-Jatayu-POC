@@ -153,6 +153,10 @@ async def lifespan(app: FastAPI):
 
     load_static_data(data_dir)
     load_compliance_rules(f"{data_dir}/compliance_rules.yaml")
+
+    # Load RAG compliance knowledge base for regulatory grounding
+    from services.rag import load_compliance_kb
+    load_compliance_kb(f"{data_dir}/compliance_kb.json")
     allow_file_fallback = os.environ.get("ALLOW_RUNTIME_FILE_FALLBACK", "false").strip().lower() in {"1", "true", "yes", "on"}
     if allow_file_fallback:
         load_portfolio(f"{data_dir}/portfolio_loans.csv")
@@ -682,6 +686,7 @@ def health():
     from agents_base import _PORTFOLIO, _RULES
     from dataset_loader import get_dataset_stats
     from llm_config import get_llm_stats, get_llm_usage_mode
+    from services.rag import COMPLIANCE_KB
 
     # Skip synchronous self-calls in health check to avoid deadlocks on single-worker uvicorn
     agent_cards = {"credit_risk": "mounted", "fraud": "mounted", "compliance": "mounted", "portfolio": "mounted"}
@@ -692,6 +697,7 @@ def health():
         "blacklist_pans":    len(_BLACKLIST),
         "portfolio_loans":   len(_PORTFOLIO),
         "compliance_rules":  len(_RULES),
+        "compliance_kb_chunks": len(COMPLIANCE_KB),  # NEW: RAG KB status
         "a2a_agents":        agent_cards,
     }
 

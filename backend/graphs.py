@@ -279,6 +279,7 @@ class ComplianceState(TypedDict):
     features: dict
     form_data: dict
     rule_result: dict        # from _run_compliance_rules
+    rag_citations: list      # regulatory text from RAG knowledge base
     cot_reasoning: str
     output: dict
     error: str
@@ -301,24 +302,66 @@ def co_run_rules(state: ComplianceState) -> dict:
     result = _run_compliance_rules(state["features"], state["form_data"])
     return {"rule_result": result}
 
+def co_rag_lookup(state: ComplianceState) -> dict:
+    """
+    Node 3 (NEW): Search the compliance knowledge base for regulatory text
+    relevant to the triggered block/warn flags.
+    """
+    _log_event(state["application_id"], "compliance_graph", "NODE", {"node": "rag_lookup"})
+    r = state.get("rule_result", {})
+    block_flags = r.get("block_flags", [])
+    warn_flags = r.get("warn_flags", [])
+
+    try:
+        from services.rag import search_by_rule_flags, COMPLIANCE_KB
+        if not COMPLIANCE_KB:
+            return {"rag_citations": []}
+        citations = search_by_rule_flags(block_flags, warn_flags, k=5)
+        return {"rag_citations": [
+            {"source": c.get("source", ""), "regulation": c.get("regulation", ""),
+             "text": c.get("text", "")[:500]}
+            for c in citations
+        ]}
+    except Exception as e:
+        logger.warning(f"RAG lookup failed (non-fatal): {e}")
+        return {"rag_citations": []}
+
+
 def co_cot(state: ComplianceState) -> dict:
     """
-    Node 3 (CONDITIONAL): Chain-of-Thought reasoning via Gemini.
-    Only runs when there are WARNING-level flags that need nuanced analysis.
+    Node 4: Chain-of-Thought reasoning via Gemini.
+    Enhanced with RAG citations for regulatory grounding.
     """
     _log_event(state["application_id"], "compliance_graph", "NODE", {"node": "cot"})
     r     = state["rule_result"]
     warns = r.get("warn_flags", [])
     f     = state["features"]
+    rag_citations = state.get("rag_citations", [])
     warn_text = "; ".join(f"{w['rule_id']}: {w['description']}" for w in warns)
     income    = f.get("annual_income_verified", 0)
     foir      = f.get("foir", 0)
     product   = state["form_data"].get("loan_purpose", "PERSONAL")
 
+    # Build regulatory context from RAG citations
+    reg_context = ""
+    if rag_citations:
+        citation_lines = []
+        for i, cite in enumerate(rag_citations[:3], 1):
+            citation_lines.append(
+                f"  [{i}] {cite.get('source', 'Unknown')}: "
+                f"{cite.get('text', '')[:300]}"
+            )
+        reg_context = (
+            "\n\nRelevant RBI Regulatory References:\n"
+            + "\n".join(citation_lines)
+            + "\n\nYou MUST cite these regulations in your reasoning using [1], [2], etc."
+        )
+
     cot = _call_gemini(
         f"You are an RBI compliance officer. Analyse these compliance warnings: {warn_text}. "
         f"Applicant: {product} loan, income ₹{income:,.0f}, FOIR {foir:.1%}. "
-        f"For each warning, give: [RULE_ID]: 1-sentence reasoning → PROCEED / HOLD. Be brief.",
+        f"For each warning, give: [RULE_ID]: 1-sentence reasoning → PROCEED / HOLD. Be brief."
+        f"{reg_context}",
         fallback=f"Warnings noted: {warn_text}. Manual review recommended for flagged items."
     )
     return {"cot_reasoning": cot}
@@ -343,27 +386,30 @@ def co_finalize(state: ComplianceState) -> dict:
             "aml_review_required": r.get("aml_review_required", False),
             "cot_reasoning":     state.get("cot_reasoning", fallback_cot),
             "audit_hash":        r.get("audit_hash", ""),
+            "rag_citations":     state.get("rag_citations", []),  # NEW
         }
     return {"output": out}
 
 def _co_route_after_rules(state: ComplianceState) -> str:
     if state.get("error"): return "finalize"
-    warns = state.get("rule_result", {}).get("warn_flags", [])
-    return "cot" if warns else "finalize"
+    # Always proceed to RAG lookup for regulatory grounding
+    return "rag_lookup"
 
 def build_compliance_graph():
     g = StateGraph(ComplianceState)
-    g.add_node("fetch",     co_fetch)
-    g.add_node("run_rules", co_run_rules)
-    g.add_node("cot",       co_cot)
-    g.add_node("finalize",  co_finalize)
+    g.add_node("fetch",      co_fetch)
+    g.add_node("run_rules",  co_run_rules)
+    g.add_node("rag_lookup", co_rag_lookup)   # NEW node
+    g.add_node("cot",        co_cot)
+    g.add_node("finalize",   co_finalize)
     g.add_edge(START, "fetch")
     g.add_conditional_edges("fetch", lambda s: "finalize" if s.get("error") else "run_rules",
                              {"run_rules": "run_rules", "finalize": "finalize"})
     g.add_conditional_edges("run_rules", _co_route_after_rules,
-                             {"cot": "cot", "finalize": "finalize"})
-    g.add_edge("cot",      "finalize")
-    g.add_edge("finalize", END)
+                             {"rag_lookup": "rag_lookup", "finalize": "finalize"})
+    g.add_edge("rag_lookup", "cot")           # rag_lookup → cot → finalize
+    g.add_edge("cot",       "finalize")
+    g.add_edge("finalize",  END)
     return g.compile()
 
 
@@ -498,7 +544,8 @@ def run_fraud_graph(app_id: str) -> dict:
 def run_compliance_graph(app_id: str) -> dict:
     initial: ComplianceState = {
         "application_id": app_id, "features": {}, "form_data": {},
-        "rule_result": {}, "cot_reasoning": "", "output": {}, "error": "",
+        "rule_result": {}, "rag_citations": [], "cot_reasoning": "",
+        "output": {}, "error": "",
     }
     result = _get_compliance_graph().invoke(initial)
     return result["output"]

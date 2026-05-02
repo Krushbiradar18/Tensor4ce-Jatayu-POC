@@ -29,6 +29,7 @@ ENV/
 env.bak/
 venv.bak/
 jatayu/
+*.md
 
 # IDEs
 .vscode/

@@ -226,7 +226,24 @@ def run_portfolio_model(application_id: str) -> dict:
         return {"error": str(e), "portfolio_recommendation": "ACCEPT"}
 
 
-# ── Tool 12: Flag for Human Review ────────────────────────────────────────────
+# ── Tool 13: Search Compliance Knowledge Base (RAG) ──────────────────────────
+
+@tool("search_compliance_knowledge")
+def search_compliance_knowledge(query: str) -> list:
+    """
+    Search RBI circulars and compliance policy documents for relevant regulations.
+    Returns matching regulatory text chunks with source citations.
+    Use this to ground compliance reasoning in actual regulatory text.
+    """
+    from services.rag import search_compliance_docs
+    results = search_compliance_docs(query)
+    return [
+        {"source": r["source"], "text": r["text"][:500], "regulation": r["regulation"]}
+        for r in results
+    ]
+
+
+# ── Tool 14: Flag for Human Review ────────────────────────────────────────────
 
 @tool("flag_for_human_review")
 def flag_for_human_review(application_id: str, reason: str) -> dict:
@@ -267,6 +284,7 @@ ALL_MCP_TOOLS = [
     run_fraud_model,
     check_rbi_rules,
     run_portfolio_model,
+    search_compliance_knowledge,  # NEW: RAG-based compliance KB search
     flag_for_human_review,
     log_agent_action,
 ]
