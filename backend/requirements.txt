@@ -20,3 +20,6 @@ crewai
 paddleocr
 paddlepaddle
 pymupdf
+# Embedding-based RAG retrieval (compliance agent)
+sentence-transformers
+numpy
