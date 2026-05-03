@@ -316,6 +316,105 @@ def list_applications_extended(limit: int = 50) -> list[dict]:
     return result
 
 
+def find_similar_applications(
+    cibil_range: tuple[float, float],
+    income_range: tuple[float, float],
+    loan_type: str,
+    amount_range: tuple[float, float],
+    exclude_id: str = "",
+    limit: int = 10,
+) -> list[dict]:
+    """
+    Find past applications that are similar in credit profile.
+    Matches on CIBIL score range, income range, loan type, and amount range.
+    Returns a list with ai_recommendation, officer_decision, and key features.
+    """
+    query = text("""
+        WITH latest_decisions AS (
+            SELECT application_id, payload,
+                   ROW_NUMBER() OVER (PARTITION BY application_id ORDER BY decided_at DESC) AS rn
+            FROM decisions
+        ),
+        latest_officer AS (
+            SELECT application_id, decision,
+                   ROW_NUMBER() OVER (PARTITION BY application_id ORDER BY id DESC) AS rn
+            FROM officer_actions
+        )
+        SELECT
+            a.application_id,
+            a.status,
+            a.created_at,
+            a.raw_payload,
+            d.payload  AS decision_payload,
+            o.decision AS officer_decision
+        FROM applications a
+        LEFT JOIN latest_decisions d ON a.application_id = d.application_id AND d.rn = 1
+        LEFT JOIN latest_officer  o ON a.application_id = o.application_id  AND o.rn = 1
+        WHERE a.status NOT IN ('PENDING', 'DIL_PROCESSING', 'AGENTS_RUNNING', 'DATA_REQUIRED', 'ERROR')
+          AND (:exclude_id = '' OR a.application_id != :exclude_id)
+        ORDER BY a.created_at DESC
+        LIMIT :pool
+    """)
+
+    pool = max(limit * 10, 100)
+    with engine.begin() as conn:
+        rows = conn.execute(query, {
+            "exclude_id": exclude_id or "",
+            "pool": pool,
+        }).mappings().all()
+
+    results: list[dict] = []
+    for row in rows:
+        try:
+            payload = json.loads(row["raw_payload"])
+        except Exception:
+            continue
+
+        # Filter by loan type
+        if str(payload.get("loan_product_type", "")).upper() != str(loan_type).upper():
+            continue
+
+        # Filter by CIBIL range (stored in raw_payload by DIL copy-back or skip if absent)
+        cibil = float(payload.get("cibil_score", 0))
+        if cibil > 0 and not (cibil_range[0] <= cibil <= cibil_range[1]):
+            continue
+
+        # Filter by income range
+        income = float(payload.get("annual_income", payload.get("annual_income_verified", 0)))
+        if income > 0 and not (income_range[0] <= income <= income_range[1]):
+            continue
+
+        # Filter by loan amount range
+        amt = float(payload.get("loan_amount_requested", 0))
+        if amt > 0 and not (amount_range[0] <= amt <= amount_range[1]):
+            continue
+
+        ai_rec = None
+        if row["decision_payload"]:
+            try:
+                dec = json.loads(row["decision_payload"])
+                ai_rec = dec.get("ai_recommendation")
+            except Exception:
+                pass
+
+        results.append({
+            "application_id":   row["application_id"],
+            "status":           row["status"],
+            "created_at":       str(row["created_at"]),
+            "loan_amount":      amt,
+            "annual_income":    income,
+            "cibil_score":      cibil,
+            "loan_product":     payload.get("loan_product_type"),
+            "ai_recommendation": ai_rec,
+            "officer_decision": row["officer_decision"],
+        })
+
+        if len(results) >= limit:
+            break
+
+    return results
+
+
 def get_bulk_audit_logs(application_ids: list[str]) -> dict[str, list[dict]]:
     """
     Fetches audit logs for multiple applications in a single query.

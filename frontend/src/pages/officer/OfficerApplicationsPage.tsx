@@ -18,6 +18,7 @@ const statusColors: Record<string, string> = {
   "OFFICER_REJECTED": "bg-destructive/15 text-destructive border border-destructive/20",
   "OFFICER_CONDITIONAL": "bg-accent/15 text-accent-foreground border border-accent/20",
   "OFFICER_ESCALATED": "bg-accent/15 text-accent-foreground border border-accent/20",
+  "DATA_REQUIRED": "bg-warning/15 text-warning-foreground border border-warning/20",
   "ERROR": "bg-destructive/15 text-destructive border border-destructive/20",
 };
 

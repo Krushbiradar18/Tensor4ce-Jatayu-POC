@@ -235,3 +235,156 @@ def extract_from_pan_pdf(pdf_path: str) -> dict:
     }
     logger.info("PAN extraction complete: %s", {k: v for k, v in result.items() if k != 'raw_lines'})
     return result
+
+
+# ── Vision-based extraction (Groq LLM) for image files ───────────────────────
+
+def extract_from_image(image_path: str, doc_type: str = "aadhaar") -> dict:
+    """
+    Extract fields from a JPG/PNG identity document using Groq's vision API.
+
+    Args:
+        image_path: Path to the image file (jpg, jpeg, png).
+        doc_type:   "aadhaar" or "pan"
+
+    Returns:
+        Same shape as extract_from_aadhaar_pdf / extract_from_pan_pdf.
+    """
+    import os, json, base64
+    from pathlib import Path as _Path
+    from groq import Groq
+
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        logger.warning("GROQ_API_KEY not set — skipping vision extraction")
+        return {"name": None, "aadhaar_number": None, "pan_number": None, "raw_lines": []}
+
+    suffix = _Path(image_path).suffix.lower()
+    mime = "image/jpeg" if suffix in (".jpg", ".jpeg") else "image/png"
+
+    with open(image_path, "rb") as f:
+        image_b64 = base64.b64encode(f.read()).decode("utf-8")
+
+    if doc_type == "aadhaar":
+        prompt = (
+            "This is an Aadhaar card image. Extract and return ONLY valid JSON with keys:\n"
+            '{"name": "<full name in English>", "aadhaar_number": "<12 digits, no spaces>"}\n'
+            "If a field is not visible, use null."
+        )
+    else:
+        prompt = (
+            "This is a PAN card image. Extract and return ONLY valid JSON with keys:\n"
+            '{"name": "<full name>", "pan_number": "<10-char PAN e.g. ABCDE1234F>"}\n'
+            "If a field is not visible, use null."
+        )
+
+    try:
+        client = Groq(api_key=api_key)
+        model = os.environ.get("GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
+        response = client.chat.completions.create(
+            model=model,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{image_b64}"}},
+                    {"type": "text", "text": prompt},
+                ],
+            }],
+            response_format={"type": "json_object"},
+            temperature=0.0,
+        )
+        data = json.loads(response.choices[0].message.content)
+        logger.info("Vision extraction (%s): %s", doc_type, data)
+
+        if doc_type == "aadhaar":
+            # Normalise: strip spaces from aadhaar number
+            aadhaar = data.get("aadhaar_number") or ""
+            aadhaar = re.sub(r"[\s\-]", "", str(aadhaar))
+            return {"name": data.get("name"), "aadhaar_number": aadhaar or None, "raw_lines": []}
+        else:
+            pan = (data.get("pan_number") or "").upper().replace(" ", "")
+            # Validate PAN format
+            if not _PAN_RE.match(pan):
+                pan = None
+            return {"name": data.get("name"), "pan_number": pan, "raw_lines": []}
+
+    except Exception as e:
+        logger.error("Vision extraction failed for %s: %s", doc_type, e)
+        return {"name": None, "aadhaar_number": None, "pan_number": None, "raw_lines": []}
+
+
+# ── Vision-based financial extraction for bank statement / salary slip / ITR ──
+
+def extract_financial_from_image(image_path: str, doc_type: str) -> dict:
+    """
+    Extract structured financial fields from an image using Groq vision.
+
+    Args:
+        image_path: Path to image file (jpg, jpeg, png).
+        doc_type:   'bank_statement' | 'salary_slip' | 'itr'
+
+    Returns:
+        Structured dict matching the same schema as services/llm_extractor.
+    """
+    import os, json, base64
+    from pathlib import Path as _Path
+    from groq import Groq
+
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        logger.warning("GROQ_API_KEY not set — skipping financial vision extraction")
+        return {"available": False, "reason": "GROQ_API_KEY not set"}
+
+    suffix = _Path(image_path).suffix.lower()
+    mime = "image/jpeg" if suffix in (".jpg", ".jpeg") else "image/png"
+
+    with open(image_path, "rb") as f:
+        image_b64 = base64.b64encode(f.read()).decode("utf-8")
+
+    prompts = {
+        "bank_statement": (
+            "This is a bank statement image. Extract and return ONLY valid JSON with these keys:\n"
+            '{"avg_monthly_credit": <number>, "avg_monthly_balance": <number>, '
+            '"min_eod_balance": <number>, "emi_bounce_count": <integer>, '
+            '"salary_regularity": <float 0-1>, "total_credits": <number>, '
+            '"total_debits": <number>, "account_holder": <string or null>}\n'
+            "Use null for any field not visible."
+        ),
+        "salary_slip": (
+            "This is a salary slip image. Extract and return ONLY valid JSON with these keys:\n"
+            '{"gross_salary": <number>, "basic_pay": <number>, "deductions": <number>, '
+            '"net_pay": <number>, "employer_name": <string or null>}\n'
+            "Use null for any field not visible."
+        ),
+        "itr": (
+            "This is an Income Tax Return (ITR) document image. Extract and return ONLY valid JSON with these keys:\n"
+            '{"total_income": <number>, "income_from_salary": <number>, '
+            '"tax_paid": <number>, "assessment_year": <string e.g. "2024-25">, '
+            '"employer_name": <string or null>}\n'
+            "Use null for any field not visible."
+        ),
+    }
+
+    prompt = prompts.get(doc_type, prompts["bank_statement"])
+
+    try:
+        client = Groq(api_key=api_key)
+        model = os.environ.get("GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
+        response = client.chat.completions.create(
+            model=model,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{image_b64}"}},
+                    {"type": "text", "text": prompt},
+                ],
+            }],
+            response_format={"type": "json_object"},
+            temperature=0.0,
+        )
+        data = json.loads(response.choices[0].message.content)
+        logger.info("Financial vision extraction (%s): %s", doc_type, data)
+        return {"available": True, **data}
+    except Exception as e:
+        logger.error("Financial vision extraction failed for %s: %s", doc_type, e)
+        return {"available": False, "reason": str(e)}

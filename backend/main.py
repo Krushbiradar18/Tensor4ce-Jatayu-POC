@@ -24,13 +24,16 @@ import os
 import json
 import asyncio
 import logging
+import tempfile
 from contextlib import asynccontextmanager
 from pathlib import Path
+
+_UPLOAD_BASE = Path(tempfile.gettempdir()) / "aria_loan_uploads"
 
 # Silence LiteLLM console spam
 os.environ["LITELLM_LOG"] = "ERROR"
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Depends
+from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Form, Depends
 from auth import create_access_token, get_current_officer
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -61,6 +64,11 @@ def _load_local_env() -> None:
 
 
 _load_local_env()
+
+# macOS / Python 3.12: ensure subprocess spawning is safe with asyncio
+import multiprocessing as _mp
+if _mp.get_start_method(allow_none=True) is None:
+    _mp.set_start_method("spawn")
 
 import db
 
@@ -267,7 +275,33 @@ def submit_application(req: SubmitRequest, background_tasks: BackgroundTasks):
     
     # Log application submission event
     db.save_application(app_id, req.form_data, req.ip_metadata)
-    
+
+    # ── Move pending doc files to pdf_data/{app_id}/ ─────────────────────────
+    doc_token = req.document_data.get("doc_token") if req.document_data else None
+    if doc_token:
+        pending_dir = _UPLOAD_BASE / "_pending" / doc_token
+        app_doc_dir = _UPLOAD_BASE / app_id
+        if pending_dir.exists():
+            app_doc_dir.mkdir(parents=True, exist_ok=True)
+            import shutil as _shutil
+            for f in pending_dir.iterdir():
+                _shutil.copy2(f, app_doc_dir / f.name)
+            try:
+                _shutil.rmtree(pending_dir)
+            except Exception:
+                pass
+            logger.info("[%s] Moved %d doc files from pending to tmp/aria_loan_uploads/%s/",
+                        app_id, len(list(app_doc_dir.iterdir())), app_id)
+
+    # ── Backfill pan/aadhaar from OCR document_data if form fields are empty ──
+    if req.document_data and not req.document_data.get("extraction_failed"):
+        if not req.form_data.get("pan_number") and req.document_data.get("pan_number"):
+            req.form_data["pan_number"] = req.document_data["pan_number"]
+        if not req.form_data.get("aadhaar_last4") and req.document_data.get("aadhaar_number"):
+            req.form_data["aadhaar_last4"] = str(req.document_data["aadhaar_number"])[-4:]
+        if not req.form_data.get("applicant_name") and req.document_data.get("name"):
+            req.form_data["applicant_name"] = req.document_data["name"]
+
     # Check if frontend reported OCR extraction issues
     if req.document_data and req.document_data.get("extraction_failed"):
         db.log_event(app_id, "system", "OCR_EXTRACTION_FAILED", {
@@ -275,8 +309,13 @@ def submit_application(req: SubmitRequest, background_tasks: BackgroundTasks):
             "error": req.document_data.get("extraction_error", "Unknown error")
         })
 
-    # ── Document identity check (when OCR data is provided) ──────────────────
-    if req.document_data:
+    # ── Document identity check (only when OCR actually succeeded) ────────────
+    _has_ocr = (
+        req.document_data
+        and not req.document_data.get("extraction_failed")
+        and (req.document_data.get("pan_number") or req.document_data.get("aadhaar_number"))
+    )
+    if _has_ocr:
         from verification.verifier import run_document_identity_check
         doc_passed, doc_reason, doc_flags = run_document_identity_check(
             req.form_data, req.document_data
@@ -502,12 +541,39 @@ def submit_rejected_sample_application(background_tasks: BackgroundTasks):
     }
 
 
+def _run_pipeline_subprocess(app_id: str, form_data: dict, ip_meta: dict):
+    """
+    Entry point for the subprocess. Runs in a completely separate Python process
+    so it can make HTTP calls back to the same uvicorn port without deadlocking
+    the main event loop.
+    """
+    import sys, os
+    # Ensure the backend directory is on sys.path inside the subprocess
+    backend_dir = os.path.dirname(os.path.abspath(__file__))
+    if backend_dir not in sys.path:
+        sys.path.insert(0, backend_dir)
+    from orchestration.crew import run_crew_pipeline
+    run_crew_pipeline(app_id, form_data, ip_meta)
+
+
 async def _run_bg(app_id: str, form_data: dict, ip_meta: dict):
+    """
+    Spawn the pipeline in a fresh subprocess so A2A HTTP calls back to
+    localhost:8000 are processed by the still-responsive event loop.
+    """
+    import multiprocessing
     try:
-        # Use the new CrewAI orchestration layer
-        from orchestration.crew import run_crew_pipeline
+        proc = multiprocessing.Process(
+            target=_run_pipeline_subprocess,
+            args=(app_id, form_data, ip_meta),
+            daemon=True,
+        )
+        proc.start()
+        # Wait in the executor so the event loop stays free
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, run_crew_pipeline, app_id, form_data, ip_meta)
+        await loop.run_in_executor(None, proc.join)
+        if proc.exitcode != 0:
+            raise RuntimeError(f"Pipeline subprocess exited with code {proc.exitcode}")
     except Exception as e:
         logger.exception(f"Pipeline error for {app_id}: {e}")
         db.update_status(app_id, "ERROR")
@@ -515,11 +581,87 @@ async def _run_bg(app_id: str, form_data: dict, ip_meta: dict):
 
 
 
+@app.post("/api/resubmit/{app_id}")
+async def resubmit_documents(
+    app_id: str,
+    background_tasks: BackgroundTasks,
+    annual_income: str = Form(None),
+    bank_statement: UploadFile = File(None),
+    salary_slip: UploadFile = File(None),
+    itr: UploadFile = File(None),
+):
+    """
+    Re-upload missing documents and/or correct income for a DATA_REQUIRED application.
+    Saves uploaded files to a temp directory, re-runs vision extraction,
+    updates the stored form_data with corrected income, and restarts the pipeline.
+    """
+    row = db.get_application(app_id)
+    if not row:
+        raise HTTPException(404, "Application not found")
+    if row["status"] != "DATA_REQUIRED":
+        raise HTTPException(400, f"Application is not in DATA_REQUIRED state (current: {row['status']})")
+
+    # ── Save newly uploaded files ─────────────────────────────────────────────
+    import shutil as _shutil
+    app_doc_dir = _UPLOAD_BASE / app_id
+    app_doc_dir.mkdir(parents=True, exist_ok=True)
+
+    saved_files: dict[str, str] = {}
+    for field_name, upload in [("bank_statement", bank_statement), ("salary_slip", salary_slip), ("itr", itr)]:
+        if upload is None:
+            continue
+        suffix = Path(upload.filename or "file").suffix or ".png"
+        dest = app_doc_dir / f"{field_name}{suffix}"
+        content = await upload.read()
+        dest.write_bytes(content)
+        saved_files[field_name] = str(dest)
+        logger.info("[%s] Resubmit: saved %s → %s", app_id, field_name, dest)
+
+    # ── Re-run vision extraction on newly uploaded files ─────────────────────
+    from document_extractor import extract_financial_from_image
+    new_doc_data: dict[str, dict] = {}
+    for field_name, path in saved_files.items():
+        try:
+            result = extract_financial_from_image(path, field_name)
+            new_doc_data[field_name] = result
+            logger.info("[%s] Resubmit: extracted %s → %s", app_id, field_name, result)
+        except Exception as e:
+            logger.warning("[%s] Resubmit: extraction failed for %s: %s", app_id, field_name, e)
+            new_doc_data[field_name] = {"available": False, "error": str(e)}
+
+    # ── Patch form_data with corrected income if provided ────────────────────
+    form_data = json.loads(row["raw_payload"])
+    ip_meta   = json.loads(row.get("ip_metadata") or "{}")
+    if annual_income is not None:
+        try:
+            form_data["annual_income"] = float(annual_income)
+        except ValueError:
+            raise HTTPException(400, f"Invalid annual_income value: {annual_income!r}")
+
+    # ── Reset status → PENDING and re-trigger pipeline ───────────────────────
+    db.update_status(app_id, "PENDING")
+    db.log_event(app_id, "system", "RESUBMIT_DOCS", {
+        "saved_files": list(saved_files.keys()),
+        "income_updated": annual_income is not None,
+        "extracted": {k: v.get("available", False) for k, v in new_doc_data.items()},
+    })
+
+    background_tasks.add_task(_run_bg, app_id, form_data, ip_meta)
+
+    return {
+        "application_id": app_id,
+        "status": "PENDING",
+        "message": "Documents received. Pipeline restarted.",
+        "saved_files": list(saved_files.keys()),
+        "extracted": {k: v for k, v in new_doc_data.items()},
+    }
+
+
 @app.get("/api/status/{app_id}")
 def get_status(app_id: str):
     row = db.get_application(app_id)
     if not row:
-        raise HTTPException(404, "Application not found")
+        raise HTTPException(status_code=404, detail="Application not found")
     status = row["status"]
     messages = {
         "PENDING":                "Application received. We are initializing the verification process.",
@@ -578,12 +720,17 @@ def get_full_decision(app_id: str, current_user: dict = Depends(get_current_offi
 async def extract_documents(
     aadhaar: UploadFile = File(None),
     pan: UploadFile = File(None),
+    bank_statement: UploadFile = File(None),
+    salary_slip: UploadFile = File(None),
+    itr: UploadFile = File(None),
 ):
     """
-    Upload Aadhaar and/or PAN PDFs and extract name, Aadhaar number, and PAN number.
-    Accepts multipart/form-data with optional fields: aadhaar (PDF), pan (PDF).
+    Upload identity and financial documents. Extracts structured fields via Groq vision.
+    Accepts multipart/form-data with optional fields:
+      aadhaar, pan, bank_statement, salary_slip, itr (PDF or image).
+    Returns extracted fields + doc_token for referencing saved files in /api/apply.
     """
-    import tempfile, os
+    import os, uuid as _uuid
     from document_extractor import extract_from_aadhaar_pdf, extract_from_pan_pdf
 
     result: dict = {"name": None, "aadhaar_number": None, "pan_number": None}
@@ -607,13 +754,23 @@ async def extract_documents(
 
     loop = asyncio.get_event_loop()
 
+    _IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+
+    def _is_image(upload: UploadFile) -> bool:
+        if not upload.filename:
+            return False
+        return Path(upload.filename).suffix.lower() in _IMAGE_SUFFIXES
+
     # ── Process Aadhaar ───────────────────────────────────────────────────────
     if aadhaar is not None:
         tmp = None
         try:
             tmp = await _save_upload(aadhaar)
-            # Run blocking OCR in thread pool so event loop stays responsive
-            out = await loop.run_in_executor(None, extract_from_aadhaar_pdf, tmp)
+            if _is_image(aadhaar):
+                from document_extractor import extract_from_image
+                out = await loop.run_in_executor(None, extract_from_image, tmp, "aadhaar")
+            else:
+                out = await loop.run_in_executor(None, extract_from_aadhaar_pdf, tmp)
             result["aadhaar_number"] = out.get("aadhaar_number")
             if out.get("name"):
                 result["name"] = out["name"]
@@ -629,7 +786,11 @@ async def extract_documents(
         tmp = None
         try:
             tmp = await _save_upload(pan)
-            out = await loop.run_in_executor(None, extract_from_pan_pdf, tmp)
+            if _is_image(pan):
+                from document_extractor import extract_from_image
+                out = await loop.run_in_executor(None, extract_from_image, tmp, "pan")
+            else:
+                out = await loop.run_in_executor(None, extract_from_pan_pdf, tmp)
             result["pan_number"] = out.get("pan_number")
             # PAN name takes precedence (cleaner on most cards)
             if out.get("name"):
@@ -641,7 +802,68 @@ async def extract_documents(
             if tmp and Path(tmp).exists():
                 os.unlink(tmp)
 
-    return {**result, "errors": errors}
+    # ── Generate a doc_token and save all uploaded files to a pending folder ──
+    doc_token = _uuid.uuid4().hex[:12].upper()
+    pending_dir = _UPLOAD_BASE / "_pending" / doc_token
+    pending_dir.mkdir(parents=True, exist_ok=True)
+
+    async def _save_to_pending(upload: UploadFile, dest_name: str) -> Path:
+        """Save an UploadFile to the pending folder, return the saved path."""
+        suffix = Path(upload.filename).suffix if upload.filename else ".bin"
+        dest = pending_dir / f"{dest_name}{suffix}"
+        content = await upload.read()
+        dest.write_bytes(content)
+        return dest
+
+    # ── Financial document extraction ─────────────────────────────────────────
+    from document_extractor import extract_financial_from_image
+
+    for upload_file, field_name in [
+        (bank_statement, "bank_statement"),
+        (salary_slip, "salary_slip"),
+        (itr, "itr"),
+    ]:
+        if upload_file is None:
+            continue
+        tmp_fin = None
+        try:
+            saved = await _save_to_pending(upload_file, field_name)
+            # Re-seek to run extraction (file was consumed by save)
+            tmp_fin = str(saved)
+            if _is_image(upload_file):
+                extracted = await loop.run_in_executor(
+                    None, extract_financial_from_image, tmp_fin, field_name
+                )
+            else:
+                # PDF path — use PaddleOCR + LLM text extractor
+                from document_extractor import _extract_text_lines
+                from services.llm_extractor import extract_financial_data
+                lines = await loop.run_in_executor(None, _extract_text_lines, tmp_fin)
+                extracted = extract_financial_data("\n".join(lines), doc_type=field_name)
+                extracted["available"] = True
+            result[field_name] = extracted
+        except Exception as e:
+            logger.exception("%s extraction failed", field_name)
+            errors.append(f"{field_name}: {e}")
+            result[field_name] = {"available": False, "reason": str(e)}
+
+    # Save aadhaar and pan to pending dir as well (for identity check later)
+    if aadhaar is not None:
+        try:
+            aadhaar.file.seek(0)
+            suffix = Path(aadhaar.filename).suffix if aadhaar.filename else ".jpg"
+            (pending_dir / f"aadhaar{suffix}").write_bytes(await aadhaar.read())
+        except Exception:
+            pass
+    if pan is not None:
+        try:
+            pan.file.seek(0)
+            suffix = Path(pan.filename).suffix if pan.filename else ".jpg"
+            (pending_dir / f"pan{suffix}").write_bytes(await pan.read())
+        except Exception:
+            pass
+
+    return {**result, "doc_token": doc_token, "errors": errors}
 
 
 

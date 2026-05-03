@@ -17,6 +17,12 @@ export interface ApplicationResponse {
   officer_decision?: string;
   officer_reason?: string;
   actioned_at?: string;
+  decision?: {
+    required_documents?: Array<{ doc: string; reason?: string; impact?: string; blocking?: boolean }>;
+    officer_narrative?: string;
+    data_completeness?: Record<string, any>;
+    [key: string]: any;
+  };
 }
 
 export interface OfficerQueueItem {
@@ -82,6 +88,27 @@ export async function getApplicationStatus(appId: string): Promise<ApplicationRe
     throw new Error(`Failed to get application status: ${response.statusText}`);
   }
 
+  return response.json();
+}
+
+export async function resubmitDocuments(
+  appId: string,
+  annualIncome: number | null,
+  files: { bankStatement?: File; salarySlip?: File; itr?: File }
+): Promise<ApplicationResponse> {
+  const form = new FormData();
+  if (annualIncome !== null) form.append("annual_income", String(annualIncome));
+  if (files.bankStatement) form.append("bank_statement", files.bankStatement);
+  if (files.salarySlip)    form.append("salary_slip", files.salarySlip);
+  if (files.itr)           form.append("itr", files.itr);
+
+  const response = await fetch(`${API_BASE}/resubmit/${appId}`, {
+    method: "POST",
+    body: form,
+  });
+  if (!response.ok) {
+    throw new Error(`Resubmit failed: ${response.statusText}`);
+  }
   return response.json();
 }
 

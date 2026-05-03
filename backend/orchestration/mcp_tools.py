@@ -127,26 +127,46 @@ def get_portfolio_exposure(loan_product: str, state: str, loan_amount: float) ->
     return _get_portfolio_data(loan_product, state, loan_amount)
 
 
-# ── Tool 7: Similar Cases (pgvector proxy) ────────────────────────────────────
+# ── Tool 7: Similar Cases ────────────────────────────────────────────────────
 
 @tool("query_similar_cases")
-def query_similar_cases(application_id: str, k: int = 5) -> list:
+def query_similar_cases(application_id: str, k: int = 5) -> dict:
     """
-    Find k historically similar loan applications and their outcomes.
-    Acts as a proxy for pgvector cosine similarity search.
+    Find k historically similar past loan applications and their outcomes.
+    Similarity based on CIBIL range ±50, income range ±30%, loan type, and amount range ±50%.
+    Returns past cases with AI recommendation, officer decision, and default rate.
     """
-    from tools import _get_portfolio_data, _get_features
+    from tools import _get_features
+    import db
     try:
         f = _get_features(application_id)
-        # Use defaults if features not fully loaded
-        product = f.get("loan_product_type", "PERSONAL")
-        state = f.get("state_code", "MH")
-        amount = f.get("loan_amount_requested", 500000)
-        pd = _get_portfolio_data(product, state, amount)
-        npa_rate = pd.get("portfolio_npa_rate", 0.038)
+        cibil  = float(f.get("cibil_score", 650))
+        income = float(f.get("annual_income_verified", 500000))
+        product = str(f.get("loan_product_type", "PERSONAL"))
+        amount  = float(f.get("loan_amount_requested", 500000))
     except Exception:
-        npa_rate = 0.038
-    return [{"application_summary": "historical_similar", "outcome": "ACTIVE", "npa_rate": npa_rate}]
+        cibil, income, product, amount = 650, 500000, "PERSONAL", 500000
+
+    similar = db.find_similar_applications(
+        cibil_range=(cibil - 50, cibil + 50),
+        income_range=(income * 0.7, income * 1.3),
+        loan_type=product,
+        amount_range=(amount * 0.5, amount * 1.5),
+        exclude_id=application_id,
+        limit=int(k),
+    )
+
+    if not similar:
+        return {"similar_cases": [], "summary": "No similar past cases found", "default_rate_similar": 0.0}
+
+    approved  = sum(1 for r in similar if r.get("ai_recommendation") == "APPROVE")
+    rejected  = sum(1 for r in similar if r.get("ai_recommendation") == "REJECT")
+    defaulted = sum(1 for r in similar if r.get("officer_decision") == "REJECTED")
+    return {
+        "similar_cases": similar,
+        "summary": f"{len(similar)} similar cases: {approved} approved, {rejected} rejected, {defaulted} officer-rejected",
+        "default_rate_similar": round(defaulted / max(len(similar), 1), 3),
+    }
 
 
 # ── Tool 8: Run Credit Model ──────────────────────────────────────────────────
@@ -270,6 +290,263 @@ def log_agent_action(application_id: str, agent_name: str, event_type: str, payl
     return {"status": "logged"}
 
 
+# ── Tool 18: Assess Data Completeness ───────────────────────────────────────
+
+@tool("assess_data_completeness")
+def assess_data_completeness(application_id: str) -> dict:
+    """
+    Check what data is available and what's missing for this loan application.
+    Returns available data sources, missing documents with reasons, a completeness
+    score (0-1), and whether the pipeline can proceed or should request more data.
+    ALWAYS call this before running any specialist agent.
+    """
+    from tools import _get_features
+    try:
+        f = _get_features(application_id)
+    except Exception as e:
+        return {"available_sources": [], "missing_documents": [], "data_completeness_score": 0.0,
+                "can_proceed": False, "error": str(e)}
+
+    available: list[dict] = []
+    missing: list[dict]   = []
+
+    # ── Bureau / CIBIL ────────────────────────────────────────────────────────
+    cibil = float(f.get("cibil_score", 0))
+    if cibil > 0:
+        available.append({"source": "CIBIL_BUREAU", "value": f"Score: {cibil:.0f}"})
+    else:
+        # Alt-score fallback exists, so this is non-blocking
+        missing.append({
+            "doc": "CIBIL_REPORT",
+            "reason": "Bureau score unavailable (new-to-credit or data gap)",
+            "impact": "Alt-score will be used; MEDIUM risk uplift applied",
+            "blocking": False,
+            "alternative": "get_alt_score",
+        })
+
+    # ── Income verification ────────────────────────────────────────────────────
+    income_claimed  = float(f.get("annual_income_verified", 0))
+    loan_amount     = float(f.get("loan_amount_requested", 0))
+    if income_claimed > 0:
+        available.append({"source": "INCOME_FORM", "value": f"₹{income_claimed:,.0f} p.a."})
+    else:
+        missing.append({
+            "doc": "INCOME_PROOF",
+            "reason": "Annual income not declared in form",
+            "impact": "FOIR cannot be calculated",
+            "blocking": True,
+        })
+
+    # ── Bank statement (required for loans > ₹3L) ────────────────────────────
+    avg_credit = float(f.get("avg_monthly_credit", 0))
+    if avg_credit > 0:
+        available.append({"source": "BANK_STATEMENT", "value": f"Avg monthly credit ₹{avg_credit:,.0f}"})
+    elif loan_amount > 300000:
+        missing.append({
+            "doc": "BANK_STATEMENT",
+            "reason": f"Required for loans > ₹3L (requested ₹{loan_amount:,.0f})",
+            "impact": "Income verification incomplete; risk uplift applied",
+            "blocking": False,
+            "alternative": "Proceed with declared income; flag for officer review",
+        })
+
+    # ── Employment tenure ─────────────────────────────────────────────────────
+    tenure = float(f.get("employment_tenure_years", 0))
+    if tenure > 0:
+        available.append({"source": "EMPLOYMENT", "value": f"{tenure:.1f} years"})
+
+    # ── KYC completeness ──────────────────────────────────────────────────────
+    pan_ok = bool(f.get("pan_verified", True))
+    if pan_ok:
+        available.append({"source": "KYC_PAN", "value": "Verified"})
+    else:
+        missing.append({"doc": "PAN_CARD", "reason": "PAN not verified", "impact": "KYC incomplete", "blocking": True})
+
+    blocking_count = sum(1 for m in missing if m.get("blocking", False))
+    score = round(len(available) / max(len(available) + len(missing), 1), 3)
+
+    return {
+        "available_sources":       available,
+        "missing_documents":       missing,
+        "data_completeness_score": score,
+        "can_proceed":             blocking_count == 0,
+        "blocking_gaps":           blocking_count,
+        "recommended_path":        "PROCEED" if blocking_count == 0 else "DATA_REQUIRED",
+    }
+
+
+# ── Tool 19: Simulate Risk Scenarios ─────────────────────────────────────────
+
+@tool("simulate_risk_scenarios")
+def simulate_risk_scenarios(application_id: str) -> dict:
+    """
+    Simulate risk under 3 scenarios: Base case, Income Stress (-20%), Rate Stress (+2%).
+    Returns FOIR, monthly surplus, and risk band under each scenario.
+    Call this after run_credit_model to stress-test the assessment.
+    """
+    from tools import _get_features
+    try:
+        f = _get_features(application_id)
+    except Exception as e:
+        return {"error": str(e)}
+
+    income        = float(f.get("annual_income_verified", 0)) / 12
+    proposed_emi  = float(f.get("proposed_emi", 0))
+    existing_emi  = float(f.get("existing_emi_monthly", 0))
+    rate_pct      = float(f.get("effective_rate", 10.0))
+    tenure        = int(f.get("loan_tenure_months", 60))
+    amount        = float(f.get("loan_amount_requested", 0))
+
+    def _risk_band(foir: float) -> str:
+        if foir > 0.65: return "VERY_HIGH"
+        if foir > 0.55: return "HIGH"
+        if foir > 0.45: return "MEDIUM"
+        return "LOW"
+
+    def _emi(principal: float, rate_annual: float, months: int) -> float:
+        r = rate_annual / 100 / 12
+        if r == 0 or months == 0:
+            return principal / max(months, 1)
+        return principal * r * (1 + r) ** months / ((1 + r) ** months - 1)
+
+    # Base
+    foir_base = (proposed_emi + existing_emi) / max(income, 1)
+    scenarios: dict = {
+        "base": {
+            "foir": round(foir_base, 3),
+            "monthly_surplus": round(income - proposed_emi - existing_emi, 0),
+            "risk_band": _risk_band(foir_base),
+        },
+    }
+
+    # Income stress −20 %
+    si = income * 0.8
+    foir_income = (proposed_emi + existing_emi) / max(si, 1)
+    scenarios["income_stress_20pct"] = {
+        "description": "If income drops by 20%",
+        "foir": round(foir_income, 3),
+        "monthly_surplus": round(si - proposed_emi - existing_emi, 0),
+        "risk_band": _risk_band(foir_income),
+    }
+
+    # Rate stress +2 %
+    emi_stressed  = _emi(amount, rate_pct + 2.0, tenure)
+    foir_rate     = (emi_stressed + existing_emi) / max(income, 1)
+    scenarios["rate_stress_2pct"] = {
+        "description": "If interest rate rises by 2%",
+        "new_emi": round(emi_stressed, 0),
+        "emi_increase": round(emi_stressed - proposed_emi, 0),
+        "foir": round(foir_rate, 3),
+        "monthly_surplus": round(income - emi_stressed - existing_emi, 0),
+        "risk_band": _risk_band(foir_rate),
+    }
+
+    worst_foir = max(foir_base, foir_income, foir_rate)
+    scenarios["stress_summary"] = {
+        "worst_case_foir": round(worst_foir, 3),
+        "passes_stress_test": worst_foir < 0.65,
+        "recommendation": "PROCEED" if worst_foir < 0.55 else "CAUTION" if worst_foir < 0.65 else "HIGH_RISK",
+    }
+    return scenarios
+
+
+# ── Tool 15: Extract Bank Statement ──────────────────────────────────────────
+
+@tool("extract_bank_statement")
+def extract_bank_statement(application_id: str) -> dict:
+    """
+    Extract and analyze bank statement data from an uploaded PDF or image.
+    Returns monthly income, expenses, EMI bounces, salary regularity, and cash flow analysis.
+    """
+    import os, sys
+    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+    from document_extractor import _extract_text_lines, extract_financial_from_image
+    from services.llm_extractor import extract_financial_data
+
+    import tempfile as _tmpmod
+    base = os.path.join(_tmpmod.gettempdir(), "aria_loan_uploads", application_id)
+    # Search for the file regardless of extension
+    found = None
+    for ext in (".pdf", ".png", ".jpg", ".jpeg"):
+        candidate = os.path.join(base, f"bank_statement{ext}")
+        if os.path.exists(candidate):
+            found = candidate
+            break
+    if not found:
+        return {"available": False, "reason": "No bank statement uploaded"}
+
+    if found.lower().endswith(".pdf"):
+        raw_lines = _extract_text_lines(found)
+        result = extract_financial_data("\n".join(raw_lines), doc_type="bank_statement")
+    else:
+        result = extract_financial_from_image(found, "bank_statement")
+    return {"available": True, **result}
+
+
+# ── Tool 16: Extract Salary Slip ──────────────────────────────────────────────
+
+@tool("extract_salary_slip")
+def extract_salary_slip(application_id: str) -> dict:
+    """
+    Extract salary details from an uploaded salary slip PDF or image.
+    Returns gross salary, deductions, net pay, and employer name.
+    """
+    import os, sys
+    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+    from document_extractor import _extract_text_lines, extract_financial_from_image
+    from services.llm_extractor import extract_financial_data
+
+    import tempfile as _tmpmod
+    base = os.path.join(_tmpmod.gettempdir(), "aria_loan_uploads", application_id)
+    found = None
+    for ext in (".pdf", ".png", ".jpg", ".jpeg"):
+        candidate = os.path.join(base, f"salary_slip{ext}")
+        if os.path.exists(candidate):
+            found = candidate
+            break
+    if not found:
+        return {"available": False, "reason": "No salary slip uploaded"}
+
+    if found.lower().endswith(".pdf"):
+        raw_lines = _extract_text_lines(found)
+        result = extract_financial_data("\n".join(raw_lines), doc_type="salary_slip")
+    else:
+        result = extract_financial_from_image(found, "salary_slip")
+    return {"available": True, **result}
+
+
+# ── Tool 17: Extract ITR ──────────────────────────────────────────────────────
+
+@tool("extract_itr")
+def extract_itr(application_id: str) -> dict:
+    """
+    Extract income tax return details from an uploaded ITR PDF or image.
+    Returns total income, tax paid, and assessment year.
+    """
+    import os, sys
+    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+    from document_extractor import _extract_text_lines, extract_financial_from_image
+    from services.llm_extractor import extract_financial_data
+
+    import tempfile as _tmpmod
+    base = os.path.join(_tmpmod.gettempdir(), "aria_loan_uploads", application_id)
+    found = None
+    for ext in (".pdf", ".png", ".jpg", ".jpeg"):
+        candidate = os.path.join(base, f"itr{ext}")
+        if os.path.exists(candidate):
+            found = candidate
+            break
+    if not found:
+        return {"available": False, "reason": "No ITR uploaded"}
+
+    if found.lower().endswith(".pdf"):
+        raw_lines = _extract_text_lines(found)
+        result = extract_financial_data("\n".join(raw_lines), doc_type="itr")
+    else:
+        result = extract_financial_from_image(found, "itr")
+    return {"available": True, **result}
+
+
 # ── Exported tool lists ────────────────────────────────────────────────────────
 
 ALL_MCP_TOOLS = [
@@ -279,12 +556,17 @@ ALL_MCP_TOOLS = [
     get_macro_config_tool,
     get_alt_score,
     get_portfolio_exposure,
-    query_similar_cases,
+    query_similar_cases,          # Day 4: real DB-backed similar cases
     run_credit_model,
     run_fraud_model,
     check_rbi_rules,
     run_portfolio_model,
-    search_compliance_knowledge,  # NEW: RAG-based compliance KB search
+    search_compliance_knowledge,  # Day 5: RAG compliance KB
     flag_for_human_review,
     log_agent_action,
+    extract_bank_statement,       # Day 2: unstructured bank statement
+    extract_salary_slip,          # Day 2: unstructured salary slip
+    extract_itr,                  # Day 2: unstructured ITR
+    assess_data_completeness,     # Day 3: dynamic data gathering gate
+    simulate_risk_scenarios,      # Day 6: stress scenario simulation
 ]

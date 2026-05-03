@@ -28,11 +28,14 @@ logger = logging.getLogger(__name__)
 # ── Helpers ─────────────────────────────────────────────────────────────────────
 
 def _has_gemini() -> bool:
+    """Check if a supported LLM provider (Groq, Vertex, or Gemini) is configured."""
     if os.environ.get("LLM_USAGE_MODE", "FULL").upper() == "FALLBACK":
         return False
     if os.environ.get("ENABLE_CREWAI_MANAGER", "false").strip().lower() not in {"1", "true", "yes", "on"}:
         return False
-    provider = os.environ.get("CREWAI_LLM_PROVIDER", "gemini").strip().lower()
+    provider = os.environ.get("CREWAI_LLM_PROVIDER", "groq").strip().lower()
+    if provider == "groq":
+        return bool(os.environ.get("GROQ_API_KEY"))
     if provider == "vertex":
         return (
             bool(os.environ.get("VERTEX_PROJECT") or os.environ.get("GOOGLE_CLOUD_PROJECT"))
@@ -46,10 +49,17 @@ def _has_gemini() -> bool:
 
 def _build_llm():
     from crewai import LLM
-    provider = os.environ.get("CREWAI_LLM_PROVIDER", "gemini").strip().lower()
-    api_key  = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    model    = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash-exp")
-    extra    = {}
+    provider = os.environ.get("CREWAI_LLM_PROVIDER", "groq").strip().lower()
+
+    if provider == "groq":
+        model   = os.environ.get("GROQ_MODEL_ORCHESTRATOR", "groq/llama-3.3-70b-versatile")
+        api_key = os.environ.get("GROQ_API_KEY")
+        return LLM(model=model, api_key=api_key, temperature=0.1)
+
+    # Vertex / Gemini fallback
+    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    model   = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash-exp")
+    extra   = {}
     if provider == "vertex":
         if "/" not in model:
             model = f"vertex_ai/{model}"
@@ -427,6 +437,38 @@ def run_crew_pipeline(app_id: str, form_data: dict, ip_meta: dict) -> dict:
     logger.info(f"[{app_id}] DIL starting...")
     ctx = run_dil_pipeline(app_id, form_data, ip_meta)
     logger.info(f"[{app_id}] DIL complete. Flags: {[f.flag_code for f in ctx.validation_flags]}")
+
+    # ── Step 1b: Data Completeness Gate (Day 3) ───────────────────────────────
+    try:
+        from orchestration.mcp_tools import assess_data_completeness
+        # Call the underlying function directly (bypassing the LangChain tool wrapper)
+        completeness = assess_data_completeness.func(app_id)
+        _log_event(app_id, "orchestrator", "DATA_COMPLETENESS_CHECK", completeness)
+        if not completeness.get("can_proceed", True):
+            # Blocking data gaps — halt pipeline and request more documents
+            missing = completeness.get("missing_documents", [])
+            logger.warning(f"[{app_id}] Blocking data gaps: {[m['doc'] for m in missing if m.get('blocking')]} — status → DATA_REQUIRED")
+            db.update_status(app_id, "DATA_REQUIRED")
+            required_docs = [m for m in missing if m.get("blocking")]
+            decision_id = str(uuid.uuid4())
+            result = {
+                "decision_id": decision_id,
+                "application_id": app_id,
+                "ai_recommendation": "DATA_REQUIRED",
+                "data_completeness": completeness,
+                "required_documents": required_docs,
+                "officer_narrative": (
+                    "Application cannot be processed due to missing mandatory data: "
+                    + ", ".join(m["doc"] for m in required_docs)
+                    + ". Please upload the required documents and resubmit."
+                ),
+                "processing_time_ms": round((time.time() - t0) * 1000, 1),
+            }
+            db.save_decision(decision_id, app_id, result)
+            return result
+        logger.info(f"[{app_id}] Data completeness OK (score={completeness.get('data_completeness_score', '?')})")
+    except Exception as e:
+        logger.warning(f"[{app_id}] Data completeness check failed (non-blocking): {e}")
 
     # ── Step 2: Agentic Orchestration ─────────────────────────────────────────
     db.update_status(app_id, "AGENTS_RUNNING")

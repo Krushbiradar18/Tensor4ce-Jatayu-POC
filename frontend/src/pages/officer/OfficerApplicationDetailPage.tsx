@@ -23,6 +23,7 @@ const statusColors: Record<string, string> = {
   "OFFICER_REJECTED": "bg-destructive/15 text-destructive border border-destructive/20",
   "OFFICER_CONDITIONAL": "bg-accent/15 text-accent-foreground border border-accent/20",
   "OFFICER_ESCALATED": "bg-accent/15 text-accent-foreground border border-accent/20",
+  "DATA_REQUIRED": "bg-warning/15 text-warning-foreground border border-warning/20",
   "ERROR": "bg-destructive/15 text-destructive border border-destructive/20",
 };
 
@@ -133,7 +134,23 @@ export default function OfficerApplicationDetailPage() {
         </div>
       </div>
 
-      {aiDecision.ai_recommendation && (
+      {aiDecision.ai_recommendation === "DATA_REQUIRED" && (
+        <div className="p-4 border-l-4 border-l-warning bg-warning/5 border border-warning/20 rounded-md">
+          <p className="text-sm font-bold uppercase tracking-tight text-warning mb-1">Data Insufficient — Documents Required</p>
+          {aiDecision.required_documents && aiDecision.required_documents.length > 0 && (
+            <ul className="mt-2 space-y-1">
+              {aiDecision.required_documents.map((doc: any, i: number) => (
+                <li key={i} className="text-xs text-muted-foreground">• <span className="font-semibold text-foreground">{doc.doc?.replace(/_/g, " ")}</span>{doc.reason ? ` — ${doc.reason}` : ""}</li>
+              ))}
+            </ul>
+          )}
+          {aiDecision.officer_narrative && (
+            <p className="text-xs text-muted-foreground mt-2 italic">{aiDecision.officer_narrative}</p>
+          )}
+        </div>
+      )}
+
+      {aiDecision.ai_recommendation && aiDecision.ai_recommendation !== "DATA_REQUIRED" && (
         <div className={`p-4 border rounded-md flex items-center justify-between ${
           aiDecision.ai_recommendation === "REJECT" ? "border-l-4 border-l-destructive bg-destructive/5 border-destructive/20" : 
           aiDecision.ai_recommendation === "APPROVE" ? "border-l-4 border-l-success bg-success/5 border-success/20" : 

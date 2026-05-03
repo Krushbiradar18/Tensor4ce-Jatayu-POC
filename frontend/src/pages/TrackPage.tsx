@@ -1,18 +1,19 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import PublicLayout from "@/components/PublicLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, Loader2, Activity, ShieldCheck, CheckCircle2 } from "lucide-react";
-import { getApplicationStatus } from "@/lib/api";
+import { Search, Loader2, Activity, ShieldCheck, CheckCircle2, FileWarning, AlertCircle, Upload, RefreshCw } from "lucide-react";
+import { getApplicationStatus, resubmitDocuments } from "@/lib/api";
 
 const statusColors: Record<string, string> = {
   "PENDING": "bg-primary/10 text-primary border-primary/20",
   "DIL_PROCESSING": "bg-primary/10 text-primary border-primary/20",
   "AGENTS_RUNNING": "bg-accent/10 text-accent border-accent/20 animate-pulse",
   "DECIDED_PENDING_OFFICER": "bg-accent/10 text-accent border-accent/20",
+  "DATA_REQUIRED": "bg-warning/10 text-warning border-warning/20",
   "OFFICER_APPROVED": "bg-success/10 text-success border-success/20",
   "OFFICER_REJECTED": "bg-destructive/10 text-destructive border-destructive/20",
   "OFFICER_CONDITIONAL": "bg-warning/10 text-warning border-warning/20",
@@ -26,11 +27,23 @@ export default function TrackPage() {
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Resubmit state
+  const [resubmitIncome, setResubmitIncome] = useState("");
+  const [resubmitFiles, setResubmitFiles] = useState<{
+    bankStatement?: File; salarySlip?: File; itr?: File;
+  }>({});
+  const [resubmitLoading, setResubmitLoading] = useState(false);
+  const [resubmitDone, setResubmitDone] = useState(false);
+  const bankRef = useRef<HTMLInputElement>(null);
+  const salaryRef = useRef<HTMLInputElement>(null);
+  const itrRef = useRef<HTMLInputElement>(null);
+
   const handleSearch = async () => {
     if (!searchId.trim()) return;
     setLoading(true);
     setNotFound(false);
     setApp(null);
+    setResubmitDone(false);
 
     try {
       const result = await getApplicationStatus(searchId.trim());
@@ -42,9 +55,30 @@ export default function TrackPage() {
     }
   };
 
+  const handleResubmit = async () => {
+    if (!app?.application_id) return;
+    setResubmitLoading(true);
+    try {
+      const income = resubmitIncome ? parseFloat(resubmitIncome) : null;
+      await resubmitDocuments(app.application_id, income, resubmitFiles);
+      setResubmitDone(true);
+      // Refresh status after a brief pause
+      setTimeout(async () => {
+        const updated = await getApplicationStatus(app.application_id);
+        setApp(updated);
+      }, 2000);
+    } catch (err) {
+      console.error("Resubmit failed:", err);
+    } finally {
+      setResubmitLoading(false);
+    }
+  };
+
   const currentStatus = app?.status || "PENDING";
-  const displayStatus = (["DIL_PROCESSING", "AGENTS_RUNNING", "DECIDED_PENDING_OFFICER"].includes(currentStatus)) 
-    ? "PROCESSING" 
+  const displayStatus = (["DIL_PROCESSING", "AGENTS_RUNNING", "DECIDED_PENDING_OFFICER"].includes(currentStatus))
+    ? "PROCESSING"
+    : currentStatus === "DATA_REQUIRED"
+    ? "DOCUMENTS REQUIRED"
     : currentStatus.replace("OFFICER_", "");
 
   return (
@@ -106,6 +140,130 @@ export default function TrackPage() {
                   <p className="text-xl font-bold text-foreground">{displayStatus}</p>
                 </div>
               </div>
+
+              {currentStatus === "DATA_REQUIRED" && (
+                <div className="bg-warning/5 rounded-2xl p-6 border border-warning/20 relative overflow-hidden">
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <FileWarning className="h-5 w-5 text-warning" />
+                    </div>
+                    <div>
+                      <h4 className="text-base font-bold text-foreground mb-1">Additional Documents Required</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Your application is on hold. Please provide the missing information below to resume processing.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Missing doc list */}
+                  {app.decision?.required_documents && app.decision.required_documents.length > 0 && (
+                    <ul className="space-y-2 mb-6">
+                      {app.decision.required_documents.map((doc: any, idx: number) => (
+                        <li key={idx} className="flex items-start gap-3 bg-background/50 rounded-xl p-3 border border-warning/10">
+                          <AlertCircle className="h-4 w-4 text-warning flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">{doc.doc?.replace(/_/g, " ")}</p>
+                            {doc.reason && <p className="text-xs text-muted-foreground mt-0.5">{doc.reason}</p>}
+                            {doc.impact && <p className="text-xs text-destructive/70 mt-0.5">Impact: {doc.impact}</p>}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {/* Re-upload form */}
+                  {resubmitDone ? (
+                    <div className="flex items-center gap-2 text-success font-semibold text-sm bg-success/10 rounded-xl p-4 border border-success/20">
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      Documents submitted. Pipeline restarted — refreshing status…
+                    </div>
+                  ) : (
+                    <div className="space-y-4 border-t border-warning/10 pt-5">
+                      <p className="text-xs font-bold text-foreground uppercase tracking-widest">Upload Missing Documents</p>
+
+                      {/* Income field */}
+                      {app.decision?.required_documents?.some((d: any) => d.doc === "INCOME_PROOF") && (
+                        <div className="space-y-1">
+                          <label className="text-xs text-muted-foreground font-medium">Annual Income (₹)</label>
+                          <Input
+                            type="number"
+                            placeholder="e.g. 840000"
+                            value={resubmitIncome}
+                            onChange={(e) => setResubmitIncome(e.target.value)}
+                            className="h-10 bg-background/70 border-warning/20"
+                          />
+                        </div>
+                      )}
+
+                      {/* Bank statement */}
+                      {app.decision?.required_documents?.some((d: any) => d.doc === "BANK_STATEMENT") && (
+                        <div className="space-y-1">
+                          <label className="text-xs text-muted-foreground font-medium">Bank Statement (PDF / image)</label>
+                          <div
+                            className="flex items-center gap-3 cursor-pointer bg-background/50 border border-dashed border-warning/30 rounded-xl p-3 hover:border-warning/60 transition-colors"
+                            onClick={() => bankRef.current?.click()}
+                          >
+                            <Upload className="h-4 w-4 text-warning flex-shrink-0" />
+                            <span className="text-sm text-muted-foreground">
+                              {resubmitFiles.bankStatement ? resubmitFiles.bankStatement.name : "Click to choose file"}
+                            </span>
+                          </div>
+                          <input ref={bankRef} type="file" accept=".pdf,.png,.jpg,.jpeg" className="hidden"
+                            onChange={(e) => setResubmitFiles(f => ({ ...f, bankStatement: e.target.files?.[0] }))} />
+                        </div>
+                      )}
+
+                      {/* Salary slip */}
+                      <div className="space-y-1">
+                        <label className="text-xs text-muted-foreground font-medium">Salary Slip <span className="text-muted-foreground/60">(optional)</span></label>
+                        <div
+                          className="flex items-center gap-3 cursor-pointer bg-background/50 border border-dashed border-muted/40 rounded-xl p-3 hover:border-warning/40 transition-colors"
+                          onClick={() => salaryRef.current?.click()}
+                        >
+                          <Upload className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <span className="text-sm text-muted-foreground">
+                            {resubmitFiles.salarySlip ? resubmitFiles.salarySlip.name : "Click to choose file"}
+                          </span>
+                        </div>
+                        <input ref={salaryRef} type="file" accept=".pdf,.png,.jpg,.jpeg" className="hidden"
+                          onChange={(e) => setResubmitFiles(f => ({ ...f, salarySlip: e.target.files?.[0] }))} />
+                      </div>
+
+                      {/* ITR */}
+                      <div className="space-y-1">
+                        <label className="text-xs text-muted-foreground font-medium">ITR / Income Tax Return <span className="text-muted-foreground/60">(optional)</span></label>
+                        <div
+                          className="flex items-center gap-3 cursor-pointer bg-background/50 border border-dashed border-muted/40 rounded-xl p-3 hover:border-warning/40 transition-colors"
+                          onClick={() => itrRef.current?.click()}
+                        >
+                          <Upload className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <span className="text-sm text-muted-foreground">
+                            {resubmitFiles.itr ? resubmitFiles.itr.name : "Click to choose file"}
+                          </span>
+                        </div>
+                        <input ref={itrRef} type="file" accept=".pdf,.png,.jpg,.jpeg" className="hidden"
+                          onChange={(e) => setResubmitFiles(f => ({ ...f, itr: e.target.files?.[0] }))} />
+                      </div>
+
+                      <Button
+                        onClick={handleResubmit}
+                        disabled={resubmitLoading || (!resubmitIncome && !resubmitFiles.bankStatement && !resubmitFiles.salarySlip && !resubmitFiles.itr)}
+                        className="w-full h-11 bg-warning text-warning-foreground hover:bg-warning/90 font-bold"
+                      >
+                        {resubmitLoading
+                          ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Uploading…</>
+                          : <><Upload className="h-4 w-4 mr-2" />Submit Missing Documents</>}
+                      </Button>
+                    </div>
+                  )}
+
+                  {app.decision?.officer_narrative && (
+                    <div className="mt-4 pt-4 border-t border-warning/10">
+                      <p className="text-xs text-muted-foreground italic">{app.decision.officer_narrative}</p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {app.officer_decision && (
                 <div className="bg-primary/5 rounded-2xl p-6 border border-primary/10 relative overflow-hidden group">

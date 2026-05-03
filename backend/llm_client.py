@@ -49,11 +49,33 @@ def get_llm_response(prompt: str, max_tokens: int = 1000) -> str:
     with _LLM_SEMAPHORE:
         # Add a tiny buffer between calls to respect burst limits
         time.sleep(0.5)
-        
-        if LLM_BACKEND == "vertex":
+
+        if LLM_BACKEND == "groq":
+            return _call_groq(prompt, max_tokens)
+        elif LLM_BACKEND == "vertex":
             return _call_vertex(prompt, max_tokens)
         else:
             return _call_gemini(prompt, max_tokens)
+
+
+def _call_groq(prompt: str, max_tokens: int) -> str:
+    """Call Groq API using the groq SDK."""
+    from groq import Groq
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        raise ValueError("GROQ_API_KEY not set in environment.")
+    model = os.getenv("GROQ_MODEL_NARRATIVE", "llama-3.1-8b-instant")
+    # Strip groq/ prefix if present (Groq SDK doesn't need it)
+    if model.startswith("groq/"):
+        model = model[5:]
+    client = Groq(api_key=api_key)
+    response = client.chat.completions.create(
+        model=model,
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=max_tokens,
+        temperature=0.1,
+    )
+    return response.choices[0].message.content.strip()
 
 
 def _call_gemini(prompt: str, max_tokens: int) -> str:
