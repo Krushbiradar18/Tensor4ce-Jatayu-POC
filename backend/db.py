@@ -76,6 +76,13 @@ def init_db():
         )
         """,
         """
+        CREATE TABLE IF NOT EXISTS application_contexts (
+            application_id TEXT PRIMARY KEY,
+            context_json TEXT NOT NULL,
+            saved_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """,
+        """
         CREATE TABLE IF NOT EXISTS decisions (
             decision_id TEXT PRIMARY KEY,
             application_id TEXT NOT NULL,
@@ -146,6 +153,42 @@ def get_application(application_id: str) -> dict | None:
             {"application_id": application_id},
         ).mappings().first()
     return dict(row) if row else None
+
+
+def save_application_context(application_id: str, context: dict):
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                INSERT INTO application_contexts (application_id, context_json)
+                VALUES (:application_id, :context_json)
+                ON CONFLICT (application_id) DO UPDATE
+                SET context_json = EXCLUDED.context_json,
+                    saved_at = CURRENT_TIMESTAMP
+                """
+            ),
+            {
+                "application_id": application_id,
+                "context_json": json.dumps(context),
+            },
+        )
+
+
+def get_application_context(application_id: str) -> dict | None:
+    with engine.begin() as conn:
+        row = conn.execute(
+            text(
+                """
+                SELECT context_json
+                FROM application_contexts
+                WHERE application_id = :application_id
+                """
+            ),
+            {"application_id": application_id},
+        ).mappings().first()
+    if not row:
+        return None
+    return json.loads(row["context_json"])
 
 
 def save_decision(decision_id: str, application_id: str, payload: dict):

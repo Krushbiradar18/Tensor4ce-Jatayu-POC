@@ -69,12 +69,31 @@ _FEATURE_STORE: dict[str, ApplicationContext] = {}
 
 def store_context(ctx: ApplicationContext):
     _FEATURE_STORE[ctx.application_id] = ctx
+    try:
+        import db
+        db.save_application_context(ctx.application_id, ctx.model_dump(mode="json"))
+    except Exception as e:
+        logger.warning(f"Failed to persist ApplicationContext for {ctx.application_id}: {e}")
 
 def get_context(app_id: str) -> Optional[ApplicationContext]:
-    return _FEATURE_STORE.get(app_id)
+    ctx = _FEATURE_STORE.get(app_id)
+    if ctx:
+        return ctx
+
+    try:
+        import db
+        stored = db.get_application_context(app_id)
+        if not stored:
+            return None
+        ctx = ApplicationContext.model_validate(stored)
+        _FEATURE_STORE[app_id] = ctx
+        return ctx
+    except Exception as e:
+        logger.warning(f"Failed to load ApplicationContext for {app_id}: {e}")
+        return None
 
 def get_features(app_id: str, group: str = "all") -> Optional[dict]:
-    ctx = _FEATURE_STORE.get(app_id)
+    ctx = get_context(app_id)
     if not ctx:
         return None
     return ctx.features.model_dump()

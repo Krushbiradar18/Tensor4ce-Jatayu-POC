@@ -22,6 +22,19 @@ import logging
 from datetime import datetime
 from typing import Optional
 
+# Force LiteLLM import for Groq provider support
+# This must happen before CrewAI checks for it
+try:
+    import litellm
+    litellm.suppress_debug_info = True
+    _LITELLM_AVAILABLE = True
+    logger_init = logging.getLogger(__name__)
+    logger_init.debug("LiteLLM loaded successfully")
+except ImportError as e:
+    _LITELLM_AVAILABLE = False
+    logger_init = logging.getLogger(__name__)
+    logger_init.warning(f"LiteLLM not available: {e}")
+
 logger = logging.getLogger(__name__)
 
 
@@ -34,6 +47,18 @@ def _has_gemini() -> bool:
     if os.environ.get("ENABLE_CREWAI_MANAGER", "false").strip().lower() not in {"1", "true", "yes", "on"}:
         return False
     provider = os.environ.get("CREWAI_LLM_PROVIDER", "groq").strip().lower()
+    
+    # LiteLLM wrapper: check underlying backend
+    if provider == "litellm":
+        backend = os.environ.get("LLM_BACKEND", "groq").strip().lower()
+        if backend == "groq":
+            return bool(os.environ.get("GROQ_API_KEY"))
+        # For other backends via LiteLLM, delegate to standard checks
+        return (
+            bool(os.environ.get("GROQ_API_KEY"))
+            or bool(os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
+        )
+    
     if provider == "groq":
         return bool(os.environ.get("GROQ_API_KEY"))
     if provider == "vertex":
@@ -51,12 +76,34 @@ def _build_llm():
     from crewai import LLM
     provider = os.environ.get("CREWAI_LLM_PROVIDER", "groq").strip().lower()
 
+    # Handle LiteLLM wrapper: delegate to underlying backend
+    if provider == "litellm":
+        backend = os.environ.get("LLM_BACKEND", "groq").strip().lower()
+        if backend == "groq":
+            provider = "groq"
+        else:
+            # Fallback to gemini for other backends
+            provider = "gemini"
+
     if provider == "groq":
+        # For Groq, CrewAI requires LiteLLM to be installed and available
+        if not _LITELLM_AVAILABLE:
+            raise RuntimeError(
+                "LiteLLM is required for Groq support in CrewAI. "
+                "Install with: pip install litellm"
+            )
+        
         model   = os.environ.get("GROQ_MODEL_ORCHESTRATOR", "groq/llama-3.3-70b-versatile")
         api_key = os.environ.get("GROQ_API_KEY")
-        return LLM(model=model, api_key=api_key, temperature=0.1)
+        
+        # Set environment variable so CrewAI can find the Groq API key
+        os.environ["GROQ_API_KEY"] = api_key
+        
+        # Pass model with groq/ prefix - CrewAI will auto-route to LiteLLM
+        # NOTE: model must be in format "groq/model-name" for LiteLLM routing
+        return LLM(model=model, temperature=0.1)
 
-    # Vertex / Gemini fallback
+    # Vertex / Gemini fallback (native providers)
     api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
     model   = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash-exp")
     extra   = {}

@@ -91,9 +91,16 @@ def _resolve_config_path(raw_path: str, default_base: Path) -> str:
 
 def _runtime_mode() -> str:
     llm_mode  = os.environ.get("LLM_USAGE_MODE", "FULL").upper()
-    has_gemini = bool(os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
     crewai_enabled = os.environ.get("ENABLE_CREWAI_MANAGER", "false").strip().lower() in {"1", "true", "yes", "on"}
-    if llm_mode == "FALLBACK" or not has_gemini or not crewai_enabled:
+    
+    # Check if a valid LLM provider is configured
+    has_gemini = bool(os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"))
+    has_groq = bool(os.environ.get("GROQ_API_KEY"))
+    has_vertex = bool(
+        os.environ.get("VERTEX_PROJECT") or os.environ.get("GOOGLE_CLOUD_PROJECT")
+    )
+    
+    if llm_mode == "FALLBACK" or (not has_gemini and not has_groq and not has_vertex) or not crewai_enabled:
         return "Direct A2A Pipeline (LangGraph agents)"
     return "CrewAI Hierarchical + LangGraph A2A Agents"
 
