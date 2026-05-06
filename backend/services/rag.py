@@ -1,22 +1,37 @@
 """
 backend/services/rag.py — Embedding-Enhanced RAG for Compliance Grounding
 =========================================================================
-Primary retrieval:  cosine-similarity over pre-computed sentence-transformer
-                    embeddings (all-MiniLM-L6-v2, loaded from sidecar JSON).
-Fallback retrieval: keyword / term-overlap scoring (original behaviour),
-                    activated automatically when the sidecar is absent or when
-                    sentence-transformers is not installed.
+Retrieval priority (highest → lowest):
+
+  1. pgvector  (USE_PGVECTOR=true in .env)
+     Pure SQL cosine-similarity query against compliance_kb_embeddings table.
+     No sentence-transformers needed at query time — embeddings are already
+     stored; only the query vector is computed on-the-fly.
+
+  2. JSON sidecar  (fallback when pgvector is disabled / unavailable)
+     Cosine-similarity over pre-computed embeddings from
+     data/compliance_kb_embeddings.json  (original behaviour).
+
+  3. Keyword overlap  (last resort)
+     Original term-overlap scoring — activated when both embedding paths
+     are absent or sentence-transformers is not installed.
 
 Public API — UNCHANGED (same function signatures as before):
-  load_compliance_kb(path)           → int
-  search_compliance_docs(query, k)   → list[dict]
-  search_by_regulation(code)         → Optional[dict]
+  load_compliance_kb(path)              → int
+  search_compliance_docs(query, k)      → list[dict]
+  search_by_regulation(code)            → Optional[dict]
   search_by_rule_flags(blocks, warns, k) → list[dict]
 
-Sidecar format (data/compliance_kb_embeddings.json):
+Environment variables
+---------------------
+  USE_PGVECTOR=true           Enable pgvector path (default: false)
+  DATABASE_URL                PostgreSQL connection URL (same as db.py)
+  PG_USER / PG_PASSWORD / PG_HOST / PG_PORT / PG_DB  — used if DATABASE_URL unset
+
+Sidecar format (data/compliance_kb_embeddings.json) — unchanged:
   [
     {
-      "chunk_id":  <int>,        # positional index into compliance_kb.json
+      "chunk_id":  <int>,
       "regulation": "<str>",
       "source":     "<str>",
       "embedding":  [<float>, ...]
@@ -24,8 +39,9 @@ Sidecar format (data/compliance_kb_embeddings.json):
     ...
   ]
 
-Generate / refresh the sidecar:
-  python scripts/build_kb_embeddings.py
+Generate / refresh the sidecar AND the DB table:
+  python scripts/build_kb_embeddings.py           # regenerate JSON
+  python scripts/migrate_embeddings_to_pgvector.py  # push JSON → pgvector
 """
 from __future__ import annotations
 
@@ -33,9 +49,150 @@ import logging
 import json
 import os
 import re
+import sys
+from pathlib import Path
 from typing import Optional
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Console RAG Logger — coloured, human-readable output to stdout
+# ---------------------------------------------------------------------------
+
+# ANSI colour codes (auto-disabled when stdout is not a TTY)
+_USE_COLOUR = sys.stdout.isatty()
+_C = {
+    "reset":  "\033[0m"  if _USE_COLOUR else "",
+    "bold":   "\033[1m"  if _USE_COLOUR else "",
+    "cyan":   "\033[96m" if _USE_COLOUR else "",
+    "green":  "\033[92m" if _USE_COLOUR else "",
+    "yellow": "\033[93m" if _USE_COLOUR else "",
+    "blue":   "\033[94m" if _USE_COLOUR else "",
+    "magenta":"\033[95m" if _USE_COLOUR else "",
+    "dim":    "\033[2m"  if _USE_COLOUR else "",
+}
+
+
+def _rag_print(msg: str) -> None:
+    """Print directly to stdout — bypasses the logging level hierarchy."""
+    print(msg, flush=True)
+
+
+def _print_query_banner(query: str, backend: str) -> None:
+    """Print a styled banner when a RAG search begins."""
+    width = 72
+    _rag_print("")
+    _rag_print(_C["cyan"] + _C["bold"] + "┌" + "─" * (width - 2) + "┐" + _C["reset"])
+    _rag_print(_C["cyan"] + _C["bold"] + "│" + " RAG QUERY ".center(width - 2) + "│" + _C["reset"])
+    _rag_print(_C["cyan"] + _C["bold"] + "├" + "─" * (width - 2) + "┤" + _C["reset"])
+    # Wrap long queries
+    words = query.split()
+    line, lines = "", []
+    for w in words:
+        if len(line) + len(w) + 1 > width - 6:
+            lines.append(line)
+            line = w
+        else:
+            line = (line + " " + w).strip()
+    if line:
+        lines.append(line)
+    for l in lines:
+        _rag_print(_C["cyan"] + "│" + _C["reset"] + "  " + _C["bold"] + l + _C["reset"] + " " * (width - 4 - len(l)) + _C["cyan"] + "│" + _C["reset"])
+    _rag_print(_C["cyan"] + "├" + "─" * (width - 2) + "┤" + _C["reset"])
+    backend_line = f"  Backend: {backend}"
+    _rag_print(_C["cyan"] + "│" + _C["reset"] + _C["dim"] + backend_line + " " * (width - 2 - len(backend_line)) + _C["reset"] + _C["cyan"] + "│" + _C["reset"])
+    _rag_print(_C["cyan"] + _C["bold"] + "└" + "─" * (width - 2) + "┘" + _C["reset"])
+
+
+def _print_chunk_table(results: list[dict], backend: str) -> None:
+    """Print retrieved chunks as a formatted table to stdout."""
+    width = 72
+    _rag_print("")
+    _rag_print(_C["green"] + _C["bold"] + f"  ╔══ Retrieved {len(results)} chunk(s) via [{backend}] " + "═" * max(0, width - 42 - len(backend)) + "╗" + _C["reset"])
+    for i, chunk in enumerate(results, 1):
+        chunk_id   = chunk.get("_chunk_id", "?")
+        regulation = chunk.get("regulation", "—")
+        similarity = chunk.get("_cosine_similarity", None)
+        text_raw   = chunk.get("text", "")
+        source     = chunk.get("source", "—")
+        # Truncate content preview to 120 chars
+        preview = text_raw[:120].replace("\n", " ").strip()
+        if len(text_raw) > 120:
+            preview += "…"
+        sim_str = f"{similarity:.4f}" if similarity is not None else "N/A "
+        _rag_print(_C["green"] + f"  ║" + _C["reset"])
+        _rag_print(_C["green"] + f"  ║" + _C["reset"] +
+                   _C["bold"] + f"  [{i}] chunk_id={chunk_id}" + _C["reset"] +
+                   _C["yellow"] + f"  cosine={sim_str}" + _C["reset"] +
+                   _C["magenta"] + f"  {regulation}" + _C["reset"])
+        _rag_print(_C["green"] + f"  ║" + _C["reset"] +
+                   _C["dim"] + f"      source : {source[:65]}" + _C["reset"])
+        _rag_print(_C["green"] + f"  ║" + _C["reset"] +
+                   f"      content: " + _C["blue"] + preview + _C["reset"])
+    _rag_print(_C["green"] + _C["bold"] + "  ╚" + "═" * (width - 4) + "╝" + _C["reset"])
+    _rag_print("")
+
+
+def log_llm_response(query: str, response: str, model: str = "") -> None:
+    """
+    PUBLIC helper — call this after your LLM generates a response.
+    Prints the LLM output to stdout with a styled box.
+
+    Usage:
+        from services.rag import log_llm_response
+        answer = llm.generate(prompt)
+        log_llm_response(query=user_query, response=answer, model="gemini-1.5-pro")
+    """
+    width = 72
+    model_tag = f" [{model}]" if model else ""
+    _rag_print("")
+    _rag_print(_C["magenta"] + _C["bold"] + "┌" + "─" * (width - 2) + "┐" + _C["reset"])
+    _rag_print(_C["magenta"] + _C["bold"] + "│" + f" LLM RESPONSE{model_tag} ".center(width - 2) + "│" + _C["reset"])
+    _rag_print(_C["magenta"] + _C["bold"] + "├" + "─" * (width - 2) + "┤" + _C["reset"])
+    # Wrap response text
+    for para in response.strip().split("\n"):
+        if not para.strip():
+            _rag_print(_C["magenta"] + "│" + _C["reset"] + " " * (width - 2) + _C["magenta"] + "│" + _C["reset"])
+            continue
+        words = para.split()
+        line = ""
+        for w in words:
+            if len(line) + len(w) + 1 > width - 6:
+                padded = line + " " * (width - 4 - len(line))
+                _rag_print(_C["magenta"] + "│" + _C["reset"] + "  " + padded + _C["magenta"] + "│" + _C["reset"])
+                line = w
+            else:
+                line = (line + " " + w).strip()
+        if line:
+            padded = line + " " * (width - 4 - len(line))
+            _rag_print(_C["magenta"] + "│" + _C["reset"] + "  " + padded + _C["magenta"] + "│" + _C["reset"])
+    _rag_print(_C["magenta"] + _C["bold"] + "└" + "─" * (width - 2) + "┘" + _C["reset"])
+    _rag_print("")
+
+# ---------------------------------------------------------------------------
+# Minimal .env parser — no python-dotenv required
+# ---------------------------------------------------------------------------
+def _load_env_file(env_path: Path) -> None:
+    """Parse KEY=VALUE lines from a .env file into os.environ (if not already set)."""
+    if not env_path.exists():
+        return
+    with open(env_path, encoding="utf-8") as fh:
+        for raw in fh:
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key   = key.strip()
+            value = value.strip().strip("'\"")
+            if key and key not in os.environ:
+                os.environ[key] = value
+
+# ---------------------------------------------------------------------------
+# Load .env so USE_PGVECTOR and DB vars are available even when this module
+# is imported before FastAPI startup runs load_dotenv.
+# ---------------------------------------------------------------------------
+_BACKEND_DIR = Path(__file__).resolve().parent.parent
+_load_env_file(_BACKEND_DIR / ".env")
 
 # ---------------------------------------------------------------------------
 # Module-level state
@@ -46,6 +203,10 @@ COMPLIANCE_KB: list[dict] = []
 
 # Embedding sidecar — list parallel to COMPLIANCE_KB; None = not loaded
 _EMBEDDINGS: Optional[list[dict]] = None
+
+# pgvector connection (lazy)
+_PG_CONN = None
+_PGVECTOR_ENABLED: bool = os.environ.get("USE_PGVECTOR", "false").lower() == "true"
 
 # Lazy-loaded sentence-transformer model
 _ST_MODEL = None
@@ -96,7 +257,7 @@ def _keyword_score(query_terms: set[str], chunk: dict) -> float:
 
 
 # ---------------------------------------------------------------------------
-# Embedding helpers (NEW)
+# Embedding helpers (JSON sidecar path — unchanged)
 # ---------------------------------------------------------------------------
 
 def _get_st_model():
@@ -196,7 +357,7 @@ def _load_embeddings(sidecar_path: str) -> bool:
         dim = len(data[0]["embedding"]) if data else 0
         logger.info(
             f"Loaded {len(_EMBEDDINGS)} embeddings from '{sidecar_path}' "
-            f"(dim={dim}, model={_ST_MODEL_NAME}) — semantic search ENABLED"
+            f"(dim={dim}, model={_ST_MODEL_NAME}) — semantic search ENABLED (JSON mode)"
         )
         return True
 
@@ -210,13 +371,103 @@ def _load_embeddings(sidecar_path: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# pgvector backend (NEW)
+# ---------------------------------------------------------------------------
+
+def _get_pg_conn():
+    """
+    Return a live psycopg2 connection to PostgreSQL.
+    Connection is cached module-level; re-created if closed.
+    Returns None if pgvector is disabled or connection fails.
+    """
+    global _PG_CONN
+    if not _PGVECTOR_ENABLED:
+        return None
+
+    # Re-use existing live connection
+    if _PG_CONN is not None:
+        try:
+            _PG_CONN.cursor().execute("SELECT 1")
+            return _PG_CONN
+        except Exception:
+            _PG_CONN = None  # stale — reconnect below
+
+    try:
+        import psycopg2
+        # Use manual .env parser (no python-dotenv dependency needed)
+        _load_env_file(_BACKEND_DIR / ".env")
+
+        user = os.environ.get("PG_USER", "postgres")
+        pwd  = os.environ.get("PG_PASSWORD", "123456")
+        host = os.environ.get("PG_HOST", "localhost")
+        port = os.environ.get("PG_PORT", "5432")
+        db   = os.environ.get("PG_DB", "jatayu")
+        url  = os.environ.get(
+            "DATABASE_URL",
+            f"postgresql://{user}:{pwd}@{host}:{port}/{db}",
+        ).replace("postgresql+psycopg2://", "postgresql://")
+
+        _PG_CONN = psycopg2.connect(url)
+        _PG_CONN.autocommit = True
+        logger.info("pgvector connection established — semantic search using PostgreSQL")
+        return _PG_CONN
+    except Exception as exc:
+        logger.warning(f"pgvector connection failed: {exc} — falling back to JSON/keyword search")
+        _PG_CONN = None
+        return None
+
+
+def _pgvector_search(query_vec: list[float], k: int) -> list[dict]:
+    """
+    Query the compliance_kb_embeddings table using pgvector cosine distance.
+    Returns up to k chunk dicts (matching COMPLIANCE_KB schema: source, text, regulation).
+
+    SQL uses the <=> operator (cosine distance) for ranking; ORDER BY ASC == most similar first.
+    """
+    conn = _get_pg_conn()
+    if conn is None:
+        return []
+
+    try:
+        from psycopg2.extras import RealDictCursor
+        vec_str = "[" + ",".join(str(v) for v in query_vec) + "]"
+        sql = """
+            SELECT chunk_id, regulation, source,
+                   1 - (embedding <=> %s::vector) AS cosine_similarity
+            FROM compliance_kb_embeddings
+            ORDER BY embedding <=> %s::vector
+            LIMIT %s;
+        """
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(sql, (vec_str, vec_str, k))
+            rows = cur.fetchall()
+
+        results: list[dict] = []
+        for row in rows:
+            idx = row["chunk_id"]
+            if 0 <= idx < len(COMPLIANCE_KB):
+                chunk = COMPLIANCE_KB[idx].copy()
+                chunk["_chunk_id"]         = idx
+                chunk["_cosine_similarity"] = float(row["cosine_similarity"])
+                results.append(chunk)
+            else:
+                logger.debug(f"pgvector chunk_id {idx} out of range for KB size {len(COMPLIANCE_KB)}")
+
+        return results
+
+    except Exception as exc:
+        logger.warning(f"pgvector query failed: {exc} — falling back to JSON/keyword search")
+        return []
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
 def load_compliance_kb(path: str = "data/compliance_kb.json") -> int:
     """
     Load pre-chunked RBI circulars and policy docs from a JSON file.
-    Also attempts to load the embedding sidecar (same dir, *_embeddings.json).
+    Also attempts to initialise the embedding backend (pgvector or JSON sidecar).
     Returns the number of chunks loaded.
 
     Each chunk should have:
@@ -244,9 +495,23 @@ def load_compliance_kb(path: str = "data/compliance_kb.json") -> int:
         COMPLIANCE_KB = []
         return 0
 
-    # ---- Load embedding sidecar (non-fatal if absent) ----
-    sidecar_path = os.path.splitext(path)[0] + "_embeddings.json"
-    _load_embeddings(sidecar_path)
+    # ---- Initialise embedding backend ------------------------------------
+    if _PGVECTOR_ENABLED:
+        conn = _get_pg_conn()
+        if conn is not None:
+            logger.info("USE_PGVECTOR=true — pgvector backend active for semantic search")
+        else:
+            logger.warning(
+                "USE_PGVECTOR=true but connection failed — "
+                "falling back to JSON sidecar / keyword search"
+            )
+            # Try JSON sidecar as fallback
+            sidecar_path = os.path.splitext(path)[0] + "_embeddings.json"
+            _load_embeddings(sidecar_path)
+    else:
+        # ---- Load embedding sidecar (non-fatal if absent) ----------------
+        sidecar_path = os.path.splitext(path)[0] + "_embeddings.json"
+        _load_embeddings(sidecar_path)
 
     return len(COMPLIANCE_KB)
 
@@ -255,12 +520,15 @@ def search_compliance_docs(query: str, k: int = 3) -> list[dict]:
     """
     Search the compliance knowledge base for chunks relevant to *query*.
 
-    Primary path  (when embeddings loaded):
+    Primary path A — pgvector  (USE_PGVECTOR=true):
+        SQL cosine-similarity via pgvector <=> operator.  Zero Python math.
+
+    Primary path B — JSON sidecar  (USE_PGVECTOR=false, sidecar loaded):
         Cosine similarity between query vector and pre-computed chunk vectors.
         Keyword overlap used as tiebreak for equal cosine scores.
 
-    Fallback path (no embeddings / sentence-transformers unavailable):
-        Original keyword term-overlap scoring (behaviour unchanged).
+    Fallback path — keyword search:
+        Original term-overlap scoring (behaviour unchanged).
 
     Args:
         query: natural language query (e.g., "FOIR ratio exceeds limit")
@@ -277,9 +545,23 @@ def search_compliance_docs(query: str, k: int = 3) -> list[dict]:
         return []
 
     # ------------------------------------------------------------------ #
-    # PATH A — Embedding-based cosine similarity (primary)               #
+    # PATH A — pgvector cosine similarity (primary when enabled)         #
+    # ------------------------------------------------------------------ #
+    if _PGVECTOR_ENABLED:
+        _print_query_banner(query, backend="pgvector (PostgreSQL)")
+        query_vec = _embed_query(query)
+        if query_vec is not None:
+            results = _pgvector_search(query_vec, k)
+            if results:
+                _print_chunk_table(results, backend="pgvector")
+                return results
+            # Empty results from pgvector → fall through to JSON/keyword
+
+    # ------------------------------------------------------------------ #
+    # PATH B — JSON sidecar cosine similarity                            #
     # ------------------------------------------------------------------ #
     if _EMBEDDINGS is not None:
+        _print_query_banner(query, backend="JSON sidecar (in-memory cosine)")
         query_vec = _embed_query(query)
         if query_vec is not None:
             query_terms = _tokenize(query)   # for tiebreak only
@@ -296,16 +578,19 @@ def search_compliance_docs(query: str, k: int = 3) -> list[dict]:
 
             # Sort: highest cosine sim first; keyword bonus as tiebreak
             scored.sort(key=lambda x: (-x[0], -x[1], x[2]))
-            logger.debug(
-                f"Embedding search: top score={scored[0][0]:.4f} "
-                f"for query='{query[:60]}'"
-            )
+            top_results = []
+            for cos_total, _, idx, chunk in scored[:k]:
+                c = chunk.copy()
+                c["_chunk_id"]         = idx
+                c["_cosine_similarity"] = cos_total
+                top_results.append(c)
+            _print_chunk_table(top_results, backend="JSON sidecar")
             return [item[3] for item in scored[:k]]
 
     # ------------------------------------------------------------------ #
-    # PATH B — Keyword fallback (original behaviour, preserved verbatim) #
+    # PATH C — Keyword fallback (original behaviour, preserved verbatim) #
     # ------------------------------------------------------------------ #
-    logger.debug("Embedding path unavailable — using keyword search")
+    _print_query_banner(query, backend="keyword overlap (fallback)")
     query_terms = _tokenize(query)
     if not query_terms:
         return []
@@ -317,6 +602,13 @@ def search_compliance_docs(query: str, k: int = 3) -> list[dict]:
             scored_kw.append((score, idx, chunk))
 
     scored_kw.sort(key=lambda x: (-x[0], x[1]))
+    kw_results = []
+    for score, idx, chunk in scored_kw[:k]:
+        c = chunk.copy()
+        c["_chunk_id"]         = idx
+        c["_cosine_similarity"] = None   # keyword mode has no cosine score
+        kw_results.append(c)
+    _print_chunk_table(kw_results, backend="keyword")
     return [item[2] for item in scored_kw[:k]]
 
 

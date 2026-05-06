@@ -23,3 +23,5 @@ pymupdf
 # Embedding-based RAG retrieval (compliance agent)
 sentence-transformers
 numpy
+# pgvector Python client (needed for migrate_embeddings_to_pgvector.py)
+pgvector
