@@ -18,6 +18,13 @@ const statusColors: Record<string, string> = {
   "OFFICER_REJECTED": "bg-destructive/10 text-destructive border-destructive/20",
   "OFFICER_CONDITIONAL": "bg-warning/10 text-warning border-warning/20",
   "OFFICER_ESCALATED": "bg-warning/10 text-warning border-warning/20",
+  // User-facing statuses
+  "Under Review": "bg-warning/10 text-warning border-warning/20",
+  "Processing": "bg-accent/10 text-accent border-accent/20",
+  "Approved": "bg-success/10 text-success border-success/20",
+  "Rejected": "bg-destructive/10 text-destructive border-destructive/20",
+  "Conditional": "bg-warning/10 text-warning border-warning/20",
+  "DOCUMENTS REQUIRED": "bg-warning/10 text-warning border-warning/20",
 };
 
 export default function TrackPage() {
@@ -74,12 +81,15 @@ export default function TrackPage() {
     }
   };
 
+  // Prefer backend-provided normalized status for user-facing display when available
   const currentStatus = app?.status || "PENDING";
-  const displayStatus = (["DIL_PROCESSING", "AGENTS_RUNNING", "DECIDED_PENDING_OFFICER"].includes(currentStatus))
-    ? "PROCESSING"
-    : currentStatus === "DATA_REQUIRED"
-    ? "DOCUMENTS REQUIRED"
-    : currentStatus.replace("OFFICER_", "");
+  const displayStatus = app?.user_facing_status
+    ? app.user_facing_status
+    : (["DIL_PROCESSING", "AGENTS_RUNNING", "DECIDED_PENDING_OFFICER"].includes(currentStatus)
+      ? "PROCESSING"
+      : currentStatus === "DATA_REQUIRED"
+        ? "DOCUMENTS REQUIRED"
+        : currentStatus.replace("OFFICER_", ""));
 
   return (
     <PublicLayout>
@@ -124,7 +134,7 @@ export default function TrackPage() {
                   </div>
                   <CardTitle className="font-display text-2xl">Application Details</CardTitle>
                 </div>
-                <Badge variant="outline" className={`${statusColors[currentStatus] || "bg-muted"} px-4 py-1.5 rounded-full font-bold uppercase tracking-widest text-xs`}>
+                <Badge variant="outline" className={`${statusColors[app?.user_facing_status || currentStatus] || "bg-muted"} px-4 py-1.5 rounded-full font-bold uppercase tracking-widest text-xs`}>
                   {displayStatus}
                 </Badge>
               </div>
@@ -274,10 +284,10 @@ export default function TrackPage() {
                      Application Status
                   </h4>
                   <p className="text-muted-foreground leading-relaxed">
-                    {app.officer_decision === "APPROVED" 
-                      ? "Your application has been approved. Our team will contact you soon with the next steps." 
-                      : app.officer_decision === "REJECTED" 
-                        ? "We regret to inform you that your application was not successful at this time." 
+                    {app.officer_decision === "APPROVED"
+                      ? "Your application has been approved. Our team will contact you soon with the next steps."
+                      : app.officer_decision === "REJECTED"
+                        ? "We regret to inform you that your application was not successful at this time."
                         : "Your application is currently under manual review by our credit officers."}
                   </p>
                   {app.officer_reason && (

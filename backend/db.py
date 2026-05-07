@@ -113,6 +113,7 @@ def init_db():
             officer_id TEXT NOT NULL,
             decision TEXT NOT NULL,
             reason TEXT NOT NULL,
+            actor_role TEXT DEFAULT 'officer',
             acted_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
         """,
@@ -137,6 +138,7 @@ def init_db():
         "ALTER TABLE applications ADD COLUMN IF NOT EXISTS escalated_by_officer_id TEXT",
         "ALTER TABLE applications ADD COLUMN IF NOT EXISTS escalated_to_senior_officer_id INTEGER",
         "ALTER TABLE applications ADD COLUMN IF NOT EXISTS escalated_at TIMESTAMPTZ",
+        "ALTER TABLE officer_actions ADD COLUMN IF NOT EXISTS actor_role TEXT DEFAULT 'officer'",
     ]
     
     for alt_stmt in alter_statements:
@@ -266,13 +268,29 @@ def get_decision(application_id: str) -> dict | None:
     return json.loads(row["payload"])
 
 
-def save_officer_action(application_id: str, officer_id: str, decision: str, reason: str):
+def save_officer_action(application_id: str, officer_id: str, decision: str, reason: str, actor_role: str = "officer"):
+    """
+    Save officer/senior officer action and update application status.
+    
+    Args:
+        application_id: Application ID
+        officer_id: ID/username of the officer/senior officer
+        decision: Decision (APPROVED, REJECTED, CONDITIONAL, ESCALATED)
+        reason: Reason for the decision
+        actor_role: Role of the actor ('officer' or 'senior_officer')
+    """
+    # Determine the status based on the role and decision
+    if actor_role == "senior_officer":
+        status = f"SENIOR_OFFICER_{decision.upper()}"
+    else:
+        status = f"OFFICER_{decision.upper()}"
+    
     with engine.begin() as conn:
         conn.execute(
             text(
                 """
-                INSERT INTO officer_actions (application_id, officer_id, decision, reason)
-                VALUES (:application_id, :officer_id, :decision, :reason)
+                INSERT INTO officer_actions (application_id, officer_id, decision, reason, actor_role)
+                VALUES (:application_id, :officer_id, :decision, :reason, :actor_role)
                 """
             ),
             {
@@ -280,12 +298,13 @@ def save_officer_action(application_id: str, officer_id: str, decision: str, rea
                 "officer_id": officer_id,
                 "decision": decision,
                 "reason": reason,
+                "actor_role": actor_role,
             },
         )
         conn.execute(
             text("UPDATE applications SET status = :status WHERE application_id = :application_id"),
             {
-                "status": f"OFFICER_{decision.upper()}",
+                "status": status,
                 "application_id": application_id,
             },
         )
@@ -313,14 +332,15 @@ def assign_application_to_senior_officer(application_id: str, officer_id: str, s
         conn.execute(
             text(
                 """
-                INSERT INTO officer_actions (application_id, officer_id, decision, reason)
-                VALUES (:application_id, :officer_id, 'ESCALATED', :reason)
+                INSERT INTO officer_actions (application_id, officer_id, decision, reason, actor_role)
+                VALUES (:application_id, :officer_id, 'ESCALATED', :reason, :actor_role)
                 """
             ),
             {
                 "application_id": application_id,
                 "officer_id": officer_id,
                 "reason": reason or f"Escalated to senior officer {senior_officer_id}",
+                "actor_role": "officer",
             },
         )
 

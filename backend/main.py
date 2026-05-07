@@ -693,14 +693,28 @@ def get_status(app_id: str):
         "ERROR":                  "A transmission error occurred. Our team has been notified.",
     }
     result = {"application_id": app_id, "status": status}
-    if status.startswith("OFFICER_"):
-        action = db.get_officer_action(app_id)
-        if action:
-            result["officer_decision"] = action["decision"]
-            result["officer_reason"]   = action["reason"]
-            result["actioned_at"]      = action["acted_at"]
-    else:
+    # Special-case: when the application was escalated, do NOT expose the internal 'ESCALATED' decision to users.
+    # Show a neutral message instead and avoid revealing who acted on the case.
+    if status == "OFFICER_ESCALATED":
         result["message"] = messages.get(status, "Processing your application.")
+        result["user_facing_status"] = "Under Review"
+    else:
+        # Check if status is an officer or senior officer decision (starts with OFFICER_ or SENIOR_OFFICER_)
+        if status.startswith("OFFICER_") or status.startswith("SENIOR_OFFICER_"):
+            action = db.get_officer_action(app_id)
+            if action:
+                # Expose the decision (Approved/Rejected/Conditional) but do NOT include actor identity here
+                if action.get("decision") and action.get("decision").upper() != "ESCALATED":
+                    result["officer_decision"] = action["decision"]
+                    result["officer_reason"] = action["reason"]
+                    result["actioned_at"] = action["acted_at"]
+                    # Normalize the display status for users - don't show who made the decision
+                    result["user_facing_status"] = action["decision"].lower().capitalize()
+                else:
+                    # Decision was ESCALATED internally; show neutral message
+                    result["message"] = messages.get(status, "Processing your application.")
+        else:
+            result["message"] = messages.get(status, "Processing your application.")
     return result
 
 
@@ -728,13 +742,25 @@ def get_full_decision(app_id: str, current_user: dict = Depends(require_role("ad
     row = db.get_application(app_id)
     if not row:
         raise HTTPException(404, "Application not found")
-    return {
+    
+    # Get the officer action including actor_role
+    officer_action = db.get_officer_action(app_id)
+    
+    response = {
         "application_record": row,
         "application": json.loads(row["raw_payload"]),
         "status":      row["status"],
         "decision":    db.get_decision(app_id),
         "audit_log":   db.get_audit_log(app_id),
     }
+    
+    # Include actor role information for internal display
+    if officer_action:
+        response["officer_action"] = officer_action
+        response["actor_role"] = officer_action.get("actor_role", "officer")
+        response["decided_by"] = "Senior Officer" if officer_action.get("actor_role") == "senior_officer" else "Officer"
+    
+    return response
 
 
 @app.post("/api/extract-documents")
@@ -899,6 +925,22 @@ def officer_action(app_id: str, action: OfficerAction, current_user: dict = Depe
 
     current_role = str(current_user.get("role", "")).lower()
     actor_id = str(current_user.get("username") or current_user.get("id") or action.officer_id)
+    current_status = row.get("status", "")
+
+    # Regular officers can only act on applications in pending/processing states
+    if current_role == "officer":
+        # Prevent double-decisions: officers cannot act if already decided by an officer or senior officer
+        if current_status.startswith("OFFICER_") or current_status.startswith("SENIOR_OFFICER_"):
+            raise HTTPException(
+                status_code=403, 
+                detail=f"Application already has a decision. Status: {current_status}"
+            )
+        # Only allow escalation from pending or specific statuses
+        if action.decision.upper() == "ESCALATED" and current_status not in {"DECIDED_PENDING_OFFICER", "AGENTS_RUNNING", "DIL_PROCESSING", "PENDING"}:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Cannot escalate from status: {current_status}"
+            )
 
     if action.decision.upper() == "ESCALATED":
         if current_role != "officer":
@@ -933,9 +975,12 @@ def officer_action(app_id: str, action: OfficerAction, current_user: dict = Depe
         if row.get("status") != "OFFICER_ESCALATED":
             raise HTTPException(status_code=403, detail="Senior officers can only act on escalated applications")
 
-    db.save_officer_action(app_id, actor_id, action.decision.upper(), action.reason)
+    # Pass the actor's role when saving the action
+    # Map role to lowercase for consistency
+    actor_role = "senior_officer" if current_role == "senior_officer" else "officer"
+    db.save_officer_action(app_id, actor_id, action.decision.upper(), action.reason, actor_role=actor_role)
     db.log_event(app_id, current_role or "officer", "OFFICER_ACTION",
-                 {"decision": action.decision, "officer": actor_id})
+                 {"decision": action.decision, "officer": actor_id, "actor_role": actor_role})
     return {"success": True, "application_id": app_id, "decision": action.decision}
 
 

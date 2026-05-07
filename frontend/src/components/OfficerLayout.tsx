@@ -106,8 +106,8 @@ export default function OfficerLayout() {
   return (
     <div className="min-h-screen flex bg-background">
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-sidebar border-r border-sidebar-border transform transition-transform lg:translate-x-0 lg:static lg:inset-auto ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
-        <div className="flex flex-col gap-4 px-6 py-8 border-b border-sidebar-border/50 bg-sidebar-background/60 backdrop-blur-md sticky top-0 z-10 overflow-hidden">
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-sidebar border-r border-sidebar-border transform transition-transform lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} flex flex-col h-screen overflow-hidden`}> 
+        <div className="flex flex-col gap-4 px-6 py-6 border-b border-sidebar-border/50 bg-sidebar-background/60 backdrop-blur-md">
           <div className="absolute -top-10 -right-10 w-32 h-32 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
           
           <div className="flex items-center justify-between">
@@ -134,7 +134,7 @@ export default function OfficerLayout() {
             </div>
           </div>
         </div>
-        <nav className="p-3 space-y-1">
+        <nav className="p-3 space-y-1 flex-1 overflow-auto">
           {navItems.map((item) => {
             // Show badge for All Applications if it's a senior officer with escalated items
             const showBadge = role === "senior_officer" && item.label === "All Applications" && escalatedCount > 0;
@@ -157,7 +157,7 @@ export default function OfficerLayout() {
             );
           })}
         </nav>
-        <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-sidebar-border">
+        <div className="p-3 border-t border-sidebar-border">
           <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-muted hover:bg-sidebar-accent/50 hover:text-sidebar-foreground w-full transition-colors">
             <LogOut className="h-4 w-4" /> Logout
           </button>
@@ -167,7 +167,7 @@ export default function OfficerLayout() {
       {sidebarOpen && <div className="fixed inset-0 bg-foreground/30 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
       {/* Main */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 lg:ml-64">
         <header className="h-16 bg-card border-b border-border flex items-center px-4 gap-4 sticky top-0 z-30">
           <button className="lg:hidden text-foreground" onClick={() => setSidebarOpen(true)}><Menu className="h-5 w-5" /></button>
           

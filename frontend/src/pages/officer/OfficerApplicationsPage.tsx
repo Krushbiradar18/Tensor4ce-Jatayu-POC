@@ -18,6 +18,10 @@ const statusColors: Record<string, string> = {
   "OFFICER_REJECTED": "bg-destructive/15 text-destructive border border-destructive/20",
   "OFFICER_CONDITIONAL": "bg-accent/15 text-accent-foreground border border-accent/20",
   "OFFICER_ESCALATED": "bg-accent/15 text-accent-foreground border border-accent/20",
+  // Senior officer statuses should use same color mapping as officer equivalents
+  "SENIOR_OFFICER_APPROVED": "bg-success/15 text-success border border-success/20",
+  "SENIOR_OFFICER_REJECTED": "bg-destructive/15 text-destructive border border-destructive/20",
+  "SENIOR_OFFICER_CONDITIONAL": "bg-accent/15 text-accent-foreground border border-accent/20",
   "DATA_REQUIRED": "bg-warning/15 text-warning-foreground border border-warning/20",
   "ERROR": "bg-destructive/15 text-destructive border border-destructive/20",
 };
