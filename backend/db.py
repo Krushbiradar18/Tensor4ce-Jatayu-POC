@@ -66,13 +66,29 @@ engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
 def init_db():
     statements = [
+        """DROP TABLE IF EXISTS users""",  # Drop the old malformed table
+        """
+        CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            username VARCHAR(255) UNIQUE NOT NULL,
+            password_hash VARCHAR(255) NOT NULL,
+            role VARCHAR(50) NOT NULL DEFAULT 'officer',
+            full_name VARCHAR(255) DEFAULT '',
+            created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """,
         """
         CREATE TABLE IF NOT EXISTS applications (
             application_id TEXT PRIMARY KEY,
             raw_payload TEXT NOT NULL,
             ip_metadata TEXT NOT NULL DEFAULT '{}',
             status TEXT NOT NULL DEFAULT 'PENDING',
-            created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+            escalated_by_officer_id TEXT,
+            escalated_to_senior_officer_id INTEGER,
+            escalated_at TIMESTAMPTZ,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
         """,
         """
@@ -114,6 +130,25 @@ def init_db():
     with engine.begin() as conn:
         for statement in statements:
             conn.execute(text(statement))
+    
+    # Add missing columns to existing applications table if they don't exist (separate transactions)
+    alter_statements = [
+        "ALTER TABLE applications ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP",
+        "ALTER TABLE applications ADD COLUMN IF NOT EXISTS escalated_by_officer_id TEXT",
+        "ALTER TABLE applications ADD COLUMN IF NOT EXISTS escalated_to_senior_officer_id INTEGER",
+        "ALTER TABLE applications ADD COLUMN IF NOT EXISTS escalated_at TIMESTAMPTZ",
+    ]
+    
+    for alt_stmt in alter_statements:
+        try:
+            with engine.begin() as conn:
+                conn.execute(text(alt_stmt))
+        except Exception:
+            pass  # Column already exists
+    
+    # Now seed the default users
+    with engine.begin() as conn:
+        _ensure_default_users(conn)
 
 
 def save_application(application_id: str, payload: dict, ip_meta: dict):
@@ -256,6 +291,40 @@ def save_officer_action(application_id: str, officer_id: str, decision: str, rea
         )
 
 
+def assign_application_to_senior_officer(application_id: str, officer_id: str, senior_officer_id: str, reason: str = ""):
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                UPDATE applications
+                SET status = 'OFFICER_ESCALATED',
+                    escalated_by_officer_id = :officer_id,
+                    escalated_to_senior_officer_id = :senior_officer_id,
+                    escalated_at = CURRENT_TIMESTAMP
+                WHERE application_id = :application_id
+                """
+            ),
+            {
+                "application_id": application_id,
+                "officer_id": officer_id,
+                "senior_officer_id": senior_officer_id,
+            },
+        )
+        conn.execute(
+            text(
+                """
+                INSERT INTO officer_actions (application_id, officer_id, decision, reason)
+                VALUES (:application_id, :officer_id, 'ESCALATED', :reason)
+                """
+            ),
+            {
+                "application_id": application_id,
+                "officer_id": officer_id,
+                "reason": reason or f"Escalated to senior officer {senior_officer_id}",
+            },
+        )
+
+
 def get_officer_action(application_id: str) -> dict | None:
     with engine.begin() as conn:
         row = conn.execute(
@@ -271,6 +340,109 @@ def get_officer_action(application_id: str) -> dict | None:
             {"application_id": application_id},
         ).mappings().first()
     return dict(row) if row else None
+
+
+def get_user_by_username(username: str) -> dict | None:
+    with engine.begin() as conn:
+        row = conn.execute(
+            text(
+                """
+                SELECT *
+                FROM users
+                WHERE lower(username) = lower(:username)
+                LIMIT 1
+                """
+            ),
+            {"username": username},
+        ).mappings().first()
+    return dict(row) if row else None
+
+
+def get_user_by_id(user_id: int) -> dict | None:
+    with engine.begin() as conn:
+        row = conn.execute(
+            text(
+                """
+                SELECT *
+                FROM users
+                WHERE id = :user_id
+                LIMIT 1
+                """
+            ),
+            {"user_id": user_id},
+        ).mappings().first()
+    return dict(row) if row else None
+
+
+def list_users(role: str | None = None) -> list[dict]:
+    query = "SELECT * FROM users"
+    params: dict[str, object] = {}
+    if role:
+        query += " WHERE role = :role"
+        params["role"] = role
+    query += " ORDER BY created_at ASC, id ASC"
+    with engine.begin() as conn:
+        rows = conn.execute(text(query), params).mappings().all()
+    return [dict(row) for row in rows]
+
+
+def list_senior_officers() -> list[dict]:
+    return list_users(role="senior_officer")
+
+
+def create_user(username: str, password_hash: str, role: str, full_name: str = "") -> dict:
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                INSERT INTO users (username, password_hash, role, full_name)
+                VALUES (:username, :password_hash, :role, :full_name)
+                ON CONFLICT (username) DO UPDATE
+                SET password_hash = EXCLUDED.password_hash,
+                    role = EXCLUDED.role,
+                    full_name = COALESCE(NULLIF(EXCLUDED.full_name, ''), users.full_name),
+                    updated_at = CURRENT_TIMESTAMP
+                """
+            ),
+            {
+                "username": username,
+                "password_hash": password_hash,
+                "role": role,
+                "full_name": full_name or username,
+            },
+        )
+    user = get_user_by_username(username)
+    return user or {}
+
+
+def _ensure_default_users(conn) -> None:
+    from password_utils import hash_password
+    
+    defaults = [
+        {"username": "admin", "password": "admin123", "role": "admin", "full_name": "Admin Officer"},
+        {"username": "officer1", "password": "password", "role": "officer", "full_name": "Loan Officer"},
+        {"username": "so1", "password": "password", "role": "senior_officer", "full_name": "Senior Officer"},
+    ]
+    for user in defaults:
+        try:
+            conn.execute(
+                text(
+                    """
+                    INSERT INTO users (username, password_hash, role, full_name)
+                    VALUES (:username, :password_hash, :role, :full_name)
+                    ON CONFLICT (username) DO NOTHING
+                    """
+                ),
+                {
+                    "username": user["username"],
+                    "password_hash": hash_password(user["password"]),
+                    "role": user["role"],
+                    "full_name": user["full_name"],
+                },
+            )
+        except Exception as e:
+            print(f"Warning: Failed to create default user {user['username']}: {e}")
+            pass
 
 
 def log_event(application_id: str, agent_name: str, event_type: str, payload: dict):
@@ -320,7 +492,8 @@ def list_applications_extended(limit: int = 50) -> list[dict]:
             FROM decisions
         )
         SELECT a.application_id, a.status, a.created_at, a.raw_payload,
-               d.payload as decision_payload
+             a.escalated_by_officer_id, a.escalated_to_senior_officer_id, a.escalated_at,
+             d.payload as decision_payload
         FROM applications a
         LEFT JOIN latest_decisions d ON a.application_id = d.application_id AND d.rn = 1
         ORDER BY a.created_at DESC

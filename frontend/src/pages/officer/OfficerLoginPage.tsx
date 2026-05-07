@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { loginOfficer } from "@/lib/api";
 
 export default function OfficerLoginPage() {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPwd, setShowPwd] = useState(false);
   const [remember, setRemember] = useState(false);
@@ -19,23 +19,30 @@ export default function OfficerLoginPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const getHomePath = (role?: string) => {
+    const normalized = String(role || "officer").toLowerCase();
+    if (normalized === "admin") return "/admin/dashboard";
+    if (normalized === "senior_officer") return "/senior-officer/dashboard";
+    return "/officer/dashboard";
+  };
+
   useEffect(() => {
     const auth = JSON.parse(localStorage.getItem("officer_auth") || "null");
-    if (auth && auth.email) {
-      navigate("/officer/dashboard", { replace: true });
+    if (auth && (auth.email || auth.username)) {
+      navigate(getHomePath(auth.role), { replace: true });
     }
   }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      toast({ title: "Error", description: "Please enter both email and password.", variant: "destructive" });
+    if (!username || !password) {
+      toast({ title: "Error", description: "Please enter both username and password.", variant: "destructive" });
       return;
     }
 
     setLoading(true);
     try {
-      const response = await loginOfficer({ email, password });
+      const response = await loginOfficer({ username, password });
       if (response.success) {
         localStorage.setItem("officer_auth", JSON.stringify(response.user));
         if (response.token) {
@@ -43,7 +50,7 @@ export default function OfficerLoginPage() {
         }
         
         toast({ title: "Portal Initialized", description: `Access granted for ${response.user.name}` });
-        navigate("/officer/dashboard");
+        navigate(getHomePath(response.user.role));
       }
     } catch (err: any) {
       toast({
@@ -77,7 +84,7 @@ export default function OfficerLoginPage() {
           </CardTitle>
           <div className="flex flex-col items-center gap-1 mt-1">
             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] leading-none">
-              Officer Intelligence Portal
+              Secure Access Portal
             </span>
             <CardDescription className="text-muted-foreground mt-2 text-sm font-medium">
               Enter credentials to initialize agentic dashboard
@@ -90,9 +97,9 @@ export default function OfficerLoginPage() {
               <Label className="text-foreground/80 font-medium">Username</Label>
               <Input 
                 type="text" 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
-                placeholder="officer@aria-ai.com" 
+                value={username} 
+                onChange={(e) => setUsername(e.target.value)} 
+                placeholder="admin / officer1 / so1" 
                 className="h-11 border-border focus-visible:ring-primary/20" 
               />
             </div>

@@ -3,6 +3,27 @@ export type LoanTerm = 12 | 24 | 36 | 48 | 60;
 export type ApplicationStatus = "Submitted" | "Under Review" | "Approved" | "Rejected" | "More Information Required";
 export type AIDecision = "APPROVE" | "REJECT" | "REVIEW" | "ESCALATE";
 export type OfficerDecision = "Pending" | "Approved" | "Rejected" | "Escalated" | "Under Review";
+export type UserRole = "admin" | "officer" | "senior_officer";
+
+export interface AuthUser {
+  id: number;
+  username: string;
+  email: string;
+  name: string;
+  full_name?: string;
+  role: UserRole;
+}
+
+export interface LoginResponse {
+  success: boolean;
+  token: string;
+  user: AuthUser;
+}
+
+export interface AdminUser extends AuthUser {
+  created_at?: string;
+  updated_at?: string;
+}
 
 export interface PersonalInfo {
   fullName: string;

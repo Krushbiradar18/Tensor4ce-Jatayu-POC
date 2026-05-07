@@ -21,6 +21,9 @@ const statusColors: Record<string, string> = {
 };
 
 export default function OfficerDashboardPage() {
+  const auth = JSON.parse(localStorage.getItem("officer_auth") || "null");
+  const role = String(auth?.role || "officer").toLowerCase();
+  const basePath = role === "admin" ? "/admin" : role === "senior_officer" ? "/senior-officer" : "/officer";
 
   const { data: apps = [], isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ["officerQueue"],
@@ -116,7 +119,9 @@ export default function OfficerDashboardPage() {
       <Card className="shadow-card overflow-hidden">
         <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/30">
           <CardTitle className="font-display">Recent Applications</CardTitle>
-          <Button asChild variant="ghost" size="sm" className="hover:bg-primary/10 hover:text-primary"><Link to="/officer/applications">View All</Link></Button>
+          {role !== "admin" && (
+            <Button asChild variant="ghost" size="sm" className="hover:bg-primary/10 hover:text-primary"><Link to={`${basePath}/applications`}>View All</Link></Button>
+          )}
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -128,7 +133,7 @@ export default function OfficerDashboardPage() {
                   <th className="p-3 font-semibold text-muted-foreground hidden sm:table-cell">Status</th>
                   <th className="p-3 font-semibold text-muted-foreground hidden md:table-cell">AI Recommendation</th>
                   <th className="p-3 font-semibold text-muted-foreground hidden lg:table-cell">Current Stage</th>
-                  <th className="p-3 font-semibold text-muted-foreground">Action</th>
+                  {role !== "admin" && <th className="p-3 font-semibold text-muted-foreground">Action</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -150,9 +155,11 @@ export default function OfficerDashboardPage() {
                         </Badge>
                       </td>
                       <td className="p-3 hidden lg:table-cell text-muted-foreground">{a.processing_stage || "Queued"}</td>
-                      <td className="p-3">
-                        <Button asChild variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity"><Link to={`/officer/applications/${a.application_id}`}><Eye className="h-4 w-4 mr-2" /> View</Link></Button>
-                      </td>
+                      {role !== "admin" && (
+                        <td className="p-3">
+                          <Button asChild variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity"><Link to={`${basePath}/applications/${a.application_id}`}><Eye className="h-4 w-4 mr-2" /> View</Link></Button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

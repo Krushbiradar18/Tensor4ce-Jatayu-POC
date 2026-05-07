@@ -16,7 +16,9 @@ import OfficerDashboardPage from "./pages/officer/OfficerDashboardPage";
 import OfficerApplicationsPage from "./pages/officer/OfficerApplicationsPage";
 import OfficerApplicationDetailPage from "./pages/officer/OfficerApplicationDetailPage";
 import OfficerAnalyticsPage from "./pages/officer/OfficerAnalyticsPage";
+import SeniorOfficerAnalyticsPage from "./pages/senior-officer/SeniorOfficerAnalyticsPage";
 import OfficerProfilePage from "./pages/officer/OfficerProfilePage";
+import AdminPanelPage from "./pages/admin/AdminPanelPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -46,6 +48,27 @@ const App = () => (
               <Route path="applications/:id" element={<OfficerApplicationDetailPage />} />
               <Route path="analytics" element={<OfficerAnalyticsPage />} />
               <Route path="profile" element={<OfficerProfilePage />} />
+            </Route>
+          </Route>
+
+          {/* Admin Portal */}
+          <Route path="/admin" element={<ProtectedRoute />}>
+            <Route element={<OfficerLayout />}>
+              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route path="dashboard" element={<OfficerDashboardPage />} />
+              <Route path="analytics" element={<OfficerAnalyticsPage />} />
+              <Route path="admin-panel" element={<AdminPanelPage />} />
+            </Route>
+          </Route>
+
+          {/* Senior Officer Portal */}
+          <Route path="/senior-officer" element={<ProtectedRoute />}>
+            <Route element={<OfficerLayout />}>
+              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route path="dashboard" element={<OfficerDashboardPage />} />
+              <Route path="applications" element={<OfficerApplicationsPage />} />
+              <Route path="applications/:id" element={<OfficerApplicationDetailPage />} />
+              <Route path="analytics" element={<SeniorOfficerAnalyticsPage />} />
             </Route>
           </Route>
 

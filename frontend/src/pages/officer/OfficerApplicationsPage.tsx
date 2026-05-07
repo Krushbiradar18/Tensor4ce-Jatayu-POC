@@ -25,6 +25,9 @@ const statusColors: Record<string, string> = {
 const PAGE_SIZE = 10;
 
 export default function OfficerApplicationsPage() {
+  const auth = JSON.parse(localStorage.getItem("officer_auth") || "null");
+  const role = String(auth?.role || "officer").toLowerCase();
+  const basePath = role === "admin" ? "/admin" : role === "senior_officer" ? "/senior-officer" : "/officer";
   const [params] = useSearchParams();
   const presetStatus = params.get("status");
   const presetSearch = params.get("search") || "";
@@ -178,9 +181,30 @@ export default function OfficerApplicationsPage() {
                   const email = payload.email || "";
                   const loanType = payload.loan_purpose || "—";
                   const loanAmount = payload.loan_amount_requested || 0;
+                  
+                  // Show assignment indicator only while escalation is still pending action.
+                  const isEscalatedToMe =
+                    role === "senior_officer" &&
+                    a.escalated_to_senior_officer_id === auth?.id &&
+                    a.status === "OFFICER_ESCALATED";
+                  
                   return (
-                    <tr key={a.application_id} className="hover:bg-muted/10 transition-colors group">
-                      <td className="p-3 font-mono text-primary font-bold">{a.application_id}</td>
+                    <tr 
+                      key={a.application_id} 
+                      className={`transition-colors group ${
+                        isEscalatedToMe 
+                          ? "bg-amber-50 dark:bg-amber-950/30 border-l-4 border-amber-500 hover:bg-amber-100 dark:hover:bg-amber-900/50" 
+                          : "hover:bg-muted/10"
+                      }`}
+                    >
+                      <td className="p-3 font-mono text-primary font-bold">
+                        {a.application_id}
+                        {isEscalatedToMe && (
+                          <div className="text-xs font-semibold text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
+                            ⭐ Assigned to you
+                          </div>
+                        )}
+                      </td>
                       <td className="p-3">
                         <div className="text-foreground font-semibold">{applicantName}</div>
                         <div className="text-xs text-muted-foreground truncate max-w-[150px]">{email}</div>
@@ -198,7 +222,7 @@ export default function OfficerApplicationsPage() {
                         </Badge>
                       </td>
                       <td className="p-3">
-                        <Button asChild variant="ghost" size="sm" className="hover:bg-primary/10 hover:text-primary"><Link to={`/officer/applications/${a.application_id}`}><Eye className="h-4 w-4 mr-2" /> Detail</Link></Button>
+                        <Button asChild variant="ghost" size="sm" className="hover:bg-primary/10 hover:text-primary"><Link to={`${basePath}/applications/${a.application_id}`}><Eye className="h-4 w-4 mr-2" /> Detail</Link></Button>
                       </td>
                     </tr>
                   );

@@ -1,5 +1,28 @@
 const API_BASE = "/api";
 
+export interface LoginCredentials {
+  username: string;
+  password: string;
+}
+
+export interface AdminUser {
+  id: number;
+  username: string;
+  email: string;
+  name: string;
+  role: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CreateAdminUserRequest {
+  username: string;
+  password: string;
+  confirm_password: string;
+  role: "officer" | "senior_officer";
+  full_name?: string;
+}
+
 export interface SubmitApplicationRequest {
   form_data: Record<string, any>;
   ip_metadata: {
@@ -185,11 +208,93 @@ export async function loginOfficer(credentials: Record<string, string>): Promise
   return response.json();
 }
 
+export async function getAdminUsers(): Promise<AdminUser[]> {
+  const response = await fetch(`${API_BASE}/admin/users`, {
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to load users: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export async function createAdminUser(payload: CreateAdminUserRequest): Promise<{ success: boolean; user: AdminUser }> {
+  const response = await fetch(`${API_BASE}/admin/users`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ detail: "Failed to create user" }));
+    throw new Error(errorData.detail || `Failed to create user: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
 export async function checkHealth(): Promise<any> {
   const response = await fetch(`${API_BASE}/health`);
 
   if (!response.ok) {
     throw new Error(`Failed to check health: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export async function listAdminUsers(): Promise<AdminUser[]> {
+  const response = await fetch(`${API_BASE}/users/admin/users`, {
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to load users: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export async function createUser(
+  username: string,
+  password: string,
+  role: "admin" | "officer" | "senior_officer",
+  fullName?: string
+): Promise<AdminUser> {
+  const response = await fetch(`${API_BASE}/users/register`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({
+      username,
+      password,
+      password_confirm: password,
+      role,
+      full_name: fullName || username,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ detail: "Failed to create user" }));
+    throw new Error(errorData.detail || `Failed to create user: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export async function updateUserRole(
+  userId: number,
+  newRole: "admin" | "officer" | "senior_officer"
+): Promise<AdminUser> {
+  const response = await fetch(`${API_BASE}/users/admin/users/${userId}/role`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ role: newRole }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to update user role: ${response.statusText}`);
   }
 
   return response.json();

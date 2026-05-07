@@ -34,12 +34,12 @@ _UPLOAD_BASE = Path(tempfile.gettempdir()) / "aria_loan_uploads"
 os.environ["LITELLM_LOG"] = "ERROR"
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Form, Depends
-from auth import create_access_token, get_current_officer
+from auth import authenticate_user, create_access_token, get_current_admin, get_current_officer, get_current_senior_officer, require_role
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from schemas import SubmitRequest, OfficerAction
+from schemas import SubmitRequest, OfficerAction, UserCreate
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -71,6 +71,19 @@ if _mp.get_start_method(allow_none=True) is None:
     _mp.set_start_method("spawn")
 
 import db
+
+
+def _serialize_user(user: dict) -> dict:
+    if not user:
+        return {}
+    return {
+        "id": user.get("id"),
+        "username": user.get("username", ""),
+        "email": user.get("username", ""),
+        "name": user.get("full_name") or user.get("username", ""),
+        "full_name": user.get("full_name") or user.get("username", ""),
+        "role": user.get("role", ""),
+    }
 
 
 # ── Utilities ──────────────────────────────────────────────────────────────────
@@ -693,7 +706,7 @@ def get_status(app_id: str):
 
 
 @app.get("/api/officer/queue")
-def officer_queue(current_user: dict = Depends(get_current_officer)):
+def officer_queue(current_user: dict = Depends(require_role("admin", "officer", "senior_officer"))):
     """
     Returns the latest applications for the officer dashboard.
     Synchronous definition allows FastAPI to run it in a threadpool, 
@@ -711,11 +724,12 @@ def officer_queue(current_user: dict = Depends(get_current_officer)):
 
 
 @app.get("/api/officer/decision/{app_id}")
-def get_full_decision(app_id: str, current_user: dict = Depends(get_current_officer)):
+def get_full_decision(app_id: str, current_user: dict = Depends(require_role("admin", "officer", "senior_officer"))):
     row = db.get_application(app_id)
     if not row:
         raise HTTPException(404, "Application not found")
     return {
+        "application_record": row,
         "application": json.loads(row["raw_payload"]),
         "status":      row["status"],
         "decision":    db.get_decision(app_id),
@@ -875,16 +889,53 @@ async def extract_documents(
 
 
 @app.post("/api/officer/action/{app_id}")
-def officer_action(app_id: str, action: OfficerAction, current_user: dict = Depends(get_current_officer)):
+def officer_action(app_id: str, action: OfficerAction, current_user: dict = Depends(require_role("officer", "senior_officer", "admin"))):
     row = db.get_application(app_id)
     if not row:
         raise HTTPException(404, "Application not found")
     valid = {"APPROVED", "REJECTED", "CONDITIONAL", "ESCALATED"}
     if action.decision.upper() not in valid:
         raise HTTPException(400, f"Decision must be one of {valid}")
-    db.save_officer_action(app_id, action.officer_id, action.decision.upper(), action.reason)
-    db.log_event(app_id, "officer", "OFFICER_ACTION",
-                 {"decision": action.decision, "officer": action.officer_id})
+
+    current_role = str(current_user.get("role", "")).lower()
+    actor_id = str(current_user.get("username") or current_user.get("id") or action.officer_id)
+
+    if action.decision.upper() == "ESCALATED":
+        if current_role != "officer":
+            raise HTTPException(status_code=403, detail="Only officers can escalate applications")
+
+        senior_officers = db.list_senior_officers()
+        if not senior_officers:
+            raise HTTPException(status_code=400, detail="No senior officers are available for escalation")
+
+        import random
+
+        assigned = random.choice(senior_officers)
+        db.assign_application_to_senior_officer(
+            app_id,
+            actor_id,
+            assigned.get("id"),  # Pass the integer ID, not the username
+            action.reason,
+        )
+        db.log_event(app_id, "officer", "OFFICER_ESCALATED",
+                     {"officer": actor_id, "assigned_senior_officer": assigned.get("username"), "reason": action.reason})
+        return {
+            "success": True,
+            "application_id": app_id,
+            "decision": "ESCALATED",
+            "assigned_senior_officer": _serialize_user(assigned),
+        }
+
+    if current_role == "senior_officer":
+        assigned_to = str(row.get("escalated_to_senior_officer_id") or "")
+        if assigned_to and assigned_to not in {str(current_user.get("id")), str(current_user.get("username"))}:
+            raise HTTPException(status_code=403, detail="This application is assigned to another senior officer")
+        if row.get("status") != "OFFICER_ESCALATED":
+            raise HTTPException(status_code=403, detail="Senior officers can only act on escalated applications")
+
+    db.save_officer_action(app_id, actor_id, action.decision.upper(), action.reason)
+    db.log_event(app_id, current_role or "officer", "OFFICER_ACTION",
+                 {"decision": action.decision, "officer": actor_id})
     return {"success": True, "application_id": app_id, "decision": action.decision}
 
 
@@ -892,21 +943,154 @@ def officer_action(app_id: str, action: OfficerAction, current_user: dict = Depe
 
 @app.post("/api/officer/login")
 def login(credentials: dict):
-    email = credentials.get("email")
+    username = credentials.get("username") or credentials.get("email")
     password = credentials.get("password")
-    
-    # Simple hardcoded check for PoC
-    if email == "admin" and password == "admin123":
-        user_data = {"email": email, "name": "Admin Officer", "role": "Loan Officer"}
-        token = create_access_token(user_data)
-        
-        return {
-            "success": True, 
-            "token": token,
-            "user": user_data
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="Username and password are required")
+
+    user = authenticate_user(username, password)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    user_data = _serialize_user(user)
+    token = create_access_token(user_data)
+
+    return {
+        "success": True,
+        "token": token,
+        "user": user_data,
+    }
+
+
+@app.get("/api/admin/users")
+def list_admin_users(current_user: dict = Depends(get_current_admin)):
+    return [
+        {
+            "id": user["id"],
+            "username": user["username"],
+            "email": user["username"],
+            "name": user.get("full_name") or user["username"],
+            "role": user["role"],
+            "created_at": str(user.get("created_at", "")),
+            "updated_at": str(user.get("updated_at", "")),
         }
+        for user in db.list_users()
+    ]
+
+
+@app.post("/api/admin/users")
+def create_admin_user(payload: UserCreate, current_user: dict = Depends(get_current_admin)):
+    if payload.password != payload.confirm_password:
+        raise HTTPException(status_code=400, detail="Password and confirm password do not match")
+
+    from password_utils import hash_password
+
+    existing = db.get_user_by_username(payload.username)
+    if existing:
+        raise HTTPException(status_code=409, detail="Username already exists")
+
+    user = db.create_user(
+        payload.username,
+        hash_password(payload.password),
+        payload.role.value,
+        payload.full_name or payload.username,
+    )
+    return {
+        "success": True,
+        "user": {
+            "id": user.get("id"),
+            "username": user.get("username"),
+            "email": user.get("username"),
+            "name": user.get("full_name") or user.get("username"),
+            "role": user.get("role"),
+        },
+    }
+
+
+@app.get("/api/users/admin/users")
+def list_users_admin_users(current_user: dict = Depends(get_current_admin)):
+    """Alias for /api/admin/users - list all users"""
+    return [
+        {
+            "id": user["id"],
+            "username": user["username"],
+            "email": user["username"],
+            "name": user.get("full_name") or user["username"],
+            "role": user["role"],
+            "created_at": str(user.get("created_at", "")),
+            "updated_at": str(user.get("updated_at", "")),
+        }
+        for user in db.list_users()
+    ]
+
+
+@app.post("/api/users/register")
+def register_user(payload: UserCreate, current_user: dict = Depends(get_current_admin)):
+    """Alias for /api/admin/users - create new user"""
+    if payload.password != payload.confirm_password:
+        raise HTTPException(status_code=400, detail="Password and confirm password do not match")
+
+    from password_utils import hash_password
+
+    existing = db.get_user_by_username(payload.username)
+    if existing:
+        raise HTTPException(status_code=409, detail="Username already exists")
+
+    user = db.create_user(
+        payload.username,
+        hash_password(payload.password),
+        payload.role.value,
+        payload.full_name or payload.username,
+    )
+    return {
+        "success": True,
+        "user": {
+            "id": user.get("id"),
+            "username": user.get("username"),
+            "email": user.get("username"),
+            "name": user.get("full_name") or user.get("username"),
+            "role": user.get("role"),
+        },
+    }
+
+
+@app.put("/api/users/admin/users/{user_id}/role")
+def update_user_role(user_id: int, role: dict, current_user: dict = Depends(get_current_admin)):
+    """Update a user's role"""
+    new_role = role.get("role")
+    if new_role not in ["admin", "officer", "senior_officer"]:
+        raise HTTPException(status_code=400, detail="Invalid role")
     
-    raise HTTPException(status_code=401, detail="Invalid credentials")
+    user = db.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Update the user's role (we can do this by re-creating the user with the new role)
+    # Since create_user does an upsert, we need to preserve the password hash
+    with db.engine.begin() as conn:
+        conn.execute(
+            text("UPDATE users SET role = :role, updated_at = CURRENT_TIMESTAMP WHERE id = :id"),
+            {"role": new_role, "id": user_id}
+        )
+    
+    updated_user = db.get_user_by_id(user_id)
+    return {
+        "id": updated_user.get("id"),
+        "username": updated_user.get("username"),
+        "email": updated_user.get("username"),
+        "name": updated_user.get("full_name") or updated_user.get("username"),
+        "role": updated_user.get("role"),
+    }
+
+
+@app.get("/api/senior-officer/applications")
+def senior_officer_applications(current_user: dict = Depends(get_current_senior_officer)):
+    return officer_queue(current_user)
+
+
+@app.get("/api/senior-officer/decision/{app_id}")
+def senior_officer_decision(app_id: str, current_user: dict = Depends(get_current_senior_officer)):
+    return get_full_decision(app_id, current_user)
 
 
 @app.get("/api/health")

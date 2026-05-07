@@ -5,6 +5,12 @@ from typing import Any, Optional
 from pydantic import BaseModel, Field
 
 
+class UserRole(str, Enum):
+    ADMIN = "admin"
+    OFFICER = "officer"
+    SENIOR_OFFICER = "senior_officer"
+
+
 class LoanProduct(str, Enum):
     HOME = "HOME"; AUTO = "AUTO"; PERSONAL = "PERSONAL"; EDUCATION = "EDUCATION"
 
@@ -36,6 +42,45 @@ class AppStatus(str, Enum):
     OFFICER_CONDITIONAL = "OFFICER_CONDITIONAL"
     OFFICER_ESCALATED = "OFFICER_ESCALATED"
     ERROR = "ERROR"
+
+
+class UserLogin(BaseModel):
+    username: str
+    password: str
+
+
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    confirm_password: str
+    role: UserRole
+    full_name: str = ""
+
+
+class UserResponse(BaseModel):
+    id: int
+    username: str
+    role: UserRole
+    email: str = ""
+    name: str = ""
+    full_name: str = ""
+    created_at: str = ""
+    updated_at: str = ""
+
+
+class TokenResponse(BaseModel):
+    success: bool = True
+    token: str
+    user: UserResponse
+
+
+class EscalateApplicationRequest(BaseModel):
+    reason: str = ""
+
+
+class SeniorOfficerDecision(BaseModel):
+    decision: str
+    reason: str = ""
 
 
 class AddressIn(BaseModel):

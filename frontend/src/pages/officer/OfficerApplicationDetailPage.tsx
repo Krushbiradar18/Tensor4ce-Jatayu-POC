@@ -33,6 +33,9 @@ export default function OfficerApplicationDetailPage() {
   const [notes, setNotes] = useState("");
   const [isAuditExpanded, setIsAuditExpanded] = useState(false);
   const { toast } = useToast();
+  const auth = JSON.parse(localStorage.getItem("officer_auth") || "null");
+  const role = String(auth?.role || "officer").toLowerCase();
+  const basePath = role === "admin" ? "/admin" : role === "senior_officer" ? "/senior-officer" : "/officer";
 
   const isFinalStatus = (status: string) => 
     status?.startsWith("OFFICER_") || status === "ERROR" || status === "VERIFICATION_FAILED";
@@ -55,7 +58,7 @@ export default function OfficerApplicationDetailPage() {
 
     try {
       await submitOfficerAction(id!, {
-        officer_id: "admin",
+        officer_id: String(auth?.username || auth?.id || "officer"),
         decision: decision,
         reason: notes,
       });
@@ -81,7 +84,7 @@ export default function OfficerApplicationDetailPage() {
       <div className="text-center py-20 bg-muted/20 border border-dashed rounded-xl">
         <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4"><FileText className="h-8 w-8 text-muted-foreground" /></div>
         <p className="text-muted-foreground text-lg font-medium">Application not found.</p>
-        <Button asChild variant="outline" className="mt-4 shadow-sm"><Link to="/officer/applications"><ArrowLeft className="mr-2 h-4 w-4" /> Go to Queue</Link></Button>
+        <Button asChild variant="outline" className="mt-4 shadow-sm"><Link to={`${basePath}/applications`}><ArrowLeft className="mr-2 h-4 w-4" /> Go to Queue</Link></Button>
       </div>
     );
   }
@@ -89,6 +92,7 @@ export default function OfficerApplicationDetailPage() {
   const appData = app.application || {};
   const formData = appData.form_data || appData;
   const aiDecision = app.decision || {};
+  const record = app.application_record || {};
   const ai = aiDecision.credit_risk || {};
   const fraud = aiDecision.fraud || {};
   const compliance = aiDecision.compliance || {};
@@ -96,6 +100,14 @@ export default function OfficerApplicationDetailPage() {
   const ctx = aiDecision.context || {};
   const features = ctx.features || {};
   const form = ctx.form || formData;
+  const assignedSeniorOfficer = String(record.escalated_to_senior_officer_id || "");
+  const currentUserId = String(auth?.id || "");
+  const currentUsername = String(auth?.username || "");
+  const isAssignedToCurrentSeniorOfficer = [currentUserId, currentUsername].includes(assignedSeniorOfficer);
+  const isSeniorActionAllowed = role === "senior_officer" && app.status === "OFFICER_ESCALATED" && assignedSeniorOfficer && isAssignedToCurrentSeniorOfficer;
+  const canOfficerAct = role === "officer" && !app.status.startsWith("OFFICER_");
+  const showDecisionCard = canOfficerAct || isSeniorActionAllowed;
+  const allowedDecisions = role === "senior_officer" ? ["APPROVED", "REJECTED", "CONDITIONAL"] : ["APPROVED", "REJECTED", "ESCALATED", "CONDITIONAL"];
 
   const isPrecheckRejected = aiDecision.decision_matrix_row === "R0_PRECHECK_IDENTITY_MISMATCH" || app.status === "VERIFICATION_FAILED";
 
@@ -103,7 +115,7 @@ export default function OfficerApplicationDetailPage() {
     <div className="space-y-6 animate-fade-in max-w-5xl pb-10">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm">
-          <Link to="/officer/applications" className="text-muted-foreground hover:text-primary transition-colors">Queue</Link>
+          <Link to={`${basePath}/applications`} className="text-muted-foreground hover:text-primary transition-colors">Queue</Link>
           <span className="text-muted-foreground">/</span>
           <span className="text-foreground font-bold font-mono">{id}</span>
         </div>
@@ -574,18 +586,20 @@ export default function OfficerApplicationDetailPage() {
         </div>
       )}
 
-      {!app.status.startsWith("OFFICER_") && (
+      {showDecisionCard && (
         <Card className="shadow-none border border-border">
           <CardHeader className="pb-3 px-4">
             <CardTitle className="text-lg font-bold">Officer Final Action</CardTitle>
-            <CardDescription className="text-xs">Submit the final processing decision for this application.</CardDescription>
+            <CardDescription className="text-xs">
+              {role === "senior_officer" ? "Submit the escalation decision for this application." : "Submit the final processing decision for this application."}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <div className="md:col-span-1 space-y-3">
                 <Label className="text-xs font-bold uppercase tracking-wider">Select Decision</Label>
                 <div className="grid grid-cols-1 gap-2">
-                  {["APPROVED", "REJECTED", "ESCALATED", "CONDITIONAL"].map((d) => (
+                  {allowedDecisions.map((d) => (
                     <Button 
                       key={d} 
                       variant={decision === d ? "default" : "outline"} 
@@ -611,6 +625,14 @@ export default function OfficerApplicationDetailPage() {
                 </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {role === "senior_officer" && !showDecisionCard && app.status === "OFFICER_ESCALATED" && (
+        <Card className="shadow-none border border-border">
+          <CardContent className="py-8 text-center text-muted-foreground">
+            This application is escalated to another senior officer and is read-only here.
           </CardContent>
         </Card>
       )}

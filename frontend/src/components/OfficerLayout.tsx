@@ -1,17 +1,41 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate, Outlet, Navigate } from "react-router-dom";
-import { ShieldCheck, LayoutDashboard, FileText, BarChart3, Settings, User, LogOut, Bell, Search, Menu, X } from "lucide-react";
+import { ShieldCheck, LayoutDashboard, FileText, BarChart3, Settings, User, LogOut, Search, Menu, X, ShieldAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import { getOfficerQueue } from "@/lib/api";
 
-const navItems = [
-  { to: "/officer/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/officer/applications", icon: FileText, label: "All Applications" },
-  { to: "/officer/analytics", icon: BarChart3, label: "Analytics" },
-  { to: "/officer/profile", icon: Settings, label: "Settings" },
-];
+const navByRole: Record<string, Array<{ to: string; icon: any; label: string }>> = {
+  admin: [
+    { to: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+    { to: "/admin/analytics", icon: BarChart3, label: "Analytics" },
+    { to: "/admin/admin-panel", icon: ShieldAlert, label: "Admin Panel" },
+  ],
+  officer: [
+    { to: "/officer/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+    { to: "/officer/applications", icon: FileText, label: "All Applications" },
+    { to: "/officer/analytics", icon: BarChart3, label: "Analytics" },
+    { to: "/officer/profile", icon: Settings, label: "Settings" },
+  ],
+  senior_officer: [
+    { to: "/senior-officer/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+    { to: "/senior-officer/applications", icon: FileText, label: "All Applications" },
+    { to: "/senior-officer/analytics", icon: BarChart3, label: "Analytics" },
+  ],
+};
+
+const homeByRole: Record<string, string> = {
+  admin: "/admin/dashboard",
+  officer: "/officer/dashboard",
+  senior_officer: "/senior-officer/dashboard",
+};
+
+const profileByRole: Record<string, string> = {
+  admin: "/admin/admin-panel",
+  officer: "/officer/profile",
+  senior_officer: "/senior-officer/dashboard",
+};
 
 export default function OfficerLayout() {
   const location = useLocation();
@@ -22,16 +46,34 @@ export default function OfficerLayout() {
   
   const authStr = localStorage.getItem("officer_auth");
   const auth = authStr ? JSON.parse(authStr) : null;
+  const role = String(auth?.role || "officer").toLowerCase();
+  const navItems = navByRole[role] || navByRole.officer;
+  const homePath = homeByRole[role] || homeByRole.officer;
+  const profilePath = profileByRole[role] || profileByRole.officer;
+
+  // Fetch applications to count escalated ones (for senior officers)
+  const { data: applications = [] } = useQuery({
+    queryKey: ["officerQueue"],
+    queryFn: getOfficerQueue,
+    enabled: role === "senior_officer",
+  });
+
+  // Count only pending escalations assigned to this senior officer
+  const escalatedCount = role === "senior_officer" 
+    ? applications.filter(
+        (app) => app.escalated_to_senior_officer_id === auth?.id && app.status === "OFFICER_ESCALATED"
+      ).length 
+    : 0;
 
   // Secondary protection layer
   useEffect(() => {
-    if (!auth || !auth.email) {
+    if (!auth || (!auth.email && !auth.username)) {
       console.log("[OfficerLayout] No auth found, redirecting");
       navigate("/officer/login", { replace: true });
     }
   }, [auth, navigate]);
 
-  if (!auth || !auth.email) {
+  if (!auth || (!auth.email && !auth.username)) {
     return null; // Don't even render shell
   }
 
@@ -45,9 +87,12 @@ export default function OfficerLayout() {
   const handleSearch = () => {
     const query = searchQuery.trim();
     if (query) {
-      // Always go to the list page with the search filter
-      // This ensures we show a list of matches for IDs, names, emails, etc.
-      navigate(`/officer/applications?search=${encodeURIComponent(query)}`);
+      const target = role === "admin"
+        ? homePath
+        : role === "senior_officer"
+          ? `/senior-officer/applications?search=${encodeURIComponent(query)}`
+          : `/officer/applications?search=${encodeURIComponent(query)}`;
+      navigate(target);
       setSearchQuery("");
       setSidebarOpen(false);
     }
@@ -84,21 +129,33 @@ export default function OfficerLayout() {
                 Risk Management
               </span> */}
               <span className="text-[12px] font-bold text-sidebar-muted uppercase tracking-[0.1em] leading-none opacity-60">
-                Agentic Risk Intelligence & Analytics
+                {role === "admin" ? "Administrator Console" : role === "senior_officer" ? "Senior Officer Console" : "Agentic Risk Intelligence & Analytics"}
               </span>
             </div>
           </div>
         </div>
         <nav className="p-3 space-y-1">
-          {navItems.map((item) => (
-            <Link key={item.label} to={item.to} onClick={() => setSidebarOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                isActive(item.to) ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-muted hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-              }`}>
-              <item.icon className="h-4 w-4" />
-              {item.label}
-            </Link>
-          ))}
+          {navItems.map((item) => {
+            // Show badge for All Applications if it's a senior officer with escalated items
+            const showBadge = role === "senior_officer" && item.label === "All Applications" && escalatedCount > 0;
+            
+            return (
+              <Link key={item.label} to={item.to} onClick={() => setSidebarOpen(false)}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors relative ${
+                  isActive(item.to) ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-muted hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                }`}>
+                <item.icon className="h-4 w-4" />
+                <div className="flex items-center gap-2 flex-1">
+                  {item.label}
+                  {showBadge && (
+                    <span className="ml-auto inline-flex items-center justify-center h-5 w-5 rounded-full bg-red-500 text-white text-xs font-bold">
+                      {escalatedCount}
+                    </span>
+                  )}
+                </div>
+              </Link>
+            );
+          })}
         </nav>
         <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-sidebar-border">
           <button onClick={handleLogout} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-muted hover:bg-sidebar-accent/50 hover:text-sidebar-foreground w-full transition-colors">
@@ -142,14 +199,14 @@ export default function OfficerLayout() {
           <div className="flex items-center gap-3">
             <button 
               className="flex items-center gap-2 pr-2 leading-none hover:bg-muted/50 rounded-full transition-all group"
-              onClick={() => navigate("/officer/profile")}
+              onClick={() => navigate(profilePath)}
             >
               <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 group-hover:border-primary/40">
                 <User className="h-5 w-5 text-primary" />
               </div>
               <div className="text-left hidden sm:block">
-                <p className="text-sm font-semibold text-foreground">{auth.name || "Officer"}</p>
-                <p className="text-[10px] text-muted-foreground">{auth.role || "Loan Officer"}</p>
+                <p className="text-sm font-semibold text-foreground">{auth.name || auth.username || "Officer"}</p>
+                <p className="text-[10px] text-muted-foreground">{auth.role || "officer"}</p>
               </div>
             </button>
           </div>
