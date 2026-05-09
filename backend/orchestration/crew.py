@@ -485,37 +485,104 @@ def run_crew_pipeline(app_id: str, form_data: dict, ip_meta: dict) -> dict:
     ctx = run_dil_pipeline(app_id, form_data, ip_meta)
     logger.info(f"[{app_id}] DIL complete. Flags: {[f.flag_code for f in ctx.validation_flags]}")
 
-    # ── Step 1b: Data Completeness Gate (Day 3) ───────────────────────────────
+    # ── Step 1b: Document Processing Crew & Orchestrator Gate (Day 3 Update) ──
     try:
-        from orchestration.mcp_tools import assess_data_completeness
-        # Call the underlying function directly (bypassing the LangChain tool wrapper)
-        completeness = assess_data_completeness.func(app_id)
-        _log_event(app_id, "orchestrator", "DATA_COMPLETENESS_CHECK", completeness)
-        if not completeness.get("can_proceed", True):
-            # Blocking data gaps — halt pipeline and request more documents
-            missing = completeness.get("missing_documents", [])
-            logger.warning(f"[{app_id}] Blocking data gaps: {[m['doc'] for m in missing if m.get('blocking')]} — status → DATA_REQUIRED")
+        from orchestration.document_pipeline import run_document_processing_crew, evaluate_requirements
+        
+        # 1. Run Document Intake -> OCR -> Normalization
+        logger.info(f"[{app_id}] Running Document Processing Crew...")
+        # Check LLM connection first to fail fast before trying Crew
+        try:
+            llm = _build_llm()
+        except Exception as e:
+            logger.warning(f"[{app_id}] Failed to build LLM, falling back to None for Crew: {e}")
+            llm = None
+            
+        unified_profile = run_document_processing_crew(app_id, llm)
+        _log_event(app_id, "orchestrator", "DOCUMENT_PROCESSING_COMPLETE", unified_profile)
+        
+        # 2. Orchestrator: Evaluate Requirements
+        logger.info(f"[{app_id}] Orchestrator evaluating requirement cards...")
+        req_eval = evaluate_requirements(
+            profile=unified_profile, 
+            loan_amount=float(form_data.get("loan_amount_requested", 0)), 
+            employment_type=form_data.get("employment_type", "SALARIED")
+        )
+        _log_event(app_id, "orchestrator", "REQUIREMENTS_EVALUATION", req_eval)
+        
+        if req_eval["action"] == "DATA_REQUIRED":
+            missing = req_eval["missing"]
+            logger.warning(f"[{app_id}] Blocking data gaps: {missing} — status → DATA_REQUIRED")
             db.update_status(app_id, "DATA_REQUIRED")
-            required_docs = [m for m in missing if m.get("blocking")]
+            
+            # Format to match frontend expectations: [{doc: "...", blocking: true, reason: "..."}]
+            required_docs_formatted = [
+                {"doc": doc_name, "blocking": True, "reason": "Missing mandatory document required by downstream agents."} 
+                for doc_name in missing
+            ]
+            
             decision_id = str(uuid.uuid4())
             result = {
                 "decision_id": decision_id,
                 "application_id": app_id,
                 "ai_recommendation": "DATA_REQUIRED",
-                "data_completeness": completeness,
-                "required_documents": required_docs,
+                "required_documents": required_docs_formatted,
                 "officer_narrative": (
                     "Application cannot be processed due to missing mandatory data: "
-                    + ", ".join(m["doc"] for m in required_docs)
+                    + ", ".join(missing)
                     + ". Please upload the required documents and resubmit."
                 ),
                 "processing_time_ms": round((time.time() - t0) * 1000, 1),
             }
             db.save_decision(decision_id, app_id, result)
             return result
-        logger.info(f"[{app_id}] Data completeness OK (score={completeness.get('data_completeness_score', '?')})")
+            
+        elif req_eval["action"] == "LOW_CONFIDENCE_RETRY":
+            low_conf = req_eval["low_confidence"]
+            logger.warning(f"[{app_id}] Low OCR confidence on fields: {low_conf} — status → LOW_CONFIDENCE_RETRY")
+            db.update_status(app_id, "DATA_REQUIRED") # Treat as data required in UI
+            
+            # Format to match frontend expectations
+            required_docs_formatted = [
+                {"doc": "CLEARER_" + f.upper(), "blocking": True, "reason": "OCR confidence too low, please upload a clearer image."}
+                for f in low_conf
+            ]
+            
+            decision_id = str(uuid.uuid4())
+            result = {
+                "decision_id": decision_id,
+                "application_id": app_id,
+                "ai_recommendation": "DATA_REQUIRED",
+                "required_documents": required_docs_formatted,
+                "officer_narrative": (
+                    "Please re-upload clearer images for the following fields: "
+                    + ", ".join(low_conf)
+                ),
+                "processing_time_ms": round((time.time() - t0) * 1000, 1),
+            }
+            db.save_decision(decision_id, app_id, result)
+            return result
+            
+        logger.info(f"[{app_id}] Orchestrator Check OK -> Proceeding to Downstream Agents")
+        
+        # Override form features with OCR extracted ones (this bridges the Document Processing Crew into DIL context)
+        ident = unified_profile.get("identity", {})
+        if ident.get("pan_number"): ctx.form.pan_number = ident["pan_number"]
+        if ident.get("aadhaar_number"): ctx.form.aadhaar_last4 = ident["aadhaar_number"][-4:] if ident["aadhaar_number"] else None
+        
+        fins = unified_profile.get("financials", {})
+        if fins.get("avg_monthly_credit"): ctx.features.avg_monthly_credit = fins["avg_monthly_credit"]
+        if fins.get("avg_monthly_debit"): ctx.features.avg_monthly_debit = fins["avg_monthly_debit"]
+        if fins.get("min_eod_balance"): ctx.features.min_eod_balance = fins["min_eod_balance"]
+        if fins.get("emi_bounce_count") is not None: ctx.features.emi_bounce_count = fins["emi_bounce_count"]
+        if fins.get("salary_regularity"): ctx.features.salary_regularity = fins["salary_regularity"]
+        
+        from dil import store_context
+        store_context(ctx)
+        
     except Exception as e:
-        logger.warning(f"[{app_id}] Data completeness check failed (non-blocking): {e}")
+        import traceback
+        logger.warning(f"[{app_id}] Document Orchestrator check failed: {e}\n{traceback.format_exc()}")
 
     # ── Step 2: Agentic Orchestration ─────────────────────────────────────────
     db.update_status(app_id, "AGENTS_RUNNING")

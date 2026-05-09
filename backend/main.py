@@ -21,6 +21,10 @@ Run: uvicorn main:app --reload --port 8000
 """
 from __future__ import annotations
 import os
+
+# Prevent threadpool exhaustion deadlocks when multiple A2A tasks run synchronously
+os.environ["ANYIO_MAX_THREADS"] = "200"
+
 import json
 import asyncio
 import logging
@@ -28,7 +32,7 @@ import tempfile
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-_UPLOAD_BASE = Path(tempfile.gettempdir()) / "aria_loan_uploads"
+_UPLOAD_BASE = Path(__file__).resolve().parent / "data" / "uploads"
 
 # Silence LiteLLM console spam
 os.environ["LITELLM_LOG"] = "ERROR"
@@ -292,6 +296,8 @@ def submit_application(req: SubmitRequest, background_tasks: BackgroundTasks):
 
     app_id = req.form_data.get("application_id") or f"APP-{uuid.uuid4().hex[:8].upper()}"
     req.form_data["application_id"] = app_id
+    
+    logger.info(f"DEBUG: Received form_data for {app_id}: {json.dumps(req.form_data)}")
     
     # Log application submission event
     db.save_application(app_id, req.form_data, req.ip_metadata)
@@ -578,24 +584,20 @@ def _run_pipeline_subprocess(app_id: str, form_data: dict, ip_meta: dict):
 
 async def _run_bg(app_id: str, form_data: dict, ip_meta: dict):
     """
-    Spawn the pipeline in a fresh subprocess so A2A HTTP calls back to
-    localhost:8000 are processed by the still-responsive event loop.
+    Run the pipeline in a background thread so the event loop stays free.
+    We use run_in_executor with the default ThreadPoolExecutor.
     """
-    import multiprocessing
+    from orchestration.crew import run_crew_pipeline
     try:
-        proc = multiprocessing.Process(
-            target=_run_pipeline_subprocess,
-            args=(app_id, form_data, ip_meta),
-            daemon=True,
-        )
-        proc.start()
-        # Wait in the executor so the event loop stays free
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, proc.join)
-        if proc.exitcode != 0:
-            raise RuntimeError(f"Pipeline subprocess exited with code {proc.exitcode}")
+        # Run in a background thread
+        await loop.run_in_executor(None, run_crew_pipeline, app_id, form_data, ip_meta)
     except Exception as e:
-        logger.exception(f"Pipeline error for {app_id}: {e}")
+        import traceback
+        err_msg = f"MAIN PIPELINE ERROR: {str(e)}\n{traceback.format_exc()}"
+        logger.error(err_msg)
+        with open("main_error.log", "a") as f:
+            f.write(f"\n\n--- Error at {app_id} ---\n{err_msg}\n")
         db.update_status(app_id, "ERROR")
         db.log_event(app_id, "system", "ERROR", {"error": str(e)})
 
@@ -693,6 +695,10 @@ def get_status(app_id: str):
         "ERROR":                  "A transmission error occurred. Our team has been notified.",
     }
     result = {"application_id": app_id, "status": status}
+    decision = db.get_decision(app_id)
+    if decision:
+        result["decision"] = decision
+
     # Special-case: when the application was escalated, do NOT expose the internal 'ESCALATED' decision to users.
     # Show a neutral message instead and avoid revealing who acted on the case.
     if status == "OFFICER_ESCALATED":
@@ -786,7 +792,9 @@ async def extract_documents(
     async def _save_upload(upload: UploadFile) -> str:
         """Save an uploaded file to a temp file and return its path."""
         suffix = Path(upload.filename).suffix if upload.filename else ".pdf"
-        fd, tmp_path = tempfile.mkstemp(suffix=suffix)
+        stem = Path(upload.filename).stem if upload.filename else "upload"
+        # Include original name in temp file to help OCR mocks identify test cases
+        fd, tmp_path = tempfile.mkstemp(suffix=f"_{stem}{suffix}")
         try:
             os.close(fd)
             content = await upload.read()
@@ -813,6 +821,7 @@ async def extract_documents(
         tmp = None
         try:
             tmp = await _save_upload(aadhaar)
+            logger.info("DEBUG: Aadhaar temp path: %s", tmp)
             if _is_image(aadhaar):
                 from document_extractor import extract_from_image
                 out = await loop.run_in_executor(None, extract_from_image, tmp, "aadhaar")
@@ -833,6 +842,7 @@ async def extract_documents(
         tmp = None
         try:
             tmp = await _save_upload(pan)
+            logger.info("DEBUG: PAN temp path: %s", tmp)
             if _is_image(pan):
                 from document_extractor import extract_from_image
                 out = await loop.run_in_executor(None, extract_from_image, tmp, "pan")

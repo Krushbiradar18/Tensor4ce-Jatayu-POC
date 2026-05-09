@@ -53,3 +53,29 @@ def load_portfolio(csv_path: str = "data/portfolio_loans.csv"):
     else:
         logger.warning(f"Portfolio CSV not found at {csv_path} — portfolio checks use defaults")
         _PORTFOLIO = []
+
+# ── Downstream Agent Requirement Cards ────────────────────────────────────────
+
+REQUIREMENT_CARDS = {
+    "credit_risk": {
+        "required_documents": ["BANK_STATEMENT", "SALARY_SLIP_OR_ITR"],
+        "required_fields": ["cibil_score", "annual_income_verified"],
+        "min_confidence": 0.85
+    },
+    "fraud": {
+        "required_documents": ["PAN", "AADHAAR"],
+        "required_fields": ["pan_number", "aadhaar_number", "ip_risk_score"],
+        "min_confidence": 0.90
+    },
+    "compliance": {
+        "required_documents": ["PAN", "AADHAAR"],
+        "required_fields": ["applicant_age", "pan_blacklisted"],
+        "min_confidence": 0.95
+    },
+    "portfolio": {
+        "required_documents": [],
+        "required_fields": ["loan_amount_requested", "loan_product_type", "state_code"],
+        "min_confidence": 0.80
+    }
+}
+
