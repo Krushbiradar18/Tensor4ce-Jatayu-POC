@@ -6,11 +6,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { UserPlus, Shield, Users, RefreshCw } from "lucide-react";
-import { createAdminUser, listAdminUsers } from "@/lib/api";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { UserPlus, Shield, ShieldCheck, Users, RefreshCw } from "lucide-react";
+import { createAdminUser, listAdminUsers, updateUserStatus, updateUserRoleByUsername, deleteUser } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
-const roleOptions = [
+const roleOptions: { value: "officer" | "senior_officer"; label: string }[] = [
   { value: "officer", label: "Officer" },
   { value: "senior_officer", label: "Senior Officer" },
 ];
@@ -21,7 +29,7 @@ export default function AdminPanelPage() {
   const [fullName, setFullName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole] = useState("officer");
+  const [role, setRole] = useState<"officer" | "senior_officer">("officer");
 
   const { data: users = [], isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ["adminUsers"],
@@ -47,14 +55,17 @@ export default function AdminPanelPage() {
     }
 
     try {
-      await createAdminUser({
+      const result = await createAdminUser({
         username,
         password,
         confirm_password: confirmPassword,
         role,
         full_name: fullName,
       });
-      toast({ title: "User created", description: `${username} is now active with ${role} access.` });
+      toast({
+        title: "User created",
+        description: result.message || `${username} was created successfully.`,
+      });
       setUsername("");
       setFullName("");
       setPassword("");
@@ -63,6 +74,38 @@ export default function AdminPanelPage() {
       refetch();
     } catch (error: any) {
       toast({ title: "Creation failed", description: error.message || "Unable to create user.", variant: "destructive" });
+    }
+  };
+
+  const handleStatusToggle = async (user: any) => {
+    try {
+      await updateUserStatus(user.username, !user.is_active);
+      toast({ title: "Status updated", description: `${user.username} is now ${!user.is_active ? "active" : "deactivated"}.` });
+      refetch();
+    } catch (error: any) {
+      toast({ title: "Update failed", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleRoleChange = async (user: any, nextRole?: string) => {
+    const roleToSet = nextRole || (user.role === "officer" ? "senior_officer" : "officer");
+    try {
+      await updateUserRoleByUsername(user.username, roleToSet);
+      toast({ title: "Role updated", description: `${user.username} is now a ${roleToSet.replace('_', ' ')}.` });
+      refetch();
+    } catch (error: any) {
+      toast({ title: "Update failed", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleDelete = async (user: any) => {
+    if (!confirm(`Are you sure you want to delete ${user.username}?`)) return;
+    try {
+      await deleteUser(user.username);
+      toast({ title: "User deleted", description: `${user.username} has been removed.` });
+      refetch();
+    } catch (error: any) {
+      toast({ title: "Deletion failed", description: error.message, variant: "destructive" });
     }
   };
 
@@ -94,7 +137,11 @@ export default function AdminPanelPage() {
         <StatCard title="Senior Officers" value={counts.seniors} icon={Shield} />
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-[420px_1fr] gap-6">
+      <div className="pt-4">
+        <div className="h-px bg-border w-full mb-8"></div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6">
         <Card className="shadow-card border-border">
           <CardHeader>
             <CardTitle className="font-display flex items-center gap-2"><UserPlus className="h-5 w-5 text-primary" /> Create User</CardTitle>
@@ -102,13 +149,15 @@ export default function AdminPanelPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleCreate} className="space-y-4">
-              <div className="space-y-2">
-                <Label>Username</Label>
-                <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="new.user" />
-              </div>
-              <div className="space-y-2">
-                <Label>Full Name</Label>
-                <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Display name" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Username</Label>
+                  <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="new.user" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Full Name</Label>
+                  <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Display name" />
+                </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -122,18 +171,40 @@ export default function AdminPanelPage() {
               </div>
               <div className="space-y-2">
                 <Label>Role</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {roleOptions.map((item) => (
-                    <Button
-                      key={item.value}
-                      type="button"
-                      variant={role === item.value ? "default" : "outline"}
-                      onClick={() => setRole(item.value)}
-                      className="justify-start"
-                    >
-                      {item.label}
-                    </Button>
-                  ))}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {roleOptions.map((item) => {
+                    const isSelected = role === item.value;
+                    return (
+                      <div
+                        key={item.value}
+                        onClick={() => setRole(item.value)}
+                        className={`cursor-pointer p-4 rounded-xl border-2 transition-all duration-200 flex items-center gap-4 ${
+                          isSelected 
+                            ? "border-primary bg-primary/5 ring-1 ring-primary/20" 
+                            : "border-border bg-card hover:border-primary/40 hover:bg-muted/30"
+                        }`}
+                      >
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                          isSelected ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted text-muted-foreground"
+                        }`}>
+                          {item.value === 'officer' ? <Shield className="h-5 w-5" /> : <ShieldCheck className="h-5 w-5" />}
+                        </div>
+                        <div className="flex-1 text-left">
+                          <p className={`font-bold text-sm leading-none mb-1 ${isSelected ? "text-primary" : "text-foreground"}`}>
+                            {item.label}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider opacity-70">
+                            {item.value === 'officer' ? "Standard access" : "Advanced permissions"}
+                          </p>
+                        </div>
+                        {isSelected && (
+                          <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center animate-in zoom-in duration-300">
+                            <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
               <Button type="submit" className="w-full">Create User</Button>
@@ -155,19 +226,89 @@ export default function AdminPanelPage() {
               <div className="overflow-x-auto rounded-lg border">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Username</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Role</TableHead>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="h-9 text-[11px] uppercase tracking-wider font-bold">Username</TableHead>
+                      <TableHead className="h-9 text-[11px] uppercase tracking-wider font-bold">Name</TableHead>
+                      <TableHead className="h-9 text-[11px] uppercase tracking-wider font-bold">Role</TableHead>
+                      <TableHead className="h-9 text-[11px] uppercase tracking-wider font-bold">Status</TableHead>
+                      <TableHead className="h-9 text-[11px] uppercase tracking-wider font-bold text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {users.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell className="font-mono text-primary">{user.username}</TableCell>
-                        <TableCell>{user.name || user.username}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{user.role}</Badge>
+                      <TableRow key={user.id} className={`${!user.is_active ? "opacity-50" : ""} border-b transition-colors hover:bg-muted/30`}>
+                        <TableCell className="font-mono text-primary text-xs py-2">
+                          {user.username}
+                          {user.needs_password_reset && (
+                            <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800 uppercase tracking-tighter">
+                              Reset Req.
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-xs py-2">{user.name || user.username}</TableCell>
+                        <TableCell className="py-2">
+                          <Badge variant="outline" className="capitalize text-[10px] px-1.5 py-0">{user.role.replace('_', ' ')}</Badge>
+                        </TableCell>
+                        <TableCell className="py-2">
+                          <Badge variant={user.is_active ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
+                            {user.is_active ? "Active" : "Revoked"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right py-2">
+                          <div className="flex justify-end gap-1.5">
+                            {user.username.toLowerCase() !== "admin" ? (
+                              <>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button 
+                                      variant="outline" 
+                                      size="xs" 
+                                      className="gap-1 h-7 text-[10px] px-2"
+                                    >
+                                      <Shield className="h-3 w-3" />
+                                      Role
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuLabel>Select New Role</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem 
+                                      onClick={() => handleRoleChange(user, "officer")}
+                                      disabled={user.role === "officer"}
+                                    >
+                                      Officer
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem 
+                                      onClick={() => handleRoleChange(user, "senior_officer")}
+                                      disabled={user.role === "senior_officer"}
+                                    >
+                                      Senior Officer
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                                <Button 
+                                  variant={user.is_active ? "outline" : "default"} 
+                                  size="xs" 
+                                  onClick={() => handleStatusToggle(user)}
+                                  className="h-7 text-[10px] px-2"
+                                >
+                                  {user.is_active ? "Revoke" : "Activate"}
+                                </Button>
+                                <Button 
+                                  variant="destructive" 
+                                  size="xs" 
+                                  onClick={() => handleDelete(user)}
+                                  className="h-7 text-[10px] px-2"
+                                >
+                                  Delete
+                                </Button>
+                              </>
+                            ) : (
+                              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest opacity-50 px-2">
+                                System Protected
+                              </span>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}

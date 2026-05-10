@@ -52,12 +52,94 @@ class UserLogin(BaseModel):
     password: str
 
 
+class OTPMethod(str, Enum):
+    EMAIL = "email"
+    AUTHENTICATOR = "authenticator"
+
+
 class UserCreate(BaseModel):
     username: str
     password: str
     confirm_password: str
     role: UserRole
     full_name: str = ""
+
+
+class PublicSignupRequest(BaseModel):
+    username: str
+    password: str
+    confirm_password: str
+    full_name: str = ""
+
+
+class SignupOtpVerify(BaseModel):
+    username: str
+    otp: str
+
+
+class SignupOtpResend(BaseModel):
+    username: str
+
+
+class LoginOtpVerify(BaseModel):
+    challenge_id: int
+    otp: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    username: str
+
+
+class ResetPasswordRequest(BaseModel):
+    challenge_id: int
+    otp: str
+    new_password: str
+    confirm_password: str
+
+
+class ResetPasswordFirstLoginRequest(BaseModel):
+    username: str
+    otp: str
+    new_password: str
+    confirm_password: str
+
+
+
+class TwoFactorSettingsUpdate(BaseModel):
+    enabled: bool
+    method: OTPMethod = OTPMethod.EMAIL
+
+
+class TotpSetupResponse(BaseModel):
+    success: bool = True
+    secret: str
+    otpauth_uri: str
+
+
+class TotpVerifyRequest(BaseModel):
+    otp: str
+
+
+class AuthChallengeResponse(BaseModel):
+    success: bool = True
+    requires_two_factor: bool = True
+    challenge_id: int
+    method: OTPMethod = OTPMethod.EMAIL
+    message: str = ""
+
+
+class LoginTokenResponse(BaseModel):
+    success: bool = True
+    token: str
+    user: UserResponse
+
+
+class SignupVerificationResponse(BaseModel):
+    success: bool = True
+    verification_required: bool = True
+    message: str = ""
+    user: UserResponse | None = None
+    token: str | None = None
 
 
 class UserResponse(BaseModel):
@@ -67,6 +149,11 @@ class UserResponse(BaseModel):
     email: str = ""
     name: str = ""
     full_name: str = ""
+    is_verified: bool = True
+    two_factor_enabled: bool = False
+    two_factor_method: OTPMethod = OTPMethod.EMAIL
+    needs_password_reset: bool = False
+    is_active: bool = True
     created_at: str = ""
     updated_at: str = ""
 

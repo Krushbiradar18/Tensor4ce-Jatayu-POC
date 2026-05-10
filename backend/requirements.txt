@@ -1,6 +1,7 @@
 fastapi
 uvicorn[standard]
 pydantic
+pyotp
 pyyaml
 crewai
 langgraph

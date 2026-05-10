@@ -66,7 +66,6 @@ engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
 def init_db():
     statements = [
-        """DROP TABLE IF EXISTS users""",  # Drop the old malformed table
         """
         CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY,
@@ -74,8 +73,31 @@ def init_db():
             password_hash VARCHAR(255) NOT NULL,
             role VARCHAR(50) NOT NULL DEFAULT 'officer',
             full_name VARCHAR(255) DEFAULT '',
+            is_verified BOOLEAN NOT NULL DEFAULT TRUE,
+            verification_code_hash TEXT DEFAULT '',
+            verification_code_expires_at TIMESTAMPTZ,
+            verification_code_sent_at TIMESTAMPTZ,
+            two_factor_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+            two_factor_method VARCHAR(32) NOT NULL DEFAULT 'email',
+            totp_secret TEXT DEFAULT '',
+            totp_enabled_at TIMESTAMPTZ,
+            needs_password_reset BOOLEAN NOT NULL DEFAULT FALSE,
+            is_active BOOLEAN NOT NULL DEFAULT TRUE,
             created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS auth_challenges (
+            id SERIAL PRIMARY KEY,
+            username VARCHAR(255) NOT NULL,
+            purpose VARCHAR(64) NOT NULL,
+            method VARCHAR(32) NOT NULL DEFAULT 'email',
+            code_hash TEXT NOT NULL,
+            expires_at TIMESTAMPTZ NOT NULL,
+            consumed_at TIMESTAMPTZ,
+            metadata TEXT NOT NULL DEFAULT '{}',
+            created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
         """,
         """
@@ -134,11 +156,23 @@ def init_db():
     
     # Add missing columns to existing applications table if they don't exist (separate transactions)
     alter_statements = [
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN NOT NULL DEFAULT TRUE",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_code_hash TEXT DEFAULT ''",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_code_expires_at TIMESTAMPTZ",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_code_sent_at TIMESTAMPTZ",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_enabled BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_method VARCHAR(32) NOT NULL DEFAULT 'email'",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret TEXT DEFAULT ''",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled_at TIMESTAMPTZ",
+        "ALTER TABLE auth_challenges ADD COLUMN IF NOT EXISTS method VARCHAR(32) NOT NULL DEFAULT 'email'",
+        "ALTER TABLE auth_challenges ADD COLUMN IF NOT EXISTS metadata TEXT NOT NULL DEFAULT '{}'",
         "ALTER TABLE applications ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP",
         "ALTER TABLE applications ADD COLUMN IF NOT EXISTS escalated_by_officer_id TEXT",
         "ALTER TABLE applications ADD COLUMN IF NOT EXISTS escalated_to_senior_officer_id INTEGER",
         "ALTER TABLE applications ADD COLUMN IF NOT EXISTS escalated_at TIMESTAMPTZ",
         "ALTER TABLE officer_actions ADD COLUMN IF NOT EXISTS actor_role TEXT DEFAULT 'officer'",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS needs_password_reset BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE",
     ]
     
     for alt_stmt in alter_statements:
@@ -410,17 +444,73 @@ def list_senior_officers() -> list[dict]:
     return list_users(role="senior_officer")
 
 
-def create_user(username: str, password_hash: str, role: str, full_name: str = "") -> dict:
+def create_user(
+    username: str,
+    password_hash: str,
+    role: str,
+    full_name: str = "",
+    *,
+    is_verified: bool = True,
+    verification_code_hash: str = "",
+    verification_code_expires_at=None,
+    verification_code_sent_at=None,
+    two_factor_enabled: bool = False,
+    two_factor_method: str = "email",
+    totp_secret: str = "",
+    totp_enabled_at=None,
+    needs_password_reset: bool = False,
+    is_active: bool = True,
+) -> dict:
     with engine.begin() as conn:
         conn.execute(
             text(
                 """
-                INSERT INTO users (username, password_hash, role, full_name)
-                VALUES (:username, :password_hash, :role, :full_name)
+                INSERT INTO users (
+                    username,
+                    password_hash,
+                    role,
+                    full_name,
+                    is_verified,
+                    verification_code_hash,
+                    verification_code_expires_at,
+                    verification_code_sent_at,
+                    two_factor_enabled,
+                    two_factor_method,
+                    totp_secret,
+                    totp_enabled_at,
+                    needs_password_reset,
+                    is_active
+                )
+                VALUES (
+                    :username,
+                    :password_hash,
+                    :role,
+                    :full_name,
+                    :is_verified,
+                    :verification_code_hash,
+                    :verification_code_expires_at,
+                    :verification_code_sent_at,
+                    :two_factor_enabled,
+                    :two_factor_method,
+                    :totp_secret,
+                    :totp_enabled_at,
+                    :needs_password_reset,
+                    :is_active
+                )
                 ON CONFLICT (username) DO UPDATE
                 SET password_hash = EXCLUDED.password_hash,
                     role = EXCLUDED.role,
                     full_name = COALESCE(NULLIF(EXCLUDED.full_name, ''), users.full_name),
+                    is_verified = EXCLUDED.is_verified,
+                    verification_code_hash = EXCLUDED.verification_code_hash,
+                    verification_code_expires_at = EXCLUDED.verification_code_expires_at,
+                    verification_code_sent_at = EXCLUDED.verification_code_sent_at,
+                    two_factor_enabled = EXCLUDED.two_factor_enabled,
+                    two_factor_method = EXCLUDED.two_factor_method,
+                    totp_secret = EXCLUDED.totp_secret,
+                    totp_enabled_at = EXCLUDED.totp_enabled_at,
+                    needs_password_reset = EXCLUDED.needs_password_reset,
+                    is_active = EXCLUDED.is_active,
                     updated_at = CURRENT_TIMESTAMP
                 """
             ),
@@ -429,10 +519,209 @@ def create_user(username: str, password_hash: str, role: str, full_name: str = "
                 "password_hash": password_hash,
                 "role": role,
                 "full_name": full_name or username,
+                "is_verified": is_verified,
+                "verification_code_hash": verification_code_hash or "",
+                "verification_code_expires_at": verification_code_expires_at,
+                "verification_code_sent_at": verification_code_sent_at,
+                "two_factor_enabled": two_factor_enabled,
+                "two_factor_method": two_factor_method,
+                "totp_secret": totp_secret or "",
+                "totp_enabled_at": totp_enabled_at,
+                "needs_password_reset": needs_password_reset,
+                "is_active": is_active,
             },
         )
     user = get_user_by_username(username)
     return user or {}
+
+
+def update_user_verification(
+    username: str,
+    *,
+    is_verified: bool,
+    verification_code_hash: str = "",
+    verification_code_expires_at=None,
+    verification_code_sent_at=None,
+) -> dict | None:
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                UPDATE users
+                SET is_verified = :is_verified,
+                    verification_code_hash = :verification_code_hash,
+                    verification_code_expires_at = :verification_code_expires_at,
+                    verification_code_sent_at = :verification_code_sent_at,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE lower(username) = lower(:username)
+                """
+            ),
+            {
+                "username": username,
+                "is_verified": is_verified,
+                "verification_code_hash": verification_code_hash or "",
+                "verification_code_expires_at": verification_code_expires_at,
+                "verification_code_sent_at": verification_code_sent_at,
+            },
+        )
+    return get_user_by_username(username)
+
+
+def update_user_two_factor(
+    username: str,
+    *,
+    two_factor_enabled: bool,
+    two_factor_method: str = "email",
+    totp_secret: str = "",
+    totp_enabled_at=None,
+) -> dict | None:
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                UPDATE users
+                SET two_factor_enabled = :two_factor_enabled,
+                    two_factor_method = :two_factor_method,
+                    totp_secret = :totp_secret,
+                    totp_enabled_at = :totp_enabled_at,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE lower(username) = lower(:username)
+                """
+            ),
+            {
+                "username": username,
+                "two_factor_enabled": two_factor_enabled,
+                "two_factor_method": two_factor_method,
+                "totp_secret": totp_secret or "",
+                "totp_enabled_at": totp_enabled_at,
+            },
+        )
+    return get_user_by_username(username)
+
+
+def update_user_password(username: str, password_hash: str) -> dict | None:
+    """Update user password and clear reset flag."""
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                UPDATE users
+                SET password_hash = :password_hash,
+                    needs_password_reset = FALSE,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE lower(username) = lower(:username)
+                """
+            ),
+            {"username": username, "password_hash": password_hash},
+        )
+    return get_user_by_username(username)
+
+
+def update_user_status(username: str, is_active: bool) -> dict | None:
+    """Enable or disable a user account."""
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                UPDATE users
+                SET is_active = :is_active,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE lower(username) = lower(:username)
+                """
+            ),
+            {"username": username, "is_active": is_active},
+        )
+    return get_user_by_username(username)
+
+
+def update_user_role(username: str, role: str) -> dict | None:
+    """Update a user's role."""
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                UPDATE users
+                SET role = :role,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE lower(username) = lower(:username)
+                """
+            ),
+            {"username": username, "role": role},
+        )
+    return get_user_by_username(username)
+
+
+def delete_user(username: str) -> bool:
+    """Delete a user account."""
+    with engine.begin() as conn:
+        result = conn.execute(
+            text("DELETE FROM users WHERE lower(username) = lower(:username)"),
+            {"username": username},
+        )
+    return result.rowcount > 0
+
+
+
+def create_auth_challenge(
+    username: str,
+    purpose: str,
+    code_hash: str,
+    expires_at,
+    *,
+    method: str = "email",
+    metadata: dict | None = None,
+) -> dict:
+    with engine.begin() as conn:
+        result = conn.execute(
+            text(
+                """
+                INSERT INTO auth_challenges (username, purpose, method, code_hash, expires_at, metadata)
+                VALUES (:username, :purpose, :method, :code_hash, :expires_at, :metadata)
+                RETURNING *
+                """
+            ),
+            {
+                "username": username,
+                "purpose": purpose,
+                "method": method,
+                "code_hash": code_hash,
+                "expires_at": expires_at,
+                "metadata": json.dumps(metadata or {}),
+            },
+        )
+        row = result.mappings().first()
+    return dict(row) if row else {}
+
+
+def get_auth_challenge(challenge_id: int) -> dict | None:
+    with engine.begin() as conn:
+        row = conn.execute(
+            text(
+                """
+                SELECT *
+                FROM auth_challenges
+                WHERE id = :challenge_id
+                LIMIT 1
+                """
+            ),
+            {"challenge_id": challenge_id},
+        ).mappings().first()
+    return dict(row) if row else None
+
+
+def consume_auth_challenge(challenge_id: int) -> dict | None:
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                UPDATE auth_challenges
+                SET consumed_at = CURRENT_TIMESTAMP
+                WHERE id = :challenge_id
+                """
+            ),
+            {"challenge_id": challenge_id},
+        )
+    return get_auth_challenge(challenge_id)
 
 
 def _ensure_default_users(conn) -> None:
