@@ -149,11 +149,47 @@ def init_db():
             created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
         """,
+        """
+        CREATE TABLE IF NOT EXISTS logs (
+            id SERIAL PRIMARY KEY,
+            timestamp TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            application_id TEXT,
+            agent_name TEXT NOT NULL DEFAULT 'system',
+            log_level VARCHAR(10) NOT NULL DEFAULT 'INFO',
+            log_category VARCHAR(20) NOT NULL DEFAULT 'system',
+            message TEXT NOT NULL DEFAULT '',
+            error_type TEXT,
+            stack_trace TEXT,
+            llm_model_name TEXT,
+            tool_name TEXT,
+            input_data TEXT,
+            output_data TEXT,
+            execution_time_ms FLOAT,
+            metadata TEXT NOT NULL DEFAULT '{}',
+            created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """,
     ]
     with engine.begin() as conn:
         for statement in statements:
             conn.execute(text(statement))
     
+    # Add indexes for logs table
+    index_statements = [
+        "CREATE INDEX IF NOT EXISTS idx_logs_application_id ON logs (application_id)",
+        "CREATE INDEX IF NOT EXISTS idx_logs_agent_name ON logs (agent_name)",
+        "CREATE INDEX IF NOT EXISTS idx_logs_log_level ON logs (log_level)",
+        "CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs (timestamp DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_logs_llm_model_name ON logs (llm_model_name)",
+        "CREATE INDEX IF NOT EXISTS idx_logs_created_at ON logs (created_at DESC)",
+    ]
+    for idx_stmt in index_statements:
+        try:
+            with engine.begin() as conn:
+                conn.execute(text(idx_stmt))
+        except Exception:
+            pass  # Index already exists
+
     # Add missing columns to existing applications table if they don't exist (separate transactions)
     alter_statements = [
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN NOT NULL DEFAULT TRUE",
@@ -173,6 +209,22 @@ def init_db():
         "ALTER TABLE officer_actions ADD COLUMN IF NOT EXISTS actor_role TEXT DEFAULT 'officer'",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS needs_password_reset BOOLEAN NOT NULL DEFAULT FALSE",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE",
+        # ── logs table column migrations ───────────────────────────────────────
+        "ALTER TABLE logs ADD COLUMN IF NOT EXISTS timestamp TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP",
+        "ALTER TABLE logs ADD COLUMN IF NOT EXISTS application_id TEXT",
+        "ALTER TABLE logs ADD COLUMN IF NOT EXISTS agent_name TEXT NOT NULL DEFAULT 'system'",
+        "ALTER TABLE logs ADD COLUMN IF NOT EXISTS log_level VARCHAR(10) NOT NULL DEFAULT 'INFO'",
+        "ALTER TABLE logs ADD COLUMN IF NOT EXISTS log_category VARCHAR(20) NOT NULL DEFAULT 'system'",
+        "ALTER TABLE logs ADD COLUMN IF NOT EXISTS message TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE logs ADD COLUMN IF NOT EXISTS error_type TEXT",
+        "ALTER TABLE logs ADD COLUMN IF NOT EXISTS stack_trace TEXT",
+        "ALTER TABLE logs ADD COLUMN IF NOT EXISTS llm_model_name TEXT",
+        "ALTER TABLE logs ADD COLUMN IF NOT EXISTS tool_name TEXT",
+        "ALTER TABLE logs ADD COLUMN IF NOT EXISTS input_data TEXT",
+        "ALTER TABLE logs ADD COLUMN IF NOT EXISTS output_data TEXT",
+        "ALTER TABLE logs ADD COLUMN IF NOT EXISTS execution_time_ms FLOAT",
+        "ALTER TABLE logs ADD COLUMN IF NOT EXISTS metadata TEXT NOT NULL DEFAULT '{}'",
+        "ALTER TABLE logs ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP",
     ]
     
     for alt_stmt in alter_statements:
@@ -964,3 +1016,369 @@ def get_bulk_audit_logs(application_ids: list[str]) -> dict[str, list[dict]]:
             result[app_id] = []
         result[app_id].append(dict(row))
     return result
+
+
+# ── Structured Logging Functions ───────────────────────────────────────────────
+
+def log_structured(
+    agent_name: str,
+    log_level: str,
+    log_category: str,
+    message: str,
+    *,
+    application_id: str | None = None,
+    error_type: str | None = None,
+    stack_trace: str | None = None,
+    llm_model_name: str | None = None,
+    tool_name: str | None = None,
+    input_data: dict | str | None = None,
+    output_data: dict | str | None = None,
+    execution_time_ms: float | None = None,
+    metadata: dict | None = None,
+    timestamp: str | None = None,
+) -> int:
+    """
+    Insert a single structured log entry into the logs table.
+    Returns the new log ID.
+    """
+    input_str = json.dumps(input_data) if isinstance(input_data, dict) else (input_data or None)
+    output_str = json.dumps(output_data) if isinstance(output_data, dict) else (output_data or None)
+    meta_str = json.dumps(metadata or {})
+
+    with engine.begin() as conn:
+        result = conn.execute(
+            text("""
+                INSERT INTO logs (
+                    timestamp, application_id, agent_name, log_level, log_category,
+                    message, error_type, stack_trace, llm_model_name, tool_name,
+                    input_data, output_data, execution_time_ms, metadata
+                ) VALUES (
+                    COALESCE(CAST(:timestamp AS TIMESTAMPTZ), CURRENT_TIMESTAMP),
+                    :application_id, :agent_name, :log_level, :log_category,
+                    :message, :error_type, :stack_trace, :llm_model_name, :tool_name,
+                    :input_data, :output_data, :execution_time_ms, :metadata
+                ) RETURNING id
+            """),
+            {
+                "timestamp": timestamp,
+                "application_id": application_id,
+                "agent_name": agent_name,
+                "log_level": log_level.upper(),
+                "log_category": log_category.lower(),
+                "message": message,
+                "error_type": error_type,
+                "stack_trace": stack_trace,
+                "llm_model_name": llm_model_name,
+                "tool_name": tool_name,
+                "input_data": input_str,
+                "output_data": output_str,
+                "execution_time_ms": execution_time_ms,
+                "metadata": meta_str,
+            },
+        )
+        row = result.fetchone()
+    return row[0] if row else -1
+
+
+def log_structured_bulk(entries: list[dict]) -> list[int]:
+    """
+    Insert multiple structured log entries in a single transaction.
+    Each entry is a dict matching the log_structured kwargs.
+    Returns list of inserted IDs.
+    """
+    if not entries:
+        return []
+    ids = []
+    with engine.begin() as conn:
+        for entry in entries:
+            input_data = entry.get("input_data")
+            output_data = entry.get("output_data")
+            result = conn.execute(
+                text("""
+                    INSERT INTO logs (
+                        timestamp, application_id, agent_name, log_level, log_category,
+                        message, error_type, stack_trace, llm_model_name, tool_name,
+                        input_data, output_data, execution_time_ms, metadata
+                    ) VALUES (
+                        COALESCE(CAST(:timestamp AS TIMESTAMPTZ), CURRENT_TIMESTAMP),
+                        :application_id, :agent_name, :log_level, :log_category,
+                        :message, :error_type, :stack_trace, :llm_model_name, :tool_name,
+                        :input_data, :output_data, :execution_time_ms, :metadata
+                    ) RETURNING id
+                """),
+                {
+                    "timestamp": entry.get("timestamp"),
+                    "application_id": entry.get("application_id"),
+                    "agent_name": entry.get("agent_name", "system"),
+                    "log_level": str(entry.get("log_level", "INFO")).upper(),
+                    "log_category": str(entry.get("log_category", "system")).lower(),
+                    "message": entry.get("message", ""),
+                    "error_type": entry.get("error_type"),
+                    "stack_trace": entry.get("stack_trace"),
+                    "llm_model_name": entry.get("llm_model_name"),
+                    "tool_name": entry.get("tool_name"),
+                    "input_data": json.dumps(input_data) if isinstance(input_data, dict) else input_data,
+                    "output_data": json.dumps(output_data) if isinstance(output_data, dict) else output_data,
+                    "execution_time_ms": entry.get("execution_time_ms"),
+                    "metadata": json.dumps(entry.get("metadata") or {}),
+                },
+            )
+            row = result.fetchone()
+            ids.append(row[0] if row else -1)
+    return ids
+
+
+def get_logs(
+    application_id: str | None = None,
+    agent_name: str | None = None,
+    log_level: str | None = None,
+    log_category: str | None = None,
+    llm_model_name: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    search: str | None = None,
+    page: int = 1,
+    limit: int = 50,
+) -> dict:
+    """
+    Fetch logs with optional filters, newest first, with pagination.
+    Returns {total, page, limit, items}.
+    """
+    conditions = []
+    params: dict = {}
+
+    if application_id:
+        conditions.append("application_id = :application_id")
+        params["application_id"] = application_id
+    if agent_name:
+        conditions.append("agent_name = :agent_name")
+        params["agent_name"] = agent_name
+    if log_level:
+        conditions.append("log_level = :log_level")
+        params["log_level"] = log_level.upper()
+    if log_category:
+        conditions.append("log_category = :log_category")
+        params["log_category"] = log_category.lower()
+    if llm_model_name:
+        conditions.append("llm_model_name = :llm_model_name")
+        params["llm_model_name"] = llm_model_name
+    if date_from:
+        conditions.append("created_at >= CAST(:date_from AS TIMESTAMPTZ)")
+        params["date_from"] = date_from
+    if date_to:
+        conditions.append("created_at <= CAST(:date_to AS TIMESTAMPTZ)")
+        params["date_to"] = date_to
+    if search:
+        conditions.append("message ILIKE :search")
+        params["search"] = f"%{search}%"
+
+    where_clause = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+    offset = (page - 1) * limit
+
+    count_query = text(f"SELECT COUNT(*) FROM logs {where_clause}")
+    data_query = text(
+        f"SELECT * FROM logs {where_clause} ORDER BY created_at DESC LIMIT :limit OFFSET :offset"
+    )
+    params["limit"] = limit
+    params["offset"] = offset
+
+    with engine.begin() as conn:
+        total = conn.execute(count_query, {k: v for k, v in params.items() if k not in ("limit", "offset")}).scalar() or 0
+        rows = conn.execute(data_query, params).mappings().all()
+
+    return {
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "items": [dict(r) for r in rows],
+    }
+
+
+def get_log_by_id(log_id: int) -> dict | None:
+    """Fetch a single log entry by its ID."""
+    with engine.begin() as conn:
+        row = conn.execute(
+            text("SELECT * FROM logs WHERE id = :id"),
+            {"id": log_id},
+        ).mappings().first()
+    return dict(row) if row else None
+
+
+def get_log_stats(
+    application_id: str | None = None,
+    agent_name: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+) -> dict:
+    """
+    Return aggregate statistics from the logs table:
+    - total logs, error count, warn count
+    - errors by agent
+    - avg execution time by agent
+    - log level distribution
+    - log category distribution
+    - most common error types
+    - recent error rate (last hour vs last 24h)
+    """
+    conditions = []
+    params: dict = {}
+    if application_id:
+        conditions.append("application_id = :application_id")
+        params["application_id"] = application_id
+    if agent_name:
+        conditions.append("agent_name = :agent_name")
+        params["agent_name"] = agent_name
+    if date_from:
+        conditions.append("created_at >= CAST(:date_from AS TIMESTAMPTZ)")
+        params["date_from"] = date_from
+    if date_to:
+        conditions.append("created_at <= CAST(:date_to AS TIMESTAMPTZ)")
+        params["date_to"] = date_to
+    where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+
+    with engine.begin() as conn:
+        totals = conn.execute(text(f"""
+            SELECT
+                COUNT(*) as total,
+                COUNT(*) FILTER (WHERE log_level = 'ERROR') as error_count,
+                COUNT(*) FILTER (WHERE log_level = 'WARN') as warn_count,
+                COUNT(*) FILTER (WHERE log_level = 'INFO') as info_count,
+                COUNT(*) FILTER (WHERE log_level = 'DEBUG') as debug_count,
+                AVG(execution_time_ms) FILTER (WHERE execution_time_ms IS NOT NULL) as avg_exec_ms
+            FROM logs {where}
+        """), params).mappings().first()
+
+        by_agent = conn.execute(text(f"""
+            SELECT agent_name,
+                   COUNT(*) as total,
+                   COUNT(*) FILTER (WHERE log_level = 'ERROR') as errors,
+                   AVG(execution_time_ms) FILTER (WHERE execution_time_ms IS NOT NULL) as avg_exec_ms
+            FROM logs {where}
+            GROUP BY agent_name
+            ORDER BY errors DESC, total DESC
+            LIMIT 20
+        """), params).mappings().all()
+
+        by_category = conn.execute(text(f"""
+            SELECT log_category, COUNT(*) as total
+            FROM logs {where}
+            GROUP BY log_category
+            ORDER BY total DESC
+        """), params).mappings().all()
+
+        # For sub-queries that need additional conditions, use AND if WHERE already set
+        and_or_where = "AND" if conditions else "WHERE"
+
+        top_errors = conn.execute(text(f"""
+            SELECT error_type, COUNT(*) as count
+            FROM logs {where}
+            {and_or_where} log_level = 'ERROR' AND error_type IS NOT NULL
+            GROUP BY error_type
+            ORDER BY count DESC
+            LIMIT 10
+        """), params).mappings().all()
+
+        llm_perf = conn.execute(text(f"""
+            SELECT llm_model_name,
+                   COUNT(*) as calls,
+                   AVG(execution_time_ms) as avg_ms,
+                   COUNT(*) FILTER (WHERE log_level = 'ERROR') as errors
+            FROM logs {where}
+            {and_or_where} llm_model_name IS NOT NULL
+            GROUP BY llm_model_name
+            ORDER BY calls DESC
+            LIMIT 10
+        """), params).mappings().all()
+
+    def _safe(v):
+        if v is None:
+            return None
+        try:
+            return float(v)
+        except Exception:
+            return v
+
+    t = dict(totals) if totals else {}
+    return {
+        "total": int(t.get("total") or 0),
+        "error_count": int(t.get("error_count") or 0),
+        "warn_count": int(t.get("warn_count") or 0),
+        "info_count": int(t.get("info_count") or 0),
+        "debug_count": int(t.get("debug_count") or 0),
+        "avg_exec_ms": _safe(t.get("avg_exec_ms")),
+        "by_agent": [
+            {
+                "agent_name": r["agent_name"],
+                "total": int(r["total"]),
+                "errors": int(r["errors"]),
+                "avg_exec_ms": _safe(r["avg_exec_ms"]),
+            }
+            for r in by_agent
+        ],
+        "by_category": [{"category": r["log_category"], "total": int(r["total"])} for r in by_category],
+        "top_errors": [{"error_type": r["error_type"], "count": int(r["count"])} for r in top_errors],
+        "llm_performance": [
+            {
+                "model": r["llm_model_name"],
+                "calls": int(r["calls"]),
+                "avg_ms": _safe(r["avg_ms"]),
+                "errors": int(r["errors"]),
+            }
+            for r in llm_perf
+        ],
+    }
+
+
+def get_log_health() -> dict:
+    """
+    Returns a system health summary based on log error rates.
+    Compares last-1-hour error rate to last-24-hour baseline.
+    """
+    with engine.begin() as conn:
+        row = conn.execute(text("""
+            SELECT
+                COUNT(*) as total_24h,
+                COUNT(*) FILTER (WHERE log_level = 'ERROR') as errors_24h,
+                COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 hour') as total_1h,
+                COUNT(*) FILTER (WHERE log_level = 'ERROR' AND created_at >= NOW() - INTERVAL '1 hour') as errors_1h,
+                MAX(created_at) as last_log_at
+            FROM logs
+            WHERE created_at >= NOW() - INTERVAL '24 hours'
+        """)).mappings().first()
+
+    if not row:
+        return {"status": "UNKNOWN", "message": "No log data available."}
+
+    r = dict(row)
+    total_24h = int(r.get("total_24h") or 0)
+    errors_24h = int(r.get("errors_24h") or 0)
+    total_1h = int(r.get("total_1h") or 0)
+    errors_1h = int(r.get("errors_1h") or 0)
+
+    error_rate_24h = (errors_24h / total_24h) if total_24h > 0 else 0.0
+    error_rate_1h = (errors_1h / total_1h) if total_1h > 0 else 0.0
+
+    if error_rate_1h >= 0.5:
+        status = "CRITICAL"
+        message = f"High error rate in the last hour: {error_rate_1h:.0%}"
+    elif error_rate_1h >= 0.2:
+        status = "DEGRADED"
+        message = f"Elevated error rate in the last hour: {error_rate_1h:.0%}"
+    elif total_24h == 0:
+        status = "UNKNOWN"
+        message = "No logs recorded in the last 24 hours."
+    else:
+        status = "HEALTHY"
+        message = f"System operating normally. Error rate (24h): {error_rate_24h:.0%}"
+
+    return {
+        "status": status,
+        "message": message,
+        "total_24h": total_24h,
+        "errors_24h": errors_24h,
+        "error_rate_24h": round(error_rate_24h, 4),
+        "total_1h": total_1h,
+        "errors_1h": errors_1h,
+        "error_rate_1h": round(error_rate_1h, 4),
+        "last_log_at": str(r.get("last_log_at") or ""),
+    }

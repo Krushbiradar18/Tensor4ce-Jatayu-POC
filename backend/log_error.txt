@@ -1,0 +1,144 @@
+logging_service log_llm_call failed: (psycopg2.errors.UndefinedColumn) column "timestamp" of relation "logs" does not exist
+LINE 3:                     timestamp, application_id, agent_name, l...
+                            ^
+
+[SQL: 
+                INSERT INTO logs (
+                    timestamp, application_id, agent_name, log_level, log_category,
+                    message, error_type, stack_trace, llm_model_name, tool_name,
+                    input_data, output_data, execution_time_ms, metadata
+                ) VALUES (
+                    COALESCE(CAST(%(timestamp)s AS TIMESTAMPTZ), CURRENT_TIMESTAMP),
+                    %(application_id)s, %(agent_name)s, %(log_level)s, %(log_category)s,
+                    %(message)s, %(error_type)s, %(stack_trace)s, %(llm_model_name)s, %(tool_name)s,
+                    %(input_data)s, %(output_data)s, %(execution_time_ms)s, %(metadata)s
+                ) RETURNING id
+            ]
+[parameters: {'timestamp': None, 'application_id': None, 'agent_name': 'system', 'log_level': 'INFO', 'log_category': 'llm', 'message': 'LLM call to gemini-1.5-flash completed in 925ms', 'error_type': None, 'stack_trace': None, 'llm_model_name': 'gemini-1.5-flash', 'tool_name': None, 'input_data': '{"prompt": "You are a senior credit analyst. Write 2 concise sentences for a credit officer summarising this high risk application. CIBIL=669, FOIR=30.9%, PD=52.57%, income \\u20b9840,000/yr. Be specific and factual. No mention of AI, XGBoost, or SHAP."}', 'output_data': '{"response": "The applicant\'s credit profile indicates a high risk, with a CIBIL score of 669, a high FOIR of 30.9%, and a probability of default (P ... (25 characters truncated) ... l income of \\u20b9840,000 is relatively high, but may not be sufficient to mitigate the elevated credit risk associated with their credit profile."}', 'execution_time_ms': 925.0878999991983, 'metadata': '{}'}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+logging_service log_llm_call failed: (psycopg2.errors.UndefinedColumn) column "timestamp" of relation "logs" does not exist
+LINE 3:                     timestamp, application_id, agent_name, l...
+                            ^
+
+[SQL: 
+                INSERT INTO logs (
+                    timestamp, application_id, agent_name, log_level, log_category,
+                    message, error_type, stack_trace, llm_model_name, tool_name,
+                    input_data, output_data, execution_time_ms, metadata
+                ) VALUES (
+                    COALESCE(CAST(%(timestamp)s AS TIMESTAMPTZ), CURRENT_TIMESTAMP),
+                    %(application_id)s, %(agent_name)s, %(log_level)s, %(log_category)s,
+                    %(message)s, %(error_type)s, %(stack_trace)s, %(llm_model_name)s, %(tool_name)s,
+                    %(input_data)s, %(output_data)s, %(execution_time_ms)s, %(metadata)s
+                ) RETURNING id
+            ]
+[parameters: {'timestamp': None, 'application_id': None, 'agent_name': 'system', 'log_level': 'INFO', 'log_category': 'llm', 'message': 'LLM call to gemini-1.5-flash completed in 1602ms', 'error_type': None, 'stack_trace': None, 'llm_model_name': 'gemini-1.5-flash', 'tool_name': None, 'input_data': '{"prompt": "Write one sentence for a loan applicant explaining their credit assessment result (high risk category). Simple language, no scores, no AI mention."}', 'output_data': '{"response": "Unfortunately, our credit assessment indicates that you fall into a high-risk category, which may affect the terms and interest rate of any loan we can offer you."}', 'execution_time_ms': 1601.7616000026464, 'metadata': '{}'}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+logging_service log_llm_call failed: (psycopg2.errors.UndefinedColumn) column "timestamp" of relation "logs" does not exist
+LINE 3:                     timestamp, application_id, agent_name, l...
+                            ^
+
+[SQL: 
+                INSERT INTO logs (
+                    timestamp, application_id, agent_name, log_level, log_category,
+                    message, error_type, stack_trace, llm_model_name, tool_name,
+                    input_data, output_data, execution_time_ms, metadata
+                ) VALUES (
+                    COALESCE(CAST(%(timestamp)s AS TIMESTAMPTZ), CURRENT_TIMESTAMP),
+                    %(application_id)s, %(agent_name)s, %(log_level)s, %(log_category)s,
+                    %(message)s, %(error_type)s, %(stack_trace)s, %(llm_model_name)s, %(tool_name)s,
+                    %(input_data)s, %(output_data)s, %(execution_time_ms)s, %(metadata)s
+                ) RETURNING id
+            ]
+[parameters: {'timestamp': None, 'application_id': None, 'agent_name': 'system', 'log_level': 'INFO', 'log_category': 'llm', 'message': 'LLM call to gemini-1.5-flash completed in 1342ms', 'error_type': None, 'stack_trace': None, 'llm_model_name': 'gemini-1.5-flash', 'tool_name': None, 'input_data': '{"prompt": "You are the Chief AI Orchestrator for an Indian bank\'s credit underwriting system.\\nYou must decide the OPTIMAL execution order for 4 s ... (1180 characters truncated) ... rtfolio must always run LAST (it needs credit output for EL calculation)\\n\\nReturn ONLY valid JSON, no markdown, no explanation outside the JSON."}', 'output_data': '{"response": "```json\\n{\\n  \\"agent_order\\": [\\"credit_risk\\", \\"compliance\\", \\"fraud\\", \\"portfolio\\"],\\n  \\"skip_agents\\": [],\\n   ... (257 characters truncated) ... risk to assess creditworthiness. Compliance and portfolio agents follow to ensure regulatory compliance and portfolio risk assessment.\\"\\n}\\n```"}', 'execution_time_ms': 1341.6868000022077, 'metadata': '{}'}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+logging_service log_llm_call failed: (psycopg2.errors.UndefinedColumn) column "timestamp" of relation "logs" does not exist
+LINE 3:                     timestamp, application_id, agent_name, l...
+                            ^
+
+[SQL: 
+                INSERT INTO logs (
+                    timestamp, application_id, agent_name, log_level, log_category,
+                    message, error_type, stack_trace, llm_model_name, tool_name,
+                    input_data, output_data, execution_time_ms, metadata
+                ) VALUES (
+                    COALESCE(CAST(%(timestamp)s AS TIMESTAMPTZ), CURRENT_TIMESTAMP),
+                    %(application_id)s, %(agent_name)s, %(log_level)s, %(log_category)s,
+                    %(message)s, %(error_type)s, %(stack_trace)s, %(llm_model_name)s, %(tool_name)s,
+                    %(input_data)s, %(output_data)s, %(execution_time_ms)s, %(metadata)s
+                ) RETURNING id
+            ]
+[parameters: {'timestamp': None, 'application_id': None, 'agent_name': 'system', 'log_level': 'INFO', 'log_category': 'llm', 'message': 'LLM call to gemini-1.5-flash completed in 906ms', 'error_type': None, 'stack_trace': None, 'llm_model_name': 'gemini-1.5-flash', 'tool_name': None, 'input_data': '{"prompt": "You are a senior credit analyst. Write 2 concise sentences for a credit officer summarising this high risk application. CIBIL=669, FOIR=30.9%, PD=52.57%, income \\u20b9840,000/yr. Be specific and factual. No mention of AI, XGBoost, or SHAP."}', 'output_data': '{"response": "This high-risk application has a CIBIL score of 669, FOIR of 30.9%, and a probability of default (PD) of 52.57%, indicating a significa ... (2 characters truncated) ...  credit risk. The applicant\'s annual income of \\u20b9840,000 may not be sufficient to mitigate the high credit risk associated with this profile."}', 'execution_time_ms': 905.7525999996869, 'metadata': '{}'}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+logging_service log_llm_call failed: (psycopg2.errors.UndefinedColumn) column "timestamp" of relation "logs" does not exist
+LINE 3:                     timestamp, application_id, agent_name, l...
+                            ^
+
+[SQL: 
+                INSERT INTO logs (
+                    timestamp, application_id, agent_name, log_level, log_category,
+                    message, error_type, stack_trace, llm_model_name, tool_name,
+                    input_data, output_data, execution_time_ms, metadata
+                ) VALUES (
+                    COALESCE(CAST(%(timestamp)s AS TIMESTAMPTZ), CURRENT_TIMESTAMP),
+                    %(application_id)s, %(agent_name)s, %(log_level)s, %(log_category)s,
+                    %(message)s, %(error_type)s, %(stack_trace)s, %(llm_model_name)s, %(tool_name)s,
+                    %(input_data)s, %(output_data)s, %(execution_time_ms)s, %(metadata)s
+                ) RETURNING id
+            ]
+[parameters: {'timestamp': None, 'application_id': None, 'agent_name': 'system', 'log_level': 'INFO', 'log_category': 'llm', 'message': 'LLM call to gemini-1.5-flash completed in 792ms', 'error_type': None, 'stack_trace': None, 'llm_model_name': 'gemini-1.5-flash', 'tool_name': None, 'input_data': '{"prompt": "Write one sentence for a loan applicant explaining their credit assessment result (high risk category). Simple language, no scores, no AI mention."}', 'output_data': '{"response": "We have assessed your credit application and, based on our review of your credit history, we have classified you as a high-risk borrower, which may affect the terms and interest rate we can offer you."}', 'execution_time_ms': 792.1618999971543, 'metadata': '{}'}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+logging_service log_llm_call failed: (psycopg2.errors.UndefinedColumn) column "timestamp" of relation "logs" does not exist
+LINE 3:                     timestamp, application_id, agent_name, l...
+                            ^
+
+[SQL: 
+                INSERT INTO logs (
+                    timestamp, application_id, agent_name, log_level, log_category,
+                    message, error_type, stack_trace, llm_model_name, tool_name,
+                    input_data, output_data, execution_time_ms, metadata
+                ) VALUES (
+                    COALESCE(CAST(%(timestamp)s AS TIMESTAMPTZ), CURRENT_TIMESTAMP),
+                    %(application_id)s, %(agent_name)s, %(log_level)s, %(log_category)s,
+                    %(message)s, %(error_type)s, %(stack_trace)s, %(llm_model_name)s, %(tool_name)s,
+                    %(input_data)s, %(output_data)s, %(execution_time_ms)s, %(metadata)s
+                ) RETURNING id
+            ]
+[parameters: {'timestamp': None, 'application_id': None, 'agent_name': 'system', 'log_level': 'INFO', 'log_category': 'llm', 'message': 'LLM call to gemini-1.5-flash completed in 1165ms', 'error_type': None, 'stack_trace': None, 'llm_model_name': 'gemini-1.5-flash', 'tool_name': None, 'input_data': '{"prompt": "You are an RBI compliance officer. The application for a PERSONAL loan (Income: \\u20b9840,000) has passed all standard compliance blocks ... (845 characters truncated) ...  flow models, but higher amounts require audited financial statements. \\n\\nYou MUST cite these regulations in your reasoning using [1], [2], etc."}', 'output_data': '{"response": "Audit Trail Summary:\\n\\nThe loan application for a personal loan has been successfully processed and approved, adhering to RBI guidel ... (336 characters truncated) ... and requires audited financial statements for verification.\\n\\nAudit Trail ID: RBI-2023-001\\nDate: 17 May 2026\\nCompliance Officer: [Your Name]"}', 'execution_time_ms': 1165.4570000027888, 'metadata': '{}'}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+logging_service log_llm_call failed: (psycopg2.errors.UndefinedColumn) column "timestamp" of relation "logs" does not exist
+LINE 3:                     timestamp, application_id, agent_name, l...
+                            ^
+
+[SQL: 
+                INSERT INTO logs (
+                    timestamp, application_id, agent_name, log_level, log_category,
+                    message, error_type, stack_trace, llm_model_name, tool_name,
+                    input_data, output_data, execution_time_ms, metadata
+                ) VALUES (
+                    COALESCE(CAST(%(timestamp)s AS TIMESTAMPTZ), CURRENT_TIMESTAMP),
+                    %(application_id)s, %(agent_name)s, %(log_level)s, %(log_category)s,
+                    %(message)s, %(error_type)s, %(stack_trace)s, %(llm_model_name)s, %(tool_name)s,
+                    %(input_data)s, %(output_data)s, %(execution_time_ms)s, %(metadata)s
+                ) RETURNING id
+            ]
+[parameters: {'timestamp': None, 'application_id': None, 'agent_name': 'system', 'log_level': 'INFO', 'log_category': 'llm', 'message': 'LLM call to gemini-1.5-flash completed in 866ms', 'error_type': None, 'stack_trace': None, 'llm_model_name': 'gemini-1.5-flash', 'tool_name': None, 'input_data': '{"prompt": "You are a fraud analyst. In 2 concise sentences, explain to a credit officer why this application is rated HIGH_RISK. Detected signals: cibil_score; dpd_90_count. Be specific."}', 'output_data': '{"response": "This application is rated HIGH_RISK due to a low credit score (cibil_score) of 550, indicating a history of poor credit management, and a high number of 90-day past due payments (dpd_90_count) of 5, suggesting a pattern of delayed payments."}', 'execution_time_ms': 866.2143000001379, 'metadata': '{}'}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+logging_service log_llm_call failed: (psycopg2.errors.UndefinedColumn) column "timestamp" of relation "logs" does not exist
+LINE 3:                     timestamp, application_id, agent_name, l...
+                            ^
+
+[SQL: 
+                INSERT INTO logs (
+                    timestamp, application_id, agent_name, log_level, log_category,
+                    message, error_type, stack_trace, llm_model_name, tool_name,
+                    input_data, output_data, execution_time_ms, metadata
+                ) VALUES (
+                    COALESCE(CAST(%(timestamp)s AS TIMESTAMPTZ), CURRENT_TIMESTAMP),
+                    %(application_id)s, %(agent_name)s, %(log_level)s, %(log_category)s,
+                    %(message)s, %(error_type)s, %(stack_trace)s, %(llm_model_name)s, %(tool_name)s,
+                    %(input_data)s, %(output_data)s, %(execution_time_ms)s, %(metadata)s
+                ) RETURNING id
+            ]
+[parameters: {'timestamp': None, 'application_id': None, 'agent_name': 'system', 'log_level': 'INFO', 'log_category': 'llm', 'message': 'LLM call to gemini-1.5-flash completed in 1167ms', 'error_type': None, 'stack_trace': None, 'llm_model_name': 'gemini-1.5-flash', 'tool_name': None, 'input_data': '{"prompt": "You are the Chief Credit Decision AI for an RBI-regulated Indian bank.\\nYou have received analysis from 4 specialist agents for loan app ... (1919 characters truncated) ... 0\\nLoan Purpose: PERSONAL\\nAnnual Income: INR 840,000\\nEmployment: SALARIED\\n\\n=== YOUR DECISION GUIDELINES (RBI-Compliant) ===\\nYou MUST cho"}', 'output_data': '{"response": "```json\\n{\\n  \\"ai_recommendation\\": \\"REJECT\\",\\n  \\"reasoning_chain\\": [\\n    \\"Compliance BLOCK failures: Overall Status: ... (291 characters truncated) ... nd a probability of default (PD) of 52.57%, indicating a significant credit risk.\\",\\n  \\"conditions\\": [],\\n  \\"confidence\\": 1.0\\n}\\n```"}', 'execution_time_ms': 1166.6471999997157, 'metadata': '{}'}]
+(Background on this error at: https://sqlalche.me/e/20/f405)

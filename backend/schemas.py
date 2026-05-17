@@ -5,6 +5,46 @@ from typing import Any, Optional
 from pydantic import BaseModel, Field
 
 
+# ── Logging Enums & Models ─────────────────────────────────────────────────────
+
+class LogLevel(str, Enum):
+    ERROR = "ERROR"
+    WARN = "WARN"
+    INFO = "INFO"
+    DEBUG = "DEBUG"
+
+
+class LogCategory(str, Enum):
+    AGENT = "agent"
+    LLM = "llm"
+    TOOL = "tool"
+    SYSTEM = "system"
+    INTEGRATION = "integration"
+
+
+class LogEntry(BaseModel):
+    """Single structured log entry for POST /api/logs."""
+    agent_name: str = "system"
+    log_level: LogLevel = LogLevel.INFO
+    log_category: LogCategory = LogCategory.SYSTEM
+    message: str
+    application_id: Optional[str] = None
+    error_type: Optional[str] = None
+    stack_trace: Optional[str] = None
+    llm_model_name: Optional[str] = None
+    tool_name: Optional[str] = None
+    input_data: Optional[Any] = None
+    output_data: Optional[Any] = None
+    execution_time_ms: Optional[float] = None
+    metadata: Optional[dict] = None
+    timestamp: Optional[str] = None
+
+
+class BulkLogRequest(BaseModel):
+    """Bulk log ingestion for POST /api/logs/bulk."""
+    entries: list[LogEntry] = Field(default_factory=list)
+
+
 class UserRole(str, Enum):
     ADMIN = "admin"
     OFFICER = "officer"

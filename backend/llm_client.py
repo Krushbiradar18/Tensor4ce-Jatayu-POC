@@ -44,21 +44,47 @@ LLM_MODEL: str = os.getenv("GEMINI_MODEL") or os.getenv("LLM_MODEL", "gemini-1.5
 _LLM_SEMAPHORE = threading.Semaphore(1)
 
 
-def get_llm_response(prompt: str, max_tokens: int = 1000) -> str:
+def get_llm_response(prompt: str, max_tokens: int = 1000, *, agent_name: str = "system", application_id: str | None = None) -> str:
     """
     Single entry point for all LLM calls across all agents.
     Uses a global semaphore to ensure only one call is active at a time.
+    Automatically logs each call to the structured logs table.
     """
     with _LLM_SEMAPHORE:
         # 100ms buffer between calls — sufficient for Groq/Gemini rate limits
         time.sleep(0.1)
 
-        if LLM_BACKEND == "groq":
-            return _call_groq(prompt, max_tokens)
-        elif LLM_BACKEND == "vertex":
-            return _call_vertex(prompt, max_tokens)
-        else:
-            return _call_gemini(prompt, max_tokens)
+        start = time.perf_counter()
+        error: Exception | None = None
+        response_text = ""
+        try:
+            if LLM_BACKEND == "groq":
+                response_text = _call_groq(prompt, max_tokens)
+            elif LLM_BACKEND == "vertex":
+                response_text = _call_vertex(prompt, max_tokens)
+            else:
+                response_text = _call_gemini(prompt, max_tokens)
+            return response_text
+        except Exception as exc:
+            error = exc
+            raise
+        finally:
+            exec_ms = (time.perf_counter() - start) * 1000
+            # Fire-and-forget: import lazily to avoid circular imports at module load
+            try:
+                from logging_service import log_llm_call
+                log_llm_call(
+                    agent_name=agent_name,
+                    model_name=LLM_MODEL,
+                    prompt=prompt,
+                    response=response_text,
+                    exec_ms=exec_ms,
+                    application_id=application_id,
+                    error=error,
+                )
+            except Exception:
+                pass  # Never let logging break the LLM call
+
 
 
 def _call_groq(prompt: str, max_tokens: int) -> str:

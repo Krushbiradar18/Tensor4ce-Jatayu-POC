@@ -549,3 +549,77 @@ export async function deleteUser(username: string): Promise<{ success: boolean; 
 
   return response.json();
 }
+
+// ── Logging API ─────────────────────────────────────────────────────────────
+
+export interface LogEntry {
+  id: number;
+  timestamp: string;
+  application_id?: string;
+  agent_name: string;
+  log_level: string;
+  log_category: string;
+  message: string;
+  error_type?: string;
+  stack_trace?: string;
+  llm_model_name?: string;
+  tool_name?: string;
+  input_data?: string;
+  output_data?: string;
+  execution_time_ms?: number;
+  metadata?: string;
+  created_at: string;
+}
+
+export interface LogsResponse {
+  total: number;
+  page: number;
+  limit: number;
+  items: LogEntry[];
+}
+
+export async function fetchLogs(params: Record<string, any> = {}): Promise<LogsResponse> {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== "") {
+      query.append(k, String(v));
+    }
+  });
+  
+  const response = await fetch(`${API_BASE}/logs?${query.toString()}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) throw new Error("Failed to fetch logs");
+  return response.json();
+}
+
+export async function fetchLogStats(params: Record<string, any> = {}): Promise<any> {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== "") {
+      query.append(k, String(v));
+    }
+  });
+
+  const response = await fetch(`${API_BASE}/logs/stats?${query.toString()}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) throw new Error("Failed to fetch log stats");
+  return response.json();
+}
+
+export async function fetchLogHealth(): Promise<any> {
+  const response = await fetch(`${API_BASE}/logs/health`, {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) throw new Error("Failed to fetch log health");
+  return response.json();
+}
+
+export async function fetchLogById(id: number): Promise<LogEntry> {
+  const response = await fetch(`${API_BASE}/logs/${id}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) throw new Error("Failed to fetch log detail");
+  return response.json();
+}

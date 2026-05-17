@@ -1,5 +1,4 @@
 param(
-    [switch]$WithDocs,
     [switch]$MissingDoc
 )
 
@@ -18,9 +17,8 @@ $ITR_FILE     = Join-Path $PDFDir 'ITR_Iyer.png'
 
 Write-Host "-------------------------------------------------"
 Write-Host "ARIA Loan Application Test - Krishna Iyer"
-if ($WithDocs) { Write-Host "Mode: WITH DOCUMENTS (Day 2 + Day 3)" }
-elseif ($MissingDoc) { Write-Host "Mode: MISSING DOC - expects DATA_REQUIRED" }
-else { Write-Host "Mode: FORM ONLY" }
+if ($MissingDoc) { Write-Host "Mode: MISSING DOC - expects DATA_REQUIRED" }
+else             { Write-Host "Mode: FULL DOCUMENTS (all 5 uploaded)" }
 Write-Host "-------------------------------------------------`n"
 
 # Step 1: OCR document extraction
@@ -38,7 +36,28 @@ function Ensure-FilesExist {
     if ($missing) { throw "ERROR: Place the above files in $PDFDir first." }
 }
 
-if ($WithDocs) {
+if ($MissingDoc) {
+    # Only upload identity docs — triggers DATA_REQUIRED
+    Ensure-FilesExist -Files @($AADHAAR_FILE, $PAN_FILE)
+    Write-Host "`n> Step 1: Uploading Aadhaar + PAN only (no bank/salary/ITR) -> triggers DATA_REQUIRED"
+    Write-Host "  Aadhaar : $AADHAAR_FILE"
+    Write-Host "  PAN     : $PAN_FILE`n"
+
+    $curlArgs = @(
+        '-s', '-X', 'POST', "$BASE_URL/api/extract-documents",
+        '-F', "aadhaar=@$AADHAAR_FILE;type=image/png",
+        '-F', "pan=@$PAN_FILE;type=image/png"
+    )
+    try {
+        $OCR_RESPONSE = & curl.exe @curlArgs 2>$null
+    } catch {
+        throw "Failed to run curl.exe. Ensure curl is available in PATH."
+    }
+    Write-Host "`n  OCR Response (identity only):`n$OCR_RESPONSE`n"
+    $DOCUMENT_DATA = $OCR_RESPONSE
+
+} else {
+    # Default: upload all 5 documents
     Ensure-FilesExist -Files @($AADHAAR_FILE, $PAN_FILE, $BANK_FILE, $SALARY_FILE, $ITR_FILE)
     Write-Host "`n> Step 1: Uploading all 5 documents for OCR / vision extraction..."
     Write-Host "  Aadhaar : $AADHAAR_FILE"
@@ -58,33 +77,10 @@ if ($WithDocs) {
     try {
         $OCR_RESPONSE = & curl.exe @curlArgs 2>$null
     } catch {
-        throw "Failed to run curl.exe. Ensure curl is available in PATH or use Invoke-RestMethod multipart upload."
+        throw "Failed to run curl.exe. Ensure curl is available in PATH."
     }
     Write-Host "`n  OCR Response:`n$OCR_RESPONSE`n"
     $DOCUMENT_DATA = $OCR_RESPONSE
-
-} elseif ($MissingDoc) {
-    Ensure-FilesExist -Files @($AADHAAR_FILE, $PAN_FILE)
-    Write-Host "`n> Step 1: Uploading aadhaar + PAN only (no bank/salary/ITR) -> triggers DATA_REQUIRED"
-    Write-Host "  Aadhaar : $AADHAAR_FILE"
-    Write-Host "  PAN     : $PAN_FILE`n"
-
-    $curlArgs = @(
-        '-s', '-X', 'POST', "$BASE_URL/api/extract-documents",
-        '-F', "aadhaar=@$AADHAAR_FILE;type=image/png",
-        '-F', "pan=@$PAN_FILE;type=image/png"
-    )
-    try {
-        $OCR_RESPONSE = & curl.exe @curlArgs 2>$null
-    } catch {
-        throw "Failed to run curl.exe. Ensure curl is available in PATH or use Invoke-RestMethod multipart upload."
-    }
-    Write-Host "`n  OCR Response (identity only):`n$OCR_RESPONSE`n"
-    $DOCUMENT_DATA = $OCR_RESPONSE
-
-} else {
-    Write-Host "`n> Step 1: Skipping OCR (using hardcoded values from cards)"
-    $DOCUMENT_DATA = '{"name":"Krishna Iyer","pan_number":"HNORU5381L","aadhaar_number":"756455143468"}'
 }
 
 # Step 2: Submit loan application
@@ -163,7 +159,7 @@ for ($i = 1; $i -le $MAX_POLLS; $i++) {
 
 Write-Host "`n-------------------------------------------------"
 Write-Host "Application ID : $APP_ID"
-Write-Host "Final Status   : ${FINAL_STATUS:-STILL_PROCESSING}"
+Write-Host "Final Status   : $FINAL_STATUS"
 Write-Host "Track at       : http://localhost:8081/track?id=$APP_ID"
 Write-Host "-------------------------------------------------`n"
 
@@ -177,10 +173,10 @@ try {
 Write-Host "> Step 4: Final decision payload:"
 if ($FULL_STATUS -and $FULL_STATUS.decision) {
     $dec = $FULL_STATUS.decision
-    Write-Host "  AI Recommendation : $($dec.ai_recommendation -or 'N/A')"
-    $cibil = $dec.credit_risk.cibil_score -or $dec.credit_score -or 'N/A'
+    Write-Host "  AI Recommendation : $($dec.ai_recommendation)"
+    $cibil = if ($dec.credit_risk) { $dec.credit_risk.cibil_score } elseif ($dec.credit_score) { $dec.credit_score } else { 'N/A' }
     Write-Host "  CIBIL Score       : $cibil"
-    if ($dec.data_completeness) { Write-Host "  Data Score        : $($dec.data_completeness.data_completeness_score -or 'N/A')" }
+    if ($dec.data_completeness) { Write-Host "  Data Score        : $($dec.data_completeness.data_completeness_score)" }
     if ($dec.required_documents) { Write-Host "  Required Docs     : $($dec.required_documents | ForEach-Object { $_.doc })" }
 } else {
     Write-Host '  (no structured decision yet)'
@@ -188,6 +184,6 @@ if ($FULL_STATUS -and $FULL_STATUS.decision) {
 
 if ($MissingDoc -and $FINAL_STATUS -eq 'DATA_REQUIRED') {
     Write-Host "`n-------------------------------------------------"
-    Write-Host "DATA_REQUIRED confirmed. No re-upload will be performed in missing-doc mode."
+    Write-Host "DATA_REQUIRED confirmed. No re-upload in missing-doc mode."
     Write-Host "-------------------------------------------------`n"
 }

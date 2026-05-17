@@ -68,7 +68,8 @@ from schemas import (
     LoginOtpVerify, PublicSignupRequest, SignupOtpResend, SignupOtpVerify, 
     SubmitRequest, OfficerAction, TwoFactorSettingsUpdate, UserCreate, 
     OTPMethod, TotpSetupResponse, TotpVerifyRequest, UserRole,
-    ForgotPasswordRequest, ResetPasswordRequest, ResetPasswordFirstLoginRequest
+    ForgotPasswordRequest, ResetPasswordRequest, ResetPasswordFirstLoginRequest,
+    LogEntry, BulkLogRequest,
 )
 
 
@@ -285,6 +286,11 @@ logging.getLogger("matplotlib").setLevel(logging.WARNING)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     db.init_db()
+
+    # Install the DB logging handler AFTER init_db so the `logs` table exists
+    from logging_service import install_db_logging_handler, remove_db_logging_handler
+    install_db_logging_handler(level=logging.DEBUG)
+
     data_dir = _resolve_config_path(os.environ.get("DATA_DIR", "data"), BACKEND_DIR)
     from dil import load_static_data
     from agents_base import load_compliance_rules, load_portfolio
@@ -333,6 +339,11 @@ async def lifespan(app: FastAPI):
     mode = _runtime_mode()
     logger.info(f"✓ System ready | Mode: {mode}")
     yield
+    # Shutdown: flush and stop the DB log writer thread
+    try:
+        remove_db_logging_handler()
+    except Exception:
+        pass
 
 
 # ── App & Middleware ───────────────────────────────────────────────────────────
@@ -1524,3 +1535,188 @@ def health():
         response["llm_usage"] = {"mode": get_llm_usage_mode()}
 
     return response
+
+
+# ── Logging API Endpoints ───────────────────────────────────────────────
+# POST endpoints are open (internal agent-to-backend calls).
+# GET endpoints require admin role.
+
+import collections, time as _time
+
+_LOG_RATE_STORE: dict[str, list[float]] = collections.defaultdict(list)
+_LOG_RATE_LIMIT = 100   # max requests
+_LOG_RATE_WINDOW = 10   # per N seconds
+
+
+def _check_log_rate_limit(client_ip: str) -> bool:
+    """Sliding-window rate limiter. Returns True if request is allowed."""
+    now = _time.monotonic()
+    window = _LOG_RATE_STORE[client_ip]
+    # Prune old timestamps
+    _LOG_RATE_STORE[client_ip] = [t for t in window if now - t < _LOG_RATE_WINDOW]
+    if len(_LOG_RATE_STORE[client_ip]) >= _LOG_RATE_LIMIT:
+        return False
+    _LOG_RATE_STORE[client_ip].append(now)
+    return True
+
+
+from fastapi import Request
+
+
+@app.post("/api/logs", status_code=201)
+def ingest_log(entry: LogEntry, request: Request):
+    """
+    Ingest a single structured log entry.
+    Open endpoint — called by internal agents, no auth required.
+    Rate-limited: 100 requests per 10 seconds per IP.
+    """
+    client_ip = request.client.host if request.client else "unknown"
+    if not _check_log_rate_limit(client_ip):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Max 100 log writes per 10 seconds.")
+
+    try:
+        log_id = db.log_structured(
+            agent_name=entry.agent_name,
+            log_level=entry.log_level.value,
+            log_category=entry.log_category.value,
+            message=entry.message,
+            application_id=entry.application_id,
+            error_type=entry.error_type,
+            stack_trace=entry.stack_trace,
+            llm_model_name=entry.llm_model_name,
+            tool_name=entry.tool_name,
+            input_data=entry.input_data,
+            output_data=entry.output_data,
+            execution_time_ms=entry.execution_time_ms,
+            metadata=entry.metadata,
+            timestamp=entry.timestamp,
+        )
+        return {"success": True, "log_id": log_id}
+    except Exception as exc:
+        logger.error("Failed to write log entry: %s", exc)
+        raise HTTPException(status_code=500, detail=f"Log write failed: {exc}")
+
+
+@app.post("/api/logs/bulk", status_code=201)
+def ingest_logs_bulk(payload: BulkLogRequest, request: Request):
+    """
+    Ingest multiple log entries in a single request.
+    Open endpoint — no auth required. Rate-limited.
+    """
+    client_ip = request.client.host if request.client else "unknown"
+    if not _check_log_rate_limit(client_ip):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded.")
+
+    if not payload.entries:
+        return {"success": True, "inserted": 0, "log_ids": []}
+
+    if len(payload.entries) > 200:
+        raise HTTPException(status_code=400, detail="Bulk request exceeds 200-entry limit.")
+
+    try:
+        dicts = [
+            {
+                "agent_name": e.agent_name,
+                "log_level": e.log_level.value,
+                "log_category": e.log_category.value,
+                "message": e.message,
+                "application_id": e.application_id,
+                "error_type": e.error_type,
+                "stack_trace": e.stack_trace,
+                "llm_model_name": e.llm_model_name,
+                "tool_name": e.tool_name,
+                "input_data": e.input_data,
+                "output_data": e.output_data,
+                "execution_time_ms": e.execution_time_ms,
+                "metadata": e.metadata,
+                "timestamp": e.timestamp,
+            }
+            for e in payload.entries
+        ]
+        ids = db.log_structured_bulk(dicts)
+        return {"success": True, "inserted": len(ids), "log_ids": ids}
+    except Exception as exc:
+        logger.error("Bulk log write failed: %s", exc)
+        raise HTTPException(status_code=500, detail=f"Bulk log write failed: {exc}")
+
+
+@app.get("/api/logs")
+def list_logs(
+    application_id: str | None = None,
+    agent_name: str | None = None,
+    log_level: str | None = None,
+    log_category: str | None = None,
+    llm_model_name: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    search: str | None = None,
+    page: int = 1,
+    limit: int = 50,
+    current_user: dict = Depends(require_role("admin")),
+):
+    """
+    List structured logs with filters and pagination.
+    Returns newest entries first.
+    Requires admin role.
+    """
+    if limit < 1 or limit > 200:
+        raise HTTPException(400, "limit must be between 1 and 200")
+    if page < 1:
+        raise HTTPException(400, "page must be >= 1")
+    try:
+        return db.get_logs(
+            application_id=application_id,
+            agent_name=agent_name,
+            log_level=log_level,
+            log_category=log_category,
+            llm_model_name=llm_model_name,
+            date_from=date_from,
+            date_to=date_to,
+            search=search,
+            page=page,
+            limit=limit,
+        )
+    except Exception as exc:
+        logger.error("get_logs failed: %s", exc)
+        raise HTTPException(500, f"Failed to retrieve logs: {exc}")
+
+
+@app.get("/api/logs/stats")
+def log_stats(
+    application_id: str | None = None,
+    agent_name: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    current_user: dict = Depends(require_role("admin")),
+):
+    """Return aggregate statistics from the logs table. Requires admin role."""
+    try:
+        return db.get_log_stats(
+            application_id=application_id,
+            agent_name=agent_name,
+            date_from=date_from,
+            date_to=date_to,
+        )
+    except Exception as exc:
+        raise HTTPException(500, f"Failed to retrieve log stats: {exc}")
+
+
+@app.get("/api/logs/health")
+def log_health(current_user: dict = Depends(require_role("admin"))):
+    """Return system health summary derived from log error rates. Requires admin role."""
+    try:
+        return db.get_log_health()
+    except Exception as exc:
+        raise HTTPException(500, f"Failed to retrieve log health: {exc}")
+
+
+@app.get("/api/logs/{log_id}")
+def get_log(
+    log_id: int,
+    current_user: dict = Depends(require_role("admin")),
+):
+    """Fetch a single log entry by ID. Requires admin role."""
+    entry = db.get_log_by_id(log_id)
+    if not entry:
+        raise HTTPException(404, f"Log entry {log_id} not found")
+    return entry

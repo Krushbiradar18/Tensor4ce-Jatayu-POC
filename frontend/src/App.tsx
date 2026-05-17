@@ -19,6 +19,7 @@ import OfficerAnalyticsPage from "./pages/officer/OfficerAnalyticsPage";
 import SeniorOfficerAnalyticsPage from "./pages/senior-officer/SeniorOfficerAnalyticsPage";
 import OfficerProfilePage from "./pages/officer/OfficerProfilePage";
 import AdminPanelPage from "./pages/admin/AdminPanelPage";
+import AdminLoggingPage from "./pages/admin/AdminLoggingPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -58,6 +59,7 @@ const App = () => (
               <Route path="dashboard" element={<OfficerDashboardPage />} />
               <Route path="analytics" element={<OfficerAnalyticsPage />} />
               <Route path="admin-panel" element={<AdminPanelPage />} />
+              <Route path="logs" element={<AdminLoggingPage />} />
             </Route>
           </Route>
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate, Outlet, Navigate } from "react-router-dom";
-import { ShieldCheck, LayoutDashboard, FileText, BarChart3, Settings, User, LogOut, Search, Menu, X, ShieldAlert } from "lucide-react";
+import { ShieldCheck, LayoutDashboard, FileText, BarChart3, Settings, User, LogOut, Search, Menu, X, ShieldAlert, ScrollText } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
@@ -11,6 +11,7 @@ const navByRole: Record<string, Array<{ to: string; icon: any; label: string }>>
     { to: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { to: "/admin/analytics", icon: BarChart3, label: "Analytics" },
     { to: "/admin/admin-panel", icon: ShieldAlert, label: "Admin Panel" },
+    { to: "/admin/logs", icon: ScrollText, label: "System Logs" },
   ],
   officer: [
     { to: "/officer/dashboard", icon: LayoutDashboard, label: "Dashboard" },
