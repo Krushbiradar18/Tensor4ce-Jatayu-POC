@@ -38,6 +38,7 @@ _UPLOAD_BASE = Path(__file__).resolve().parent / "data" / "uploads"
 # Silence LiteLLM console spam
 os.environ["LITELLM_LOG"] = "ERROR"
 
+# pyrefly: ignore [missing-import]
 from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Form, Depends
 from auth import (
     authenticate_user,
@@ -56,8 +57,11 @@ from auth import (
     verify_otp_code,
     verify_totp_code,
 )
+# pyrefly: ignore [missing-import]
 from fastapi.middleware.cors import CORSMiddleware
+# pyrefly: ignore [missing-import]
 from fastapi.staticfiles import StaticFiles
+# pyrefly: ignore [missing-import]
 from fastapi.responses import FileResponse
 
 from schemas import (
@@ -313,14 +317,18 @@ async def lifespan(app: FastAPI):
 
     # Pre-warm PaddleOCR so the first /api/extract-documents request is fast.
     # PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK skips the slow connectivity probe.
+    # SKIP_OCR_WARMUP=true skips warmup entirely (used in tests).
     os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
-    try:
-        from document_extractor import _get_ocr
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, _get_ocr)
-        logger.info("✓ PaddleOCR warmed up")
-    except Exception as e:
-        logger.warning(f"PaddleOCR warm-up skipped: {e}")
+    if os.environ.get("SKIP_OCR_WARMUP", "false").strip().lower() not in {"1", "true", "yes", "on"}:
+        try:
+            from document_extractor import _get_ocr
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, _get_ocr)
+            logger.info("✓ PaddleOCR warmed up")
+        except Exception as e:
+            logger.warning(f"PaddleOCR warm-up skipped: {e}")
+    else:
+        logger.info("PaddleOCR warm-up skipped (SKIP_OCR_WARMUP=true)")
 
     mode = _runtime_mode()
     logger.info(f"✓ System ready | Mode: {mode}")

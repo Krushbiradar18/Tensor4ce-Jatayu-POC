@@ -25,6 +25,7 @@ from typing import Optional
 # Force LiteLLM import for Groq provider support
 # This must happen before CrewAI checks for it
 try:
+    # pyrefly: ignore [missing-import]
     import litellm
     litellm.suppress_debug_info = True
     _LITELLM_AVAILABLE = True
@@ -73,6 +74,7 @@ def _has_gemini() -> bool:
 
 
 def _build_llm():
+    # pyrefly: ignore [missing-import]
     from crewai import LLM
     provider = os.environ.get("CREWAI_LLM_PROVIDER", "groq").strip().lower()
 
@@ -222,6 +224,7 @@ def run_via_crewai(app_id: str) -> dict:
     Manager LLM (Gemini) reasons about agent delegation and synthesises recommendation.
     Agents are contacted via A2A HTTP — each is a FastAPI sub-app.
     """
+    # pyrefly: ignore [missing-import]
     from crewai import Agent, Task, Crew, Process
     from orchestration.mcp_tools import (
         run_credit_model, run_fraud_model, 
@@ -332,45 +335,120 @@ def run_via_crewai(app_id: str) -> dict:
                                   gemini_reasoning=str(raw_result))
 
 
-# ── Direct Pipeline (no Gemini) ───────────────────────────────────────────────
+# ── Direct Pipeline (Autonomous LLM-Driven Ordering) ─────────────────────────
 
 def run_direct_pipeline(app_id: str) -> dict:
     """
-    Sequential A2A pipeline without CrewAI manager LLM.
-    Order: Credit Risk → Fraud (parallel-capable) → Compliance → Portfolio
-    Falls back to this when GEMINI_API_KEY is not set or ENABLE_CREWAI_MANAGER=false.
+    Autonomous A2A pipeline with LLM-driven dynamic agent ordering.
+
+    The LLM triage step analyses applicant features and determines the
+    optimal agent execution order, which agents to skip, and early-exit
+    conditions.  Falls back to the fixed credit→fraud→compliance→portfolio
+    sequence if triage is unavailable.
     """
-    from tools import _log_event, set_agent_output
+    from tools import _log_event, set_agent_output, get_agent_output
+    from autonomous_decision import llm_triage
 
-    _log_event(app_id, "orchestrator", "DIRECT_START", {"mode": "direct_a2a"})
+    # ── LLM Triage: determine dynamic execution plan ─────────────────────────
+    triage_plan = llm_triage(app_id)
+    agent_order = triage_plan["agent_order"]
+    skip_agents = set(triage_plan.get("skip_agents", []))
+    early_exit_rules = triage_plan.get("early_exit_if", {})
 
-    logger.info(f"[{app_id}] Running Credit Risk Agent via A2A...")
-    credit_out = _safe_call_agent("credit_risk", app_id)
-    set_agent_output(app_id, "credit", credit_out)
-    logger.info(f"[{app_id}] ✓ Credit: {credit_out.get('risk_band')} | PD={credit_out.get('credit_score', 0):.4f}")
+    _log_event(app_id, "orchestrator", "DIRECT_START", {
+        "mode": "autonomous_a2a",
+        "agent_order": agent_order,
+        "skip_agents": list(skip_agents),
+        "triage_hints": triage_plan.get("priority_hints", "")[:200],
+    })
+    logger.info(f"[{app_id}] Autonomous triage → order={agent_order}, skip={list(skip_agents)}")
 
-    logger.info(f"[{app_id}] Running Fraud Detection Agent via A2A...")
-    fraud_out = _safe_call_agent("fraud", app_id)
-    set_agent_output(app_id, "fraud", fraud_out)
-    logger.info(f"[{app_id}] ✓ Fraud: {fraud_out.get('fraud_level')} | Prob={fraud_out.get('fraud_probability', 0):.4f}")
+    # ── Agent name → A2A name mapping ─────────────────────────────────────────
+    a2a_name_map = {
+        "credit_risk": "credit_risk",
+        "fraud": "fraud",
+        "compliance": "compliance",
+        "portfolio": "portfolio",
+    }
+    store_key_map = {
+        "credit_risk": "credit",
+        "fraud": "fraud",
+        "compliance": "compliance",
+        "portfolio": "portfolio",
+    }
+    results: dict[str, dict] = {}
+    agents_run: list[str] = []
+    early_exited = False
 
-    logger.info(f"[{app_id}] Running Compliance Agent via A2A...")
-    comp_out = _safe_call_agent("compliance", app_id)
-    set_agent_output(app_id, "compliance", comp_out)
-    logger.info(f"[{app_id}] ✓ Compliance: {comp_out.get('overall_status')}")
+    for agent_name in agent_order:
+        if agent_name in skip_agents:
+            logger.info(f"[{app_id}] Skipping {agent_name} (LLM triage decision)")
+            results[agent_name] = _agent_fallback_output(
+                agent_name, app_id, "Skipped by LLM triage"
+            )
+            set_agent_output(app_id, store_key_map[agent_name], results[agent_name])
+            continue
 
-    logger.info(f"[{app_id}] Running Portfolio Agent via A2A (with credit context)...")
-    port_out = _safe_call_agent("portfolio", app_id, payload={"credit_risk_output": credit_out})
-    set_agent_output(app_id, "portfolio", port_out)
-    logger.info(f"[{app_id}] ✓ Portfolio: {port_out.get('portfolio_recommendation')}")
+        # Build payload (portfolio needs credit context)
+        payload = None
+        if agent_name == "portfolio":
+            credit_out = results.get("credit_risk") or get_agent_output(app_id, "credit") or {}
+            payload = {"credit_risk_output": credit_out}
 
-    _log_event(app_id, "orchestrator", "DIRECT_COMPLETE",
-               {"decision": None, "agents_run": ["credit_risk", "fraud", "compliance", "portfolio"]})
+        logger.info(f"[{app_id}] Running {agent_name} Agent via A2A...")
+        out = _safe_call_agent(a2a_name_map[agent_name], app_id, payload=payload)
+        results[agent_name] = out
+        set_agent_output(app_id, store_key_map[agent_name], out)
+        agents_run.append(agent_name)
+
+        # Log result summary
+        if agent_name == "credit_risk":
+            logger.info(f"[{app_id}] ✓ Credit: {out.get('risk_band')} | PD={out.get('credit_score', 0):.4f}")
+        elif agent_name == "fraud":
+            logger.info(f"[{app_id}] ✓ Fraud: {out.get('fraud_level')} | Prob={out.get('fraud_probability', 0):.4f}")
+        elif agent_name == "compliance":
+            logger.info(f"[{app_id}] ✓ Compliance: {out.get('overall_status')}")
+        elif agent_name == "portfolio":
+            logger.info(f"[{app_id}] ✓ Portfolio: {out.get('portfolio_recommendation')}")
+
+        # ── Check early-exit conditions ───────────────────────────────────────
+        exit_rule = early_exit_rules.get(agent_name, "")
+        should_exit = False
+        if exit_rule:
+            # Evaluate common early-exit patterns safely
+            if agent_name == "fraud" and out.get("fraud_level") == "HIGH_RISK":
+                should_exit = True
+            elif agent_name == "compliance" and not out.get("all_blocks_passed", True):
+                should_exit = True
+        if should_exit:
+            logger.info(f"[{app_id}] Early exit triggered after {agent_name}: {exit_rule}")
+            _log_event(app_id, "orchestrator", "EARLY_EXIT", {
+                "trigger_agent": agent_name, "rule": exit_rule,
+            })
+            early_exited = True
+            # Fill remaining agents with fallbacks
+            for remaining in agent_order:
+                if remaining not in results:
+                    results[remaining] = _agent_fallback_output(
+                        remaining, app_id, f"Skipped: early exit after {agent_name}"
+                    )
+                    set_agent_output(app_id, store_key_map[remaining], results[remaining])
+            break
+
+    credit_out = results.get("credit_risk", _agent_fallback_output("credit_risk", app_id, "not run"))
+    fraud_out  = results.get("fraud", _agent_fallback_output("fraud", app_id, "not run"))
+    comp_out   = results.get("compliance", _agent_fallback_output("compliance", app_id, "not run"))
+    port_out   = results.get("portfolio", _agent_fallback_output("portfolio", app_id, "not run"))
+
+    _log_event(app_id, "orchestrator", "DIRECT_COMPLETE", {
+        "agents_run": agents_run,
+        "early_exited": early_exited,
+    })
 
     return _build_final_decision(app_id, credit_out, fraud_out, comp_out, port_out)
 
 
-# ── Decision Builder ──────────────────────────────────────────────────────────
+# ── Decision Builder (Autonomous LLM Synthesis) ──────────────────────────────
 
 def _build_final_decision(
     app_id: str,
@@ -380,22 +458,44 @@ def _build_final_decision(
     port_out: dict,
     gemini_reasoning: str = "",
 ) -> dict:
-    """Assemble FinalDecision from A2A typed outputs and apply decision matrix."""
-    from crew_runner import _apply_matrix
+    """
+    Assemble FinalDecision using autonomous LLM synthesis.
+
+    Flow:
+      1. Call llm_synthesize_decision() for autonomous LLM-driven decision
+      2. Apply hard Python guardrails AFTER LLM decision (immutable safety net)
+      3. Force ESCALATE if any agent had errors
+      4. Assemble the complete FinalDecision dict
+
+    Fallback: if LLM synthesis fails, falls back to _apply_matrix() internally.
+    """
+    from autonomous_decision import llm_synthesize_decision
     from dil import get_context
 
     ctx_obj = get_context(app_id)
     ctx     = ctx_obj.model_dump(mode="json") if ctx_obj else {}
 
-    # ── Apply decision matrix (pure Python) ──────────────────────────────────
-    decision, row, conditions, max_amount = _apply_matrix(
-        credit_out, fraud_out, comp_out, port_out, ctx
+    # ── Step 1: Autonomous LLM Decision Synthesis ────────────────────────────
+    synthesis = llm_synthesize_decision(
+        app_id, credit_out, fraud_out, comp_out, port_out, ctx
     )
 
-    # ── Apply hard Python guardrails AFTER matrix ─────────────────────────
-    decision = _apply_hard_guardrails(decision, comp_out, fraud_out)
+    decision    = synthesis["ai_recommendation"]
+    conditions  = synthesis.get("conditions", [])
+    max_amount  = synthesis.get("max_approvable_amount")
+    row         = synthesis.get("decision_matrix_row", f"LLM_{decision}")
+    decision_source = synthesis.get("decision_source", "llm_autonomous")
 
-    # Any fallback/error output forces manual escalation.
+    # ── Step 2: Apply hard Python guardrails AFTER LLM ───────────────────────
+    original_decision = decision
+    decision = _apply_hard_guardrails(decision, comp_out, fraud_out)
+    if decision != original_decision:
+        logger.warning(
+            f"[{app_id}] Hard guardrail overrode LLM decision: {original_decision} → {decision}"
+        )
+        row = f"GUARDRAIL_OVERRIDE_{decision}"
+
+    # ── Step 3: Force ESCALATE if any agent had errors ───────────────────────
     output_errors = [
         credit_out.get("error"),
         fraud_out.get("error"),
@@ -413,11 +513,25 @@ def _build_final_decision(
             "required_by_days": 1,
         })
 
-    # ── Officer summary ───────────────────────────────────────────────────────
+    # ── Step 4: Build officer summary ─────────────────────────────────────────
+    # Use LLM-generated summary if available, otherwise build template
+    llm_summary = synthesis.get("officer_summary", "")
+    reasoning_chain = synthesis.get("reasoning_chain", "")
+
     lines = [
-        f"AI RECOMMENDATION: {decision}",
-        f"Matrix rule matched: {row}",
+        f"AI RECOMMENDATION: {decision}  [{decision_source}]",
+        f"Decision path: {row}",
+    ]
+
+    if llm_summary and decision_source == "llm_autonomous":
+        lines += ["", "═══ LLM DECISION REASONING ═══", llm_summary]
+        if reasoning_chain:
+            lines += ["", "═══ REASONING CHAIN ═══", reasoning_chain[:400]]
+    
+    # Always include factual agent data for audit
+    lines += [
         "",
+        "═══ AGENT OUTPUTS (FACTUAL) ═══",
         f"CREDIT RISK:  {credit_out.get('risk_band', '—')} | PD={credit_out.get('credit_score', 0):.2%} | FOIR={credit_out.get('foir', 0):.1%} | Surplus ₹{credit_out.get('net_monthly_surplus', 0):,.0f}/mo",
         f"FRAUD:        {fraud_out.get('fraud_level', '—')} | Prob={fraud_out.get('fraud_probability', 0):.2%} | Hard rules: {len(fraud_out.get('fired_hard_rules', []))}",
         f"COMPLIANCE:   {comp_out.get('overall_status', '—')} | Blocks: {len(comp_out.get('block_flags', []))} | Warns: {len(comp_out.get('warn_flags', []))}",
@@ -432,7 +546,7 @@ def _build_final_decision(
     if port_out.get("cot_reasoning"):
         lines.append(f"Portfolio: {port_out['cot_reasoning'][:200]}")
     if gemini_reasoning:
-        lines += ["", f"[CrewAI Manager Reasoning (truncated)]: {gemini_reasoning[:300]}"]
+        lines += ["", f"[CrewAI Manager Reasoning]: {gemini_reasoning[:300]}"]
     if conditions:
         lines += ["", "CONDITIONS:"]
         for c in conditions:
@@ -443,6 +557,7 @@ def _build_final_decision(
         "application_id":        app_id,
         "ai_recommendation":     decision,
         "decision_matrix_row":   row,
+        "decision_source":       decision_source,
         "conditions":            conditions,
         "max_approvable_amount": max_amount,
         "credit_risk":           credit_out,
@@ -450,6 +565,8 @@ def _build_final_decision(
         "compliance":            comp_out,
         "portfolio":             port_out,
         "officer_summary":       "\n".join(lines),
+        "reasoning_chain":       reasoning_chain,
+        "llm_confidence":        synthesis.get("confidence"),
         "context":               ctx,
         "decided_at":            datetime.utcnow().isoformat(),
     }
