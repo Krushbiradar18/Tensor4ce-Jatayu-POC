@@ -1,0 +1,273 @@
+{
+  "results": [
+    {
+      "agent": "credit_risk",
+      "scenario": "GOOD",
+      "time_score_ms": 0.0,
+      "time_narrative_ms": 518.6,
+      "time_total_ms": 518.6,
+      "pd": 0.005667,
+      "risk_band": "LOW",
+      "factors_count": 8,
+      "narrative_length": 379,
+      "has_narrative": true
+    },
+    {
+      "agent": "fraud",
+      "scenario": "GOOD",
+      "time_checks_ms": 0.0,
+      "time_explain_ms": 0,
+      "time_total_ms": 0.0,
+      "fraud_level": "CLEAN",
+      "fraud_probability": 0.105,
+      "hard_rules_fired": 0,
+      "soft_signals_fired": 0,
+      "has_explanation": false
+    },
+    {
+      "agent": "compliance",
+      "scenario": "GOOD",
+      "time_rules_ms": 0.3,
+      "time_rag_ms": 7.7,
+      "time_cot_ms": 0.0,
+      "time_total_ms": 7.9,
+      "overall_status": "PASS",
+      "blocks": 0,
+      "warnings": 0,
+      "rag_citations": 0,
+      "has_cot": false
+    },
+    {
+      "agent": "decision_matrix",
+      "scenario": "GOOD",
+      "time_ms": 0.0,
+      "decision": "APPROVE",
+      "matrix_row": "R7e_CLEAN_APPROVE",
+      "conditions_count": 0
+    },
+    {
+      "agent": "credit_risk",
+      "scenario": "BAD",
+      "time_score_ms": 0.0,
+      "time_narrative_ms": 480.4,
+      "time_total_ms": 480.5,
+      "pd": 0.838333,
+      "risk_band": "VERY_HIGH",
+      "factors_count": 7,
+      "narrative_length": 376,
+      "has_narrative": true
+    },
+    {
+      "agent": "fraud",
+      "scenario": "BAD",
+      "time_checks_ms": 0.0,
+      "time_explain_ms": 672.9,
+      "time_total_ms": 672.9,
+      "fraud_level": "HIGH_RISK",
+      "fraud_probability": 0.95,
+      "hard_rules_fired": 5,
+      "soft_signals_fired": 5,
+      "has_explanation": true
+    },
+    {
+      "agent": "compliance",
+      "scenario": "BAD",
+      "time_rules_ms": 0.9,
+      "time_rag_ms": 0.0,
+      "time_cot_ms": 869.3,
+      "time_total_ms": 870.1,
+      "overall_status": "BLOCK_FAIL",
+      "blocks": 3,
+      "warnings": 1,
+      "rag_citations": 0,
+      "has_cot": true
+    },
+    {
+      "agent": "decision_matrix",
+      "scenario": "BAD",
+      "time_ms": 0.0,
+      "decision": "REJECT",
+      "matrix_row": "R1_COMPLIANCE_BLOCK(C002, C006, C010)",
+      "conditions_count": 0
+    },
+    {
+      "agent": "credit_risk",
+      "scenario": "BORDERLINE",
+      "time_score_ms": 0.0,
+      "time_narrative_ms": 530.3,
+      "time_total_ms": 530.3,
+      "pd": 0.265667,
+      "risk_band": "HIGH",
+      "factors_count": 8,
+      "narrative_length": 376,
+      "has_narrative": true
+    },
+    {
+      "agent": "fraud",
+      "scenario": "BORDERLINE",
+      "time_checks_ms": 0.0,
+      "time_explain_ms": 518.2,
+      "time_total_ms": 518.2,
+      "fraud_level": "SUSPICIOUS",
+      "fraud_probability": 0.39,
+      "hard_rules_fired": 0,
+      "soft_signals_fired": 1,
+      "has_explanation": true
+    },
+    {
+      "agent": "compliance",
+      "scenario": "BORDERLINE",
+      "time_rules_ms": 0.5,
+      "time_rag_ms": 0.0,
+      "time_cot_ms": 0.0,
+      "time_total_ms": 0.5,
+      "overall_status": "PASS",
+      "blocks": 0,
+      "warnings": 0,
+      "rag_citations": 0,
+      "has_cot": false
+    },
+    {
+      "agent": "decision_matrix",
+      "scenario": "BORDERLINE",
+      "time_ms": 0.0,
+      "decision": "ESCALATE",
+      "matrix_row": "R5_HIGH_RISK_ESCALATE",
+      "conditions_count": 0
+    }
+  ],
+  "accuracy": [
+    {
+      "scenario": "GOOD",
+      "agent": "credit_risk",
+      "field": "risk_band",
+      "expected": [
+        "LOW",
+        "MEDIUM"
+      ],
+      "actual": "LOW",
+      "pass": true
+    },
+    {
+      "scenario": "GOOD",
+      "agent": "fraud",
+      "field": "fraud_level",
+      "expected": [
+        "CLEAN",
+        "LOW_RISK"
+      ],
+      "actual": "CLEAN",
+      "pass": true
+    },
+    {
+      "scenario": "GOOD",
+      "agent": "compliance",
+      "field": "overall_status",
+      "expected": [
+        "PASS",
+        "PASS_WITH_WARNINGS"
+      ],
+      "actual": "PASS",
+      "pass": true
+    },
+    {
+      "scenario": "GOOD",
+      "agent": "decision_matrix",
+      "field": "decision",
+      "expected": [
+        "APPROVE",
+        "CONDITIONAL"
+      ],
+      "actual": "APPROVE",
+      "pass": true
+    },
+    {
+      "scenario": "BAD",
+      "agent": "credit_risk",
+      "field": "risk_band",
+      "expected": [
+        "VERY_HIGH",
+        "HIGH"
+      ],
+      "actual": "VERY_HIGH",
+      "pass": true
+    },
+    {
+      "scenario": "BAD",
+      "agent": "fraud",
+      "field": "fraud_level",
+      "expected": [
+        "HIGH_RISK"
+      ],
+      "actual": "HIGH_RISK",
+      "pass": true
+    },
+    {
+      "scenario": "BAD",
+      "agent": "compliance",
+      "field": "overall_status",
+      "expected": [
+        "BLOCK_FAIL"
+      ],
+      "actual": "BLOCK_FAIL",
+      "pass": true
+    },
+    {
+      "scenario": "BAD",
+      "agent": "decision_matrix",
+      "field": "decision",
+      "expected": [
+        "REJECT"
+      ],
+      "actual": "REJECT",
+      "pass": true
+    },
+    {
+      "scenario": "BORDERLINE",
+      "agent": "credit_risk",
+      "field": "risk_band",
+      "expected": [
+        "MEDIUM",
+        "HIGH"
+      ],
+      "actual": "HIGH",
+      "pass": true
+    },
+    {
+      "scenario": "BORDERLINE",
+      "agent": "fraud",
+      "field": "fraud_level",
+      "expected": [
+        "CLEAN",
+        "LOW_RISK",
+        "SUSPICIOUS"
+      ],
+      "actual": "SUSPICIOUS",
+      "pass": true
+    },
+    {
+      "scenario": "BORDERLINE",
+      "agent": "compliance",
+      "field": "overall_status",
+      "expected": [
+        "PASS",
+        "PASS_WITH_WARNINGS"
+      ],
+      "actual": "PASS",
+      "pass": true
+    },
+    {
+      "scenario": "BORDERLINE",
+      "agent": "decision_matrix",
+      "field": "decision",
+      "expected": [
+        "CONDITIONAL",
+        "ESCALATE",
+        "APPROVE"
+      ],
+      "actual": "ESCALATE",
+      "pass": true
+    }
+  ],
+  "timestamp": "2026-05-17T11:22:14"
+}

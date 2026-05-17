@@ -195,7 +195,7 @@ def _compute_pd(features: dict, macro: dict) -> dict:
 
     if pd_val < 0.02: rb = "LOW"
     elif pd_val < 0.08: rb = "MEDIUM"
-    elif pd_val < 0.18: rb = "HIGH"
+    elif pd_val < 0.30: rb = "HIGH"
     else: rb = "VERY_HIGH"
 
     return {"pd": round(pd_val, 6), "risk_band": rb, "shap_factors": factors,

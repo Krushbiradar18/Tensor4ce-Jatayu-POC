@@ -47,8 +47,8 @@ def get_llm_response(prompt: str, max_tokens: int = 1000) -> str:
     Uses a global semaphore to ensure only one call is active at a time.
     """
     with _LLM_SEMAPHORE:
-        # Add a tiny buffer between calls to respect burst limits
-        time.sleep(0.5)
+        # 100ms buffer between calls — sufficient for Groq/Gemini rate limits
+        time.sleep(0.1)
 
         if LLM_BACKEND == "groq":
             return _call_groq(prompt, max_tokens)
