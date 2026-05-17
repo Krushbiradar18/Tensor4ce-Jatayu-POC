@@ -722,6 +722,8 @@ async def resubmit_documents(
     bank_statement: UploadFile = File(None),
     salary_slip: UploadFile = File(None),
     itr: UploadFile = File(None),
+    aadhaar: UploadFile = File(None),
+    pan: UploadFile = File(None),
 ):
     """
     Re-upload missing documents and/or correct income for a DATA_REQUIRED application.
@@ -740,7 +742,7 @@ async def resubmit_documents(
     app_doc_dir.mkdir(parents=True, exist_ok=True)
 
     saved_files: dict[str, str] = {}
-    for field_name, upload in [("bank_statement", bank_statement), ("salary_slip", salary_slip), ("itr", itr)]:
+    for field_name, upload in [("bank_statement", bank_statement), ("salary_slip", salary_slip), ("itr", itr), ("aadhaar", aadhaar), ("pan", pan)]:
         if upload is None:
             continue
         suffix = Path(upload.filename or "file").suffix or ".png"
@@ -751,11 +753,16 @@ async def resubmit_documents(
         logger.info("[%s] Resubmit: saved %s → %s", app_id, field_name, dest)
 
     # ── Re-run vision extraction on newly uploaded files ─────────────────────
-    from document_extractor import extract_financial_from_image
+    from document_extractor import extract_financial_from_image, extract_from_image, extract_from_aadhaar_pdf, extract_from_pan_pdf
     new_doc_data: dict[str, dict] = {}
     for field_name, path in saved_files.items():
         try:
-            result = extract_financial_from_image(path, field_name)
+            if field_name in ["bank_statement", "salary_slip", "itr"]:
+                result = extract_financial_from_image(path, field_name)
+            elif field_name == "aadhaar":
+                result = extract_from_aadhaar_pdf(path) if path.lower().endswith(".pdf") else extract_from_image(path, field_name)
+            elif field_name == "pan":
+                result = extract_from_pan_pdf(path) if path.lower().endswith(".pdf") else extract_from_image(path, field_name)
             new_doc_data[field_name] = result
             logger.info("[%s] Resubmit: extracted %s → %s", app_id, field_name, result)
         except Exception as e:

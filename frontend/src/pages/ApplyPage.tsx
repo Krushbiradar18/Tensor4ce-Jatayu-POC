@@ -127,16 +127,18 @@ export default function ApplyPage() {
     const updatedDocs = [...docs, ...newFiles];
     setDocs(updatedDocs);
     
-    // Identify Aadhaar and PAN by filename or type if possible, 
-    // but for PoC we can just try extracting from whatever was uploaded.
+    // Identify documents by filename or type if possible
     const aadhaar = updatedDocs.find(f => f.name.toLowerCase().includes("aadhaar") || f.name.toLowerCase().includes("id"));
     const pan = updatedDocs.find(f => f.name.toLowerCase().includes("pan"));
+    const bankStatement = updatedDocs.find(f => f.name.toLowerCase().includes("bank_statement") || f.name.toLowerCase().includes("bank"));
+    const salarySlip = updatedDocs.find(f => f.name.toLowerCase().includes("salary_slip") || f.name.toLowerCase().includes("salary"));
+    const itr = updatedDocs.find(f => f.name.toLowerCase().includes("itr"));
 
-    if (aadhaar || pan) {
+    if (aadhaar || pan || bankStatement || salarySlip || itr) {
       setIsProcessingOcr(true);
 
       try {
-        const data = await extractDocuments(aadhaar, pan);
+        const data = await extractDocuments(aadhaar, pan, bankStatement, salarySlip, itr);
         console.log("OCR Result:", data);
         setOcrData(data);
         

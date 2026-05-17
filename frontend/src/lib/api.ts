@@ -169,13 +169,15 @@ export async function getApplicationStatus(appId: string): Promise<ApplicationRe
 export async function resubmitDocuments(
   appId: string,
   annualIncome: number | null,
-  files: { bankStatement?: File; salarySlip?: File; itr?: File }
+  files: { bankStatement?: File; salarySlip?: File; itr?: File; aadhaar?: File; pan?: File }
 ): Promise<ApplicationResponse> {
   const form = new FormData();
   if (annualIncome !== null) form.append("annual_income", String(annualIncome));
   if (files.bankStatement) form.append("bank_statement", files.bankStatement);
   if (files.salarySlip)    form.append("salary_slip", files.salarySlip);
   if (files.itr)           form.append("itr", files.itr);
+  if (files.aadhaar)       form.append("aadhaar", files.aadhaar);
+  if (files.pan)           form.append("pan", files.pan);
 
   const response = await fetch(`${API_BASE}/resubmit/${appId}`, {
     method: "POST",
@@ -228,10 +230,19 @@ export async function submitOfficerAction(
   return response.json();
 }
 
-export async function extractDocuments(aadhaarFile?: File, panFile?: File): Promise<any> {
+export async function extractDocuments(
+  aadhaarFile?: File,
+  panFile?: File,
+  bankStatementFile?: File,
+  salarySlipFile?: File,
+  itrFile?: File
+): Promise<any> {
   const formData = new FormData();
   if (aadhaarFile) formData.append("aadhaar", aadhaarFile);
   if (panFile) formData.append("pan", panFile);
+  if (bankStatementFile) formData.append("bank_statement", bankStatementFile);
+  if (salarySlipFile) formData.append("salary_slip", salarySlipFile);
+  if (itrFile) formData.append("itr", itrFile);
 
   const response = await fetch(`${API_BASE}/extract-documents`, {
     method: "POST",

@@ -37,13 +37,15 @@ export default function TrackPage() {
   // Resubmit state
   const [resubmitIncome, setResubmitIncome] = useState("");
   const [resubmitFiles, setResubmitFiles] = useState<{
-    bankStatement?: File; salarySlip?: File; itr?: File;
+    bankStatement?: File; salarySlip?: File; itr?: File; aadhaar?: File; pan?: File;
   }>({});
   const [resubmitLoading, setResubmitLoading] = useState(false);
   const [resubmitDone, setResubmitDone] = useState(false);
   const bankRef = useRef<HTMLInputElement>(null);
   const salaryRef = useRef<HTMLInputElement>(null);
   const itrRef = useRef<HTMLInputElement>(null);
+  const aadhaarRef = useRef<HTMLInputElement>(null);
+  const panRef = useRef<HTMLInputElement>(null);
 
   const handleSearch = async () => {
     if (!searchId.trim()) return;
@@ -255,9 +257,45 @@ export default function TrackPage() {
                           onChange={(e) => setResubmitFiles(f => ({ ...f, itr: e.target.files?.[0] }))} />
                       </div>
 
+                      {/* Aadhaar */}
+                      {app.decision?.required_documents?.some((d: any) => d.doc === "AADHAAR") && (
+                        <div className="space-y-1">
+                          <label className="text-xs text-muted-foreground font-medium">Aadhaar Card (PDF / image)</label>
+                          <div
+                            className="flex items-center gap-3 cursor-pointer bg-background/50 border border-dashed border-warning/30 rounded-xl p-3 hover:border-warning/60 transition-colors"
+                            onClick={() => aadhaarRef.current?.click()}
+                          >
+                            <Upload className="h-4 w-4 text-warning flex-shrink-0" />
+                            <span className="text-sm text-muted-foreground">
+                              {resubmitFiles.aadhaar ? resubmitFiles.aadhaar.name : "Click to choose file"}
+                            </span>
+                          </div>
+                          <input ref={aadhaarRef} type="file" accept=".pdf,.png,.jpg,.jpeg" className="hidden"
+                            onChange={(e) => setResubmitFiles(f => ({ ...f, aadhaar: e.target.files?.[0] }))} />
+                        </div>
+                      )}
+
+                      {/* PAN */}
+                      {app.decision?.required_documents?.some((d: any) => d.doc === "PAN") && (
+                        <div className="space-y-1">
+                          <label className="text-xs text-muted-foreground font-medium">PAN Card (PDF / image)</label>
+                          <div
+                            className="flex items-center gap-3 cursor-pointer bg-background/50 border border-dashed border-warning/30 rounded-xl p-3 hover:border-warning/60 transition-colors"
+                            onClick={() => panRef.current?.click()}
+                          >
+                            <Upload className="h-4 w-4 text-warning flex-shrink-0" />
+                            <span className="text-sm text-muted-foreground">
+                              {resubmitFiles.pan ? resubmitFiles.pan.name : "Click to choose file"}
+                            </span>
+                          </div>
+                          <input ref={panRef} type="file" accept=".pdf,.png,.jpg,.jpeg" className="hidden"
+                            onChange={(e) => setResubmitFiles(f => ({ ...f, pan: e.target.files?.[0] }))} />
+                        </div>
+                      )}
+
                       <Button
                         onClick={handleResubmit}
-                        disabled={resubmitLoading || (!resubmitIncome && !resubmitFiles.bankStatement && !resubmitFiles.salarySlip && !resubmitFiles.itr)}
+                        disabled={resubmitLoading || (!resubmitIncome && !resubmitFiles.bankStatement && !resubmitFiles.salarySlip && !resubmitFiles.itr && !resubmitFiles.aadhaar && !resubmitFiles.pan)}
                         className="w-full h-11 bg-warning text-warning-foreground hover:bg-warning/90 font-bold"
                       >
                         {resubmitLoading
