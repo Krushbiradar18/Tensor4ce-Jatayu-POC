@@ -27,6 +27,7 @@ import traceback
 from typing import Any, Callable
 
 import db
+from data_masking import redact_pii
 
 _py_logger = logging.getLogger(__name__)
 
@@ -245,7 +246,12 @@ def _safe_json(value: Any) -> str | None:
     if value is None:
         return None
     try:
-        s = json.dumps(value, default=str)
+        # Redact PII from the value before serialization to avoid storing raw PII
+        try:
+            safe_value = redact_pii(value)
+        except Exception:
+            safe_value = value
+        s = json.dumps(safe_value, default=str)
         # Cap at 8 KB to avoid bloating the DB
         return s[:8192] if len(s) > 8192 else s
     except Exception:

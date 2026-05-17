@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Eye, ChevronLeft, ChevronRight, Search, RefreshCw } from "lucide-react";
 import { getOfficerQueue } from "@/lib/api";
+import { maskEmail, maskPhone } from "@/lib/masking";
 import { useQuery } from "@tanstack/react-query";
 
 const statusColors: Record<string, string> = {
@@ -183,6 +184,13 @@ export default function OfficerApplicationsPage() {
                   const payload = safeParse(a.raw_payload);
                   const applicantName = payload.applicant_name || "—";
                   const email = payload.email || "";
+                  // Mask email for officer UI to avoid exposing full PII
+                  const maskEmailSafe = (s: any) => {
+                    try { return maskEmail(String(s || "")); } catch (e) { return String(s || ""); }
+                  };
+                  const maskPhoneSafe = (s: any) => {
+                    try { return maskPhone(String(s || "")); } catch (e) { return String(s || ""); }
+                  };
                   const loanType = payload.loan_purpose || "—";
                   const loanAmount = payload.loan_amount_requested || 0;
                   
@@ -211,7 +219,7 @@ export default function OfficerApplicationsPage() {
                       </td>
                       <td className="p-3">
                         <div className="text-foreground font-semibold">{applicantName}</div>
-                        <div className="text-xs text-muted-foreground truncate max-w-[150px]">{email}</div>
+                        <div className="text-xs text-muted-foreground truncate max-w-[150px]">{maskEmailSafe(email)}{(payload.phone || payload.mobile_number) ? ` • ${maskPhoneSafe(payload.phone || payload.mobile_number)}` : ''}</div>
                       </td>
                       <td className="p-3 hidden sm:table-cell text-muted-foreground capitalize">{loanType.toLowerCase()}</td>
                       <td className="p-3 hidden md:table-cell text-foreground font-semibold">₹{loanAmount.toLocaleString()}</td>

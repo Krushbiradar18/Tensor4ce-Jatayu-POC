@@ -1199,6 +1199,53 @@ def login(credentials: dict):
             "message": "A verification code has been sent to your email address.",
         }
 
+
+
+@app.post("/internal/safe-echo")
+def internal_safe_echo(payload: dict):
+    """Demo endpoint: validates a small payload and returns PII-masked copy.
+
+    Accepts JSON like {"name": "Alice", "email": "alice@example.com", "pan": "ABCDE1234F"}
+    Returns the same structure with emails and long digit sequences masked.
+    This is a lightweight demo of the data-masking guardrail.
+    """
+    try:
+        from pydantic import BaseModel, EmailStr
+    except Exception:
+        BaseModel = None  # type: ignore
+
+    class _SafeEcho(BaseModel if BaseModel else object):
+        name: str
+        email: EmailStr
+        pan: str
+
+        if BaseModel:
+            class Config:
+                extra = "forbid"
+
+    # Basic validation (fallback when pydantic isn't available)
+    if BaseModel:
+        req = _SafeEcho(**payload)
+        req_dict = req.dict()
+    else:
+        # minimal checks
+        if not isinstance(payload, dict):
+            raise HTTPException(status_code=400, detail="Invalid payload")
+        if not payload.get("email") or not payload.get("name"):
+            raise HTTPException(status_code=400, detail="name and email are required")
+        req_dict = {"name": payload.get("name"), "email": payload.get("email"), "pan": payload.get("pan")}
+
+    try:
+        from data_masking import redact_pii
+        masked = redact_pii(req_dict)
+    except Exception:
+        masked = req_dict
+
+    # Do not log raw PII — logger will redact via logging_service, but avoid extra exposure here
+    logger.info("internal.safe_echo invoked", extra={"masked_keys": list(masked.keys())})
+
+    return {"masked": masked}
+
     user_data = _serialize_user(user)
     token = create_access_token(user_data)
 

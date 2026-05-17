@@ -11,6 +11,7 @@ import {
   ShieldCheck, Activity 
 } from "lucide-react";
 import { getFullDecision, submitOfficerAction } from "@/lib/api";
+import { maskEmail } from "@/lib/masking";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 
@@ -138,10 +139,16 @@ export default function OfficerApplicationDetailPage() {
             </span>
             ARIA AI Deep Risk Intelligence Active
           </p>
-          <p className="text-[10px] text-muted-foreground flex items-center gap-2 mt-3 font-mono opacity-60">
+            <p className="text-[10px] text-muted-foreground flex items-center gap-2 mt-3 font-mono opacity-60">
             <span>REFERENCE: {id}</span>
             <span>•</span>
-            <span className="lowercase">{formData.email}</span>
+            <span className="lowercase">{maskEmail(String(formData.email || ""))}</span>
+            { (formData.phone || formData.mobile_number) && (
+              <>
+                <span>•</span>
+                <span className="lowercase">{maskPhone(String(formData.phone || formData.mobile_number || ""))}</span>
+              </>
+            ) }
           </p>
         </div>
       </div>
