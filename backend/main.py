@@ -280,6 +280,10 @@ logging.getLogger("litellm").setLevel(logging.WARNING)
 logging.getLogger("crewai").setLevel(logging.INFO)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
+# Lazy ProcessPoolExecutor for running CPU/LLM-heavy pipelines in separate processes.
+# Created on first use to avoid spawning worker processes at import time (Windows-safe).
+_pipeline_executor = None
+
 
 # ── Lifespan (startup/shutdown) ────────────────────────────────────────────────
 
@@ -342,6 +346,16 @@ async def lifespan(app: FastAPI):
     # Shutdown: flush and stop the DB log writer thread
     try:
         remove_db_logging_handler()
+    except Exception:
+        pass
+    # Shutdown pipeline executor if it was created
+    try:
+        global _pipeline_executor
+        if _pipeline_executor:
+            try:
+                _pipeline_executor.shutdown(wait=True)
+            except Exception:
+                pass
     except Exception:
         pass
 
@@ -711,9 +725,17 @@ async def _run_bg(app_id: str, form_data: dict, ip_meta: dict):
     """
     from orchestration.crew import run_crew_pipeline
     try:
+        # Lazily create a ProcessPoolExecutor so CPU/LLM-heavy work runs in separate processes
+        # (safer than threads for blocking native libs and avoids creating processes at import time).
+        from concurrent.futures import ProcessPoolExecutor
+        global _pipeline_executor
+        if _pipeline_executor is None:
+            max_workers = int(os.environ.get("PIPELINE_PROCESSES", os.cpu_count() or 2))
+            _pipeline_executor = ProcessPoolExecutor(max_workers=max_workers)
+
         loop = asyncio.get_event_loop()
-        # Run in a background thread
-        await loop.run_in_executor(None, run_crew_pipeline, app_id, form_data, ip_meta)
+        # Run the synchronous pipeline in a separate process
+        await loop.run_in_executor(_pipeline_executor, run_crew_pipeline, app_id, form_data, ip_meta)
     except Exception as e:
         import traceback
         err_msg = f"MAIN PIPELINE ERROR: {str(e)}\n{traceback.format_exc()}"
