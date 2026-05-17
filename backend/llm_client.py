@@ -19,13 +19,16 @@ import threading
 import time
 
 try:
+    # pyrefly: ignore [missing-import]
     from dotenv import load_dotenv
     load_dotenv()
 except ImportError:
     pass
 
 try:
+    # pyrefly: ignore [missing-import]
     import litellm
+    # pyrefly: ignore [missing-import]
     from litellm.caching import Cache
     litellm.cache = Cache() # Local in-memory cache
 except ImportError:
@@ -60,6 +63,7 @@ def get_llm_response(prompt: str, max_tokens: int = 1000) -> str:
 
 def _call_groq(prompt: str, max_tokens: int) -> str:
     """Call Groq API using the groq SDK."""
+    # pyrefly: ignore [missing-import]
     from groq import Groq
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
@@ -92,6 +96,7 @@ def _call_gemini(prompt: str, max_tokens: int) -> str:
 
     # Try new google.genai SDK (google-genai package)
     try:
+        # pyrefly: ignore [missing-import]
         from google import genai
         client = genai.Client(api_key=api_key)
         response = client.models.generate_content(

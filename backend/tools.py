@@ -16,6 +16,7 @@ from __future__ import annotations
 import os, json, hashlib, logging, re, urllib.request, urllib.error
 from pathlib import Path
 from typing import Optional
+# pyrefly: ignore [missing-import]
 from crewai.tools import tool
 
 logger = logging.getLogger(__name__)
